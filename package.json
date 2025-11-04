@@ -1,0 +1,26 @@
+{
+  "name": "fsdp2025-eatable",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Community-driven hawker centre eMenu platform",
+  "scripts": {
+    "dev": "pnpm --parallel -r dev",
+    "dev:client": "pnpm --filter client dev",
+    "dev:server": "pnpm --filter server dev",
+    "build": "pnpm -r build",
+    "build:client": "pnpm --filter client build",
+    "build:server": "pnpm --filter server build",
+    "prisma:generate": "pnpm --filter server prisma:generate",
+    "prisma:migrate": "pnpm --filter server prisma:migrate",
+    "prisma:studio": "pnpm --filter server prisma:studio",
+    "prisma:seed": "pnpm --filter server prisma:seed",
+    "format": "prettier --write \"**/*.{js,jsx,json,md}\""
+  },
+  "devDependencies": {
+    "prettier": "^3.1.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  }
+}

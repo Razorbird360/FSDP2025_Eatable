@@ -1,0 +1,51 @@
+import { stallsService } from '../services/stalls.service.js';
+
+export const stallsController = {
+  async getAll(req, res, next) {
+    try {
+      const stalls = await stallsService.getAll();
+      res.json(stalls);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async getById(req, res, next) {
+    try {
+      const stall = await stallsService.getById(req.params.id);
+      if (!stall) {
+        return res.status(404).json({ error: 'Stall not found' });
+      }
+      res.json(stall);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async create(req, res, next) {
+    try {
+      const stall = await stallsService.create(req.body);
+      res.status(201).json(stall);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async update(req, res, next) {
+    try {
+      const stall = await stallsService.update(req.params.id, req.body);
+      res.json(stall);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async delete(req, res, next) {
+    try {
+      await stallsService.delete(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  },
+};
