@@ -1,9 +1,10 @@
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import RootLayout from '../layouts/RootLayout';
 import ProtectedLayout from '../layouts/ProtectedLayout';
+import HomePage from '../pages/HomePage';
+import AboutPage from '../pages/AboutPage';
 
 // Placeholder pages - to be replaced with actual feature pages
-const Home = () => <div className="p-8"><h1 className="text-3xl font-bold">Home</h1></div>;
 const Stalls = () => <div className="p-8"><h1 className="text-3xl font-bold">Stalls</h1></div>;
 const StallDetail = () => <div className="p-8"><h1 className="text-3xl font-bold">Stall Detail</h1></div>;
 const Cart = () => <div className="p-8"><h1 className="text-3xl font-bold">Cart</h1></div>;
@@ -17,11 +18,14 @@ function AppRoutes() {
     <Routes>
       <Route element={<RootLayout />}>
         {/* Public routes */}
-        <Route path="/" element={<Home />} />
+        <Route index element={<Navigate to="/home" replace />} />
+        <Route path="/home" element={<HomePage />} />
         <Route path="/stalls" element={<Stalls />} />
         <Route path="/stalls/:stallId" element={<StallDetail />} />
+        <Route path="/about" element={<AboutPage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        
 
         {/* Protected routes - requires authentication */}
         <Route element={<ProtectedLayout />}>
