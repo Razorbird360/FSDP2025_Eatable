@@ -1,5 +1,32 @@
 import { userService } from '../services/user.service.js';
 
+export const getCurrentUser = async (req, res) => {
+  try {
+    const profile = await userService.findById(req.user.id);
+
+    if (!profile) {
+      return res.status(200).json({
+        id: req.user.id,
+        email: req.user.email,
+        displayName: req.user.user_metadata?.display_name ?? null,
+        role: req.user.app_metadata?.role ?? 'user',
+        isSynced: false,
+      });
+    }
+
+    res.status(200).json({
+      id: profile.id,
+      email: profile.email,
+      displayName: profile.displayName,
+      role: profile.role,
+      isSynced: true,
+    });
+  } catch (error) {
+    console.error('Get current user error:', error);
+    res.status(500).json({ error: 'Failed to load current user' });
+  }
+};
+
 export const syncUser = async (req, res) => {
   try {
     const existingUser = await userService.findById(req.user.id);
