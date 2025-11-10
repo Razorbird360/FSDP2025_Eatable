@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Input, Box } from '@chakra-ui/react';
 
@@ -8,6 +9,7 @@ const infoIcon = new URL('../assets/navbar/about-us.svg', import.meta.url).href;
 const searchIcon = new URL('../assets/navbar/search.svg', import.meta.url).href;
 const favouriteIcon = new URL('../assets/navbar/favourite.svg', import.meta.url).href;
 const cartIcon = new URL('../assets/navbar/cart.svg', import.meta.url).href;
+const closeIcon = new URL('../assets/navbar/close.svg', import.meta.url).href;
 const profilePlaceholder = new URL('../assets/navbar/profile_placeholder.jpg', import.meta.url).href;
 
 const navIcons = [
@@ -15,6 +17,11 @@ const navIcons = [
   { label: 'Hawkers', icon: foodIcon, href: '/stalls' },
   { label: 'Community', icon: communityIcon, href: '/community' },
   { label: 'About', icon: infoIcon, href: '/about' },
+];
+
+const mobileNavItems = [
+  ...navIcons,
+  { label: 'Favourites', icon: favouriteIcon, href: '/favourites' },
 ];
 
 function IconPill({ icon, label, href, isActive }) {
@@ -52,16 +59,22 @@ function IconAction({ icon, label, badge }) {
 
 export default function Navbar() {
   const { pathname } = useLocation();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const isActive = (href) => {
     if (href === '/') {
       return pathname === '/';
     }
     return pathname.startsWith(href);
   };
+  const closeMobileMenu = () => {
+    setIsMobileMenuOpen(false);
+    setIsMobileSearchOpen(false);
+  };
 
   return (
     <header className="fixed inset-x-0 top-0 z-40 border-b border-[#E7EEE7] bg-white shadow-sm">
-      <div className="mx-auto flex w-full max-w-7xl items-center px-6 py-3">
+      <div className="mx-auto hidden w-full max-w-7xl items-center px-6 py-3 md:flex">
         <div className="flex items-center gap-3 -ml-[10vw]">
           {navIcons.map((icon) => (
             <IconPill key={icon.label} {...icon} isActive={isActive(icon.href)} />
@@ -113,33 +126,117 @@ export default function Navbar() {
         </div>
       </div>
 
-      <Box className="px-4 pb-3 md:hidden" position="relative">
-        <Box
-          position="absolute"
-          left="7"
-          top="50%"
-          transform="translateY(-50%)"
-          pointerEvents="none"
-          zIndex="1"
-        >
-          <img src={searchIcon} alt="" className="h-4 w-4" />
-        </Box>
-        <Input
-          id="global-search-mobile"
-          type="search"
-          placeholder="Search dishes, stalls, categories..."
-          borderRadius="xl"
-          border="1px solid"
-          borderColor="#E7EEE7"
-          bg="white"
-          color="#4A554B"
-          fontSize="sm"
-          _placeholder={{ color: '#6d7f68' }}
-          _focus={{ borderColor: '#21421B', boxShadow: 'none' }}
-          paddingLeft="2.5rem"
-          width="100%"
-        />
-      </Box>
+      <div className="flex items-center justify-between px-4 py-3 md:hidden">
+        <span className="text-lg font-semibold text-[#21421B]">Eatable</span>
+        <div className="flex items-center gap-3">
+          <IconAction icon={cartIcon} label="Cart" badge={2} />
+          <button
+            type="button"
+            aria-label="Open navigation menu"
+            aria-expanded={isMobileMenuOpen}
+            onClick={() => setIsMobileMenuOpen(true)}
+            className="flex h-11 w-11 flex-col items-center justify-center gap-1 rounded-xl border border-[#E7EEE7] text-[#21421B]"
+          >
+            <span className="block h-0.5 w-6 bg-current" />
+            <span className="block h-0.5 w-6 bg-current" />
+            <span className="block h-0.5 w-6 bg-current" />
+          </button>
+        </div>
+      </div>
+
+      {isMobileMenuOpen ? (
+        <div className="fixed inset-0 z-50 flex flex-col bg-white px-6 py-6 md:hidden">
+          <div className="mb-4 flex items-center justify-between px-4">
+            <button
+              type="button"
+              aria-label="Toggle search"
+              aria-expanded={isMobileSearchOpen}
+              onClick={() => setIsMobileSearchOpen((prev) => !prev)}
+              className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-[#F8FDF3] transition-colors ${
+                isMobileSearchOpen ? 'ring-2 ring-[#21421B]/40' : ''
+              }`}
+            >
+              <img src={searchIcon} alt="" className="h-5 w-5" />
+            </button>
+            <div className="flex items-center gap-2 text-[#21421B]">
+              <button type="button" onClick={closeMobileMenu} className="text-base">
+                Close
+              </button>
+              <button
+                type="button"
+                aria-label="Close navigation menu"
+                onClick={closeMobileMenu}
+                className="flex h-10 w-10 items-center justify-center"
+              >
+                <img src={closeIcon} alt="Close menu" className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+
+          <div
+            className={`overflow-hidden px-4 transition-all duration-300 ${
+              isMobileSearchOpen
+                ? 'max-h-32 opacity-100 translate-y-0'
+                : 'pointer-events-none -translate-y-2 max-h-0 opacity-0'
+            }`}
+          >
+            <Box className="relative" position="relative">
+              <Box
+                position="absolute"
+                left="3"
+                top="50%"
+                transform="translateY(-50%)"
+                pointerEvents="none"
+                zIndex="1"
+              >
+                <img src={searchIcon} alt="" className="h-4 w-4" />
+              </Box>
+              <Input
+                placeholder="Search dishes, stalls, categories..."
+                borderRadius="xl"
+                border="1px solid"
+                borderColor="#E7EEE7"
+                bg="white"
+                color="#4A554B"
+                fontSize="sm"
+                _placeholder={{ color: '#6d7f68' }}
+                _focus={{ borderColor: '#21421B', boxShadow: 'none' }}
+                paddingLeft="2.5rem"
+                width="100%"
+              />
+            </Box>
+          </div>
+
+          <nav className="mt-6 flex-1 space-y-4 overflow-y-auto">
+            {mobileNavItems.map(({ label, icon, href }) => (
+              <Link
+                key={label}
+                to={href}
+                onClick={closeMobileMenu}
+                className={`flex items-center gap-4 rounded-2xl border px-4 py-3 text-[#1C201D] ${
+                  isActive(href) ? 'border-[#21421B] bg-[#F8FDF3]' : 'border-[#F1F1F1]'
+                }`}
+              >
+                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F8FDF3]">
+                  <img src={icon} alt="" className="h-5 w-5" />
+                </span>
+                <span className="text-base font-medium">{label}</span>
+              </Link>
+            ))}
+
+            <button
+              type="button"
+              className="flex items-center gap-3 rounded-2xl border border-[#F1F1F1] px-4 py-3 text-left"
+            >
+              <img src={profilePlaceholder} alt="Profile" className="h-10 w-10 rounded-full object-cover" />
+              <div>
+                <p className="text-sm font-semibold text-[#1C201D]">Profile</p>
+                <p className="text-xs text-[#6d7f68]">Tap to view account</p>
+              </div>
+            </button>
+          </nav>
+        </div>
+      ) : null}
     </header>
   );
 }
