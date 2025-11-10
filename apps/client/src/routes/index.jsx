@@ -3,6 +3,7 @@ import RootLayout from '../layouts/RootLayout';
 import ProtectedLayout from '../layouts/ProtectedLayout';
 import HomePage from '../pages/HomePage';
 import AboutPage from '../pages/AboutPage';
+import StallGallery from '../pages/StallGallery';
 
 // Placeholder pages - to be replaced with actual feature pages
 const Stalls = () => <div className="p-8"><h1 className="text-3xl font-bold">Stalls</h1></div>;
@@ -22,6 +23,8 @@ function AppRoutes() {
         <Route path="/home" element={<HomePage />} />
         <Route path="/stalls" element={<Stalls />} />
         <Route path="/stalls/:stallId" element={<StallDetail />} />
+        <Route path="/stalls/:stallId/gallery" element={<StallGallery />} />
+
         <Route path="/about" element={<AboutPage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />

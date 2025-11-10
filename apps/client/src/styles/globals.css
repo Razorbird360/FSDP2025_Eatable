@@ -21,3 +21,14 @@
     @apply bg-white rounded-lg shadow-md p-6;
   }
 }
+
+/* predictable sizing for children so Bento can pack perfectly */
+.bentogrid > * { display: block; }
+
+/* show fillers subtly so you can confirm there are no gaps */
+.bentogrid .bento-filler,
+.bentogrid .bento-fx {
+  background: rgba(0,0,0,0.04);
+}
+
+
