@@ -11,6 +11,7 @@ const favouriteIcon = new URL('../assets/navbar/favourite.svg', import.meta.url)
 const cartIcon = new URL('../assets/navbar/cart.svg', import.meta.url).href;
 const closeIcon = new URL('../assets/navbar/close.svg', import.meta.url).href;
 const menuIcon = new URL('../assets/navbar/menu.svg', import.meta.url).href;
+const logoFull = new URL('../assets/logo_full.png', import.meta.url).href;
 const profilePlaceholder = new URL('../assets/navbar/profile_placeholder.jpg', import.meta.url).href;
 
 const navIcons = [
@@ -131,7 +132,7 @@ export default function Navbar() {
       </div>
 
       <div className="flex items-center justify-between pl-4 pr-6 py-4 md:hidden">
-        <span className="text-lg font-semibold text-[#21421B]">Eatable</span>
+        <img src={logoFull} alt="Eatable" className="h-10 w-auto pl-2" />
         <div className="flex items-center gap-3">
           <IconAction icon={cartIcon} label="Cart" badge={2} />
           <button
