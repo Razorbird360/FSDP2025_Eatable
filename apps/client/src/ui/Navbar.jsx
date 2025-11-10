@@ -25,6 +25,9 @@ const mobileNavItems = [
   { label: 'Favourites', icon: favouriteIcon, href: '/favourites' },
 ];
 
+const mobileMenuBaseColor = '#FFFFFF';
+const mobileMenuLayers = ['#F8FDF3', '#EFF8EE', '#FFFFFF'];
+
 function IconPill({ icon, label, href, isActive }) {
   return (
     <Link to={href} aria-label={label}>
@@ -143,8 +146,42 @@ export default function Navbar() {
         </div>
       </div>
 
-      {isMobileMenuOpen ? (
-        <div className="fixed inset-0 z-50 flex flex-col bg-white px-6 py-6 md:hidden">
+      <div
+        aria-hidden={!isMobileMenuOpen}
+        inert={!isMobileMenuOpen ? '' : undefined}
+        className={`fixed inset-0 z-50 md:hidden ${isMobileMenuOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}
+      >
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          <span
+            className="absolute inset-y-0 right-0 w-[115%] transition-transform duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]"
+            style={{
+              background: mobileMenuBaseColor,
+              transform: isMobileMenuOpen ? 'translateX(0)' : 'translateX(100%)',
+            }}
+          />
+          {mobileMenuLayers.map((layer, index) => (
+            <span
+              key={`${layer}-${index}`}
+              className="absolute inset-y-0 right-0 w-full rounded-l-[48px] shadow-[0_25px_80px_rgba(33,66,27,0.12)] transition-transform duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]"
+              style={{
+                background: layer,
+                width:
+                  index === mobileMenuLayers.length - 1
+                    ? '105%'
+                    : `${92 - index * 6}%`,
+                transform: isMobileMenuOpen ? 'translateX(0)' : 'translateX(100%)',
+                transitionDelay: `${index * 70}ms`,
+              }}
+            />
+          ))}
+        </div>
+        <div
+          className={`relative z-10 flex h-full flex-col bg-white px-6 py-6 transition-transform duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] ${
+            isMobileMenuOpen
+              ? 'translate-x-0 shadow-[0_25px_80px_rgba(33,66,27,0.18)]'
+              : 'translate-x-full shadow-none'
+          }`}
+        >
           <div className="mb-4 flex items-center justify-between pl-4 pr-4">
             <button
               type="button"
@@ -230,7 +267,7 @@ export default function Navbar() {
             </button>
           </nav>
         </div>
-      ) : null}
+      </div>
     </header>
   );
 }
