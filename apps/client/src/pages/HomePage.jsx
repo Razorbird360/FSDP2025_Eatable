@@ -1,8 +1,10 @@
 function HomePage() {
   return (
-    <section className="p-8">
-      <h1 className="text-3xl font-bold">Home Page</h1>
-      <p className="mt-2 text-gray-600">Community powered hawker eMenu coming soon.</p>
+    <section className="p-8 bg-blue-200">
+      <div >
+        <img src="" alt="" />
+        <p className="mt-2 text-gray-600">Community powered hawker eMenu coming soon.</p>
+      </div>
     </section>
   );
 }

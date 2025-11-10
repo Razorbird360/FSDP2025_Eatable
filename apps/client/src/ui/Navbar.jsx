@@ -28,6 +28,7 @@ const mobileNavItems = [
 
 const mobileMenuBaseColor = '#FFFFFF';
 const mobileMenuLayers = ['#F8FDF3', '#EFF8EE', '#FFFFFF'];
+const mobileMenuLayerDelays = [0, 30, 55];
 
 function IconPill({ icon, label, href, isActive }) {
   return (
@@ -158,6 +159,7 @@ export default function Navbar() {
             style={{
               background: mobileMenuBaseColor,
               transform: isMobileMenuOpen ? 'translateX(0)' : 'translateX(100%)',
+              transitionDelay: isMobileMenuOpen ? '0ms' : '0ms',
             }}
           />
           {mobileMenuLayers.map((layer, index) => (
@@ -171,7 +173,9 @@ export default function Navbar() {
                     ? '105%'
                     : `${92 - index * 6}%`,
                 transform: isMobileMenuOpen ? 'translateX(0)' : 'translateX(100%)',
-                transitionDelay: `${index * 70}ms`,
+                transitionDelay: isMobileMenuOpen
+                  ? `${mobileMenuLayerDelays[index] ?? 0}ms`
+                  : '0ms',
               }}
             />
           ))}
@@ -186,11 +190,11 @@ export default function Navbar() {
           <div className="mb-4 flex items-center justify-between pl-4 pr-4">
             <button
               type="button"
-              aria-label="Toggle search"
+              aria-label="Open search"
               aria-expanded={isMobileSearchOpen}
-              onClick={() => setIsMobileSearchOpen((prev) => !prev)}
-              className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-[#F8FDF3] transition-colors ${
-                isMobileSearchOpen ? 'ring-2 ring-[#21421B]/40' : ''
+              onClick={() => setIsMobileSearchOpen(true)}
+              className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-[#F8FDF3] transition-all duration-200 ${
+                isMobileSearchOpen ? 'opacity-0 pointer-events-none scale-95' : 'opacity-100'
               }`}
             >
               <img src={searchIcon} alt="" className="h-5 w-5" />
@@ -206,13 +210,13 @@ export default function Navbar() {
           </div>
 
           <div
-            className={`overflow-hidden px-4 transition-all duration-300 ${
+            className={`overflow-hidden transition-all duration-300 ${
               isMobileSearchOpen
                 ? 'max-h-32 opacity-100 translate-y-0'
                 : 'pointer-events-none -translate-y-2 max-h-0 opacity-0'
             }`}
           >
-            <Box className="relative" position="relative">
+            <Box className="relative w-full" position="relative">
               <Box
                 position="absolute"
                 left="3"
@@ -225,7 +229,7 @@ export default function Navbar() {
               </Box>
               <Input
                 placeholder="Search dishes, stalls, categories..."
-                borderRadius="xl"
+                borderRadius="2xl"
                 border="1px solid"
                 borderColor="#E7EEE7"
                 bg="white"
@@ -235,6 +239,7 @@ export default function Navbar() {
                 _focus={{ borderColor: '#21421B', boxShadow: 'none' }}
                 paddingLeft="2.5rem"
                 width="100%"
+                className="w-full"
               />
             </Box>
           </div>
