@@ -9,7 +9,7 @@ function RootLayout() {
   return (
     <div className="flex min-h-screen flex-col bg-[#f8fdf3]">
       <Navbar />
-      <main className="flex-1">
+      <main className="flex-1 pt-20 lg:pt-[4.5rem]">
         <Outlet />
       </main>
     </div>
