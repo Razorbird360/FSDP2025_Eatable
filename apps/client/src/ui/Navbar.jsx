@@ -10,6 +10,7 @@ const searchIcon = new URL('../assets/navbar/search.svg', import.meta.url).href;
 const favouriteIcon = new URL('../assets/navbar/favourite.svg', import.meta.url).href;
 const cartIcon = new URL('../assets/navbar/cart.svg', import.meta.url).href;
 const closeIcon = new URL('../assets/navbar/close.svg', import.meta.url).href;
+const menuIcon = new URL('../assets/navbar/menu.svg', import.meta.url).href;
 const profilePlaceholder = new URL('../assets/navbar/profile_placeholder.jpg', import.meta.url).href;
 
 const navIcons = [
@@ -126,7 +127,7 @@ export default function Navbar() {
         </div>
       </div>
 
-      <div className="flex items-center justify-between px-4 py-3 md:hidden">
+      <div className="flex items-center justify-between pl-4 pr-6 py-4 md:hidden">
         <span className="text-lg font-semibold text-[#21421B]">Eatable</span>
         <div className="flex items-center gap-3">
           <IconAction icon={cartIcon} label="Cart" badge={2} />
@@ -135,18 +136,16 @@ export default function Navbar() {
             aria-label="Open navigation menu"
             aria-expanded={isMobileMenuOpen}
             onClick={() => setIsMobileMenuOpen(true)}
-            className="flex h-11 w-11 flex-col items-center justify-center gap-1 rounded-xl border border-[#E7EEE7] text-[#21421B]"
+            className="flex h-11 w-11 items-center justify-center text-[#21421B]"
           >
-            <span className="block h-0.5 w-6 bg-current" />
-            <span className="block h-0.5 w-6 bg-current" />
-            <span className="block h-0.5 w-6 bg-current" />
+            <img src={menuIcon} alt="" className="h-5 w-5" />
           </button>
         </div>
       </div>
 
       {isMobileMenuOpen ? (
         <div className="fixed inset-0 z-50 flex flex-col bg-white px-6 py-6 md:hidden">
-          <div className="mb-4 flex items-center justify-between px-4">
+          <div className="mb-4 flex items-center justify-between pl-4 pr-4">
             <button
               type="button"
               aria-label="Toggle search"
@@ -158,19 +157,14 @@ export default function Navbar() {
             >
               <img src={searchIcon} alt="" className="h-5 w-5" />
             </button>
-            <div className="flex items-center gap-2 text-[#21421B]">
-              <button type="button" onClick={closeMobileMenu} className="text-base">
-                Close
-              </button>
-              <button
-                type="button"
-                aria-label="Close navigation menu"
-                onClick={closeMobileMenu}
-                className="flex h-10 w-10 items-center justify-center"
-              >
-                <img src={closeIcon} alt="Close menu" className="h-4 w-4" />
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={closeMobileMenu}
+              className="flex items-center gap-2 pr-2 text-[#21421B]"
+            >
+              <span className="text-base">Close</span>
+              <img src={closeIcon} alt="Close menu" className="h-4 w-4" />
+            </button>
           </div>
 
           <div
