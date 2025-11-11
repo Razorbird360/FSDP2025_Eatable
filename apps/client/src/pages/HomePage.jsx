@@ -2,6 +2,9 @@ import advertiseHero from '../assets/HomePage/Advertise.png';
 import rating from '../assets/icons/rating.svg';
 import favourite from '../assets/icons/favourite-brand.svg';
 import location from '../assets/icons/location.svg';
+import CuisineBox from '../ui/CuisineBox';
+
+const CUISINE_TYPES = ['malay', 'indian', 'western', 'chinese', 'desserts', 'local'];
 
 function HomePage() {
   return (
@@ -36,9 +39,16 @@ function HomePage() {
                 <img src={location} alt="Location" className="w-7 h-7" />
               </div>
             </div>
-
           </div>
+
       </div>
+
+      <div className="grid [grid-template-columns:repeat(3,8rem)] w-96 justify-items-center">
+        {CUISINE_TYPES.map((cuisine) => (
+          <CuisineBox key={cuisine} type={cuisine} />
+        ))}
+      </div>
+
     </section>
   );
 }
