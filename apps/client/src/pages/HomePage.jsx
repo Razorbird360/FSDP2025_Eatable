@@ -185,7 +185,7 @@ function HomePage() {
         
 
         <div className="relative hidden md:flex md:items-center md:justify-center">
-          <div className="relative flex flex-col items-center pt-10 pb-10 xl:pt-12 xl:pb-12 2xl:pt-16 2xl:pb-16">
+          <div className="relative flex flex-col items-center pt-10 pb-10 xl:pt-12 xl:pb-12 2xl:pt-16 2xl:pb-16" style={{ transform: 'translateY(-1rem)' }}>
             <div className="flex justify-between w-full mb-3" style={{ transform: 'translateY(-2vh)' }}>
               <div className="w-14 xl:w-16" style={{ transform: 'translateX(-3vw)' }}>
                 <CuisineBox type="malay" shape="circle" />
