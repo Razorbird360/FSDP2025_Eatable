@@ -33,16 +33,16 @@ function CuisineBox({ type, shape = 'square' }) {
       onMouseMove={(event) => mouseX.set(event.clientX)}
       onMouseLeave={() => mouseX.set(Infinity)}
       style={{ scale }}
-      className={`cursor-pointer flex aspect-square w-full flex-col items-center justify-center bg-white text-center text-brand shadow-md transition-colors duration-200 hover:bg-brand hover:text-white max-[430px]:text-sm ${
+      className={`cursor-pointer flex aspect-square flex-col items-center justify-center bg-white text-center text-brand shadow-md transition-colors duration-200 hover:bg-brand hover:text-white ${
         isCircle
-          ? 'rounded-full gap-0.5 text-sm shadow-lg px-1'
-          : 'rounded-2xl border border-black/30 gap-1.5 text-sm px-2'
+          ? 'rounded-full gap-0.5 text-xs max-[430px]:text-sm shadow-lg px-1 w-[4.5rem] h-[4.5rem] max-[430px]:w-[4.1rem] max-[430px]:h-[4.1rem]'
+          : 'w-full rounded-2xl border border-black/30 gap-1.5 text-sm px-2'
       }`}
     >
       <img
         src={iconSrc}
         alt={`${type} cuisine icon`}
-        className={isCircle ? 'h-8 w-8 max-[430px]:h-12 max-[430px]:w-12' : 'h-14 w-14 max-[430px]:h-12 max-[430px]:w-12'}
+        className={isCircle ? 'h-7 w-7 max-[430px]:h-10 max-[430px]:w-10' : 'h-14 w-14 max-[430px]:h-12 max-[430px]:w-12'}
       />
       <p className={`capitalize ${isCircle ? '-mt-0.5' : ''}`}>{type}</p>
     </motion.div>
