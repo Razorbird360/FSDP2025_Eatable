@@ -3,10 +3,12 @@ import rating from '../assets/icons/rating.svg';
 import favourite from '../assets/icons/favourite-brand.svg';
 import location from '../assets/icons/location.svg';
 import CuisineBox from '../ui/CuisineBox';
+import { useState } from 'react';
 
 const CUISINE_TYPES = ['malay', 'indian', 'western', 'chinese', 'desserts', 'local'];
 
 function HomePage() {
+
   return (
     <section className="bg-blue-200 md:px-40 md:py-16 px-16 py-4 flex justify-between w-screen flex-col gap-6 items-center">
       <div className='bg-red-100'>
