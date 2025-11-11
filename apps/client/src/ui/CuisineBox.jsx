@@ -31,12 +31,10 @@ function CuisineBox({ type }) {
       onMouseMove={(event) => mouseX.set(event.clientX)}
       onMouseLeave={() => mouseX.set(Infinity)}
       style={{ scale }}
-      className="cursor-pointer w-[7.5rem] h-[7.5rem] mb-2 flex justify-center items-center text-brand rounded-2xl border border-black/30 shadow-md bg-white transition-colors duration-200 hover:bg-brand hover:text-white"
+      className="cursor-pointer flex aspect-square w-full flex-col items-center justify-center gap-1.5 rounded-2xl border border-black/30 bg-white px-2 text-center text-base text-brand shadow-md transition-colors duration-200 hover:bg-brand hover:text-white max-[430px]:text-sm"
     >
-      <div className='flex flex-col'>
-        <img src={iconSrc} alt={`${type} cuisine icon`} />
-        <p className='capitalize'>{type}</p>
-      </div>
+      <img src={iconSrc} alt={`${type} cuisine icon`} className="h-14 w-14 max-[430px]:h-12 max-[430px]:w-12" />
+      <p className='capitalize'>{type}</p>
     </motion.div>
   )
 }
