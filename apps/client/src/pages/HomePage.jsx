@@ -3,7 +3,6 @@ import arrowRight from '../assets/icons/arrow right.svg';
 import cameraIcon from '../assets/icons/camera.svg';
 import point from '../assets/icons/point.svg';
 import trendUp from '../assets/icons/trend-up.svg';
-import locationIcon from '../assets/icons/location.svg';
 import locationBrand from '../assets/icons/location-brand.svg';
 import CuisineBox from '../ui/CuisineBox';
 import HeroAdvertisement from '../ui/HeroAdvertisement';
