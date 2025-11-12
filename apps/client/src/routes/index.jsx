@@ -3,6 +3,8 @@ import RootLayout from '../layouts/RootLayout';
 import ProtectedLayout from '../layouts/ProtectedLayout';
 import HomePage from '../pages/HomePage';
 import AboutPage from '../pages/AboutPage';
+import StallEmenu from "../features/menu/components/StallEmenu"
+
 
 // Placeholder pages - to be replaced with actual feature pages
 const Stalls = () => <div className="p-8"><h1 className="text-3xl font-bold">Stalls</h1></div>;
@@ -25,12 +27,15 @@ function AppRoutes() {
         <Route path="/about" element={<AboutPage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        
+        <Route path="/stallEmenu" element={<StallEmenu />} /> 
+
+
 
         {/* Protected routes - requires authentication */}
         <Route element={<ProtectedLayout />}>
           <Route path="/cart" element={<Cart />} />
           <Route path="/orders" element={<OrderHistory />} />
+          
           {/* TODO: Add more protected routes: profile, upload photo, etc */}
         </Route>
       </Route>
