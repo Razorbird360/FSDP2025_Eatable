@@ -95,22 +95,19 @@ export default function CustomBentoGrid() {
 
   const hasVoted = (uploadId) => relationKeySet.has(`${currentUserId}::${uploadId}`);
 
-  /////////////////////////////////////////////////////////////
-  ////////////////////////////////////////////////////////////
-  // ===== Actions (now separate, each gets the photo id) =====
+  // ===== Upvote / Unvote actions =====
   const handleUpvote = (uploadId) => {
-    if (hasVoted(uploadId)) return; // already voted; ignore
+    if (hasVoted(uploadId)) return;
     setRelations((prev) => [...prev, { userId: currentUserId, uploadId }]);
     setItems((prev) =>
       prev.map((it) =>
         it.id === uploadId ? { ...it, uploadCount: it.uploadCount + 1 } : it
       )
     );
-    console.log("Upvoted upload ID:", uploadId);
   };
 
   const handleUnvote = (uploadId) => {
-    if (!hasVoted(uploadId)) return; // not voted; ignore
+    if (!hasVoted(uploadId)) return;
     setRelations((prev) =>
       prev.filter((r) => !(r.userId === currentUserId && r.uploadId === uploadId))
     );
@@ -119,23 +116,75 @@ export default function CustomBentoGrid() {
         it.id === uploadId ? { ...it, uploadCount: Math.max(it.uploadCount - 1, 0) } : it
       )
     );
-    console.log("Unvoted upload ID:", uploadId);
   };
 
-
-
-  // Popup state
+  // ===== Image Popup =====
   const [popupId, setPopupId] = useState(null);
+  const handleOpenPopup = (uploadId) => setPopupId(uploadId);
+  const handleClosePopup = () => setPopupId(null);
 
-  const handleOpenPopup = (uploadId) => {
-    setPopupId(uploadId);
+  // ===== Report Modal state =====
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportDraft, setReportDraft] = useState({
+    uploadId: null,
+    reason: "",
+    details: "",
+    contact: "",
+  });
+  const [submittingReport, setSubmittingReport] = useState(false);
+
+  // Open the report form for a given upload
+  const handleOpenReport = (uploadId) => {
+    // optional: close the image popup behind for clarity
+    setPopupId(null);
+    setReportDraft({ uploadId, reason: "", details: "", contact: "" });
+    setReportOpen(true);
   };
 
-  const handleClosePopup = () => setPopupId(null);
+  const handleCloseReport = () => {
+    setReportOpen(false);
+    setReportDraft({ uploadId: null, reason: "", details: "", contact: "" });
+    setSubmittingReport(false);
+  };
+
+  // Submit handler — replace with API call later
+  const handleSubmitReport = async (e) => {
+    e.preventDefault();
+    if (!reportDraft.uploadId || !reportDraft.reason || reportDraft.details.trim().length < 10) {
+      // basic validation
+      return;
+    }
+    try {
+      setSubmittingReport(true);
+
+      // 🔧 Replace this with your API call to save a ContentReport
+      // e.g., await fetch('/api/reports', { method:'POST', body: JSON.stringify(reportDraft) })
+      console.log("Submitting report:", {
+        userId: currentUserId,
+        ...reportDraft,
+        createdAt: new Date().toISOString(),
+      });
+
+      // UX: pretend success
+      handleCloseReport();
+      // optional toast
+      alert("Thanks! Your report has been submitted.");
+    } catch (err) {
+      console.error(err);
+      alert("Something went wrong submitting the report.");
+    } finally {
+      setSubmittingReport(false);
+    }
+  };
 
   // Close popup on ESC
   useEffect(() => {
-    const onKey = (e) => e.key === "Escape" && setPopupId(null);
+    const onKey = (e) => {
+      if (e.key === "Escape") {
+        setPopupId(null);
+        setReportOpen(false);
+      }
+    };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
@@ -195,12 +244,11 @@ export default function CustomBentoGrid() {
                 {it.uploadCount.toLocaleString()} uploads
               </div>
 
-              {/* Upvote / Unvote — separate handlers */}
+              {/* Upvote / Unvote */}
               {voted ? (
                 <button
                   type="button"
                   data-upload-id={id}
-                  data-action="unvote"
                   onClick={(e) => { e.stopPropagation(); handleUnvote(id); }}
                   className={[
                     "absolute left-3 bottom-3 z-10",
@@ -218,7 +266,6 @@ export default function CustomBentoGrid() {
                 <button
                   type="button"
                   data-upload-id={id}
-                  data-action="upvote"
                   onClick={(e) => { e.stopPropagation(); handleUpvote(id); }}
                   className={[
                     "absolute left-3 bottom-3 z-10",
@@ -238,7 +285,7 @@ export default function CustomBentoGrid() {
         })}
       </div>
 
-      {/* ===== Popup / Modal ===== */}
+      {/* ===== Image Popup / Modal ===== */}
       {popupId && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
@@ -265,15 +312,123 @@ export default function CustomBentoGrid() {
               className="w-full object-cover max-h-[70vh]"
             />
 
-            <div className="p-4 flex items-center justify-between">
+            <div className="p-4 flex items-center justify-between gap-2">
               <div className="text-sm text-gray-600">
                 ID: <span className="font-mono">{popupId}</span>
               </div>
-              <div className="text-sm text-gray-800 font-medium">
-                {itemById.get(popupId)?.uploadCount.toLocaleString()} uploads
+              <div className="flex items-center gap-2">
+                <div className="text-sm text-gray-800 font-medium">
+                  {itemById.get(popupId)?.uploadCount.toLocaleString()} uploads
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleOpenReport(popupId)}
+                  className="px-3 py-1 rounded-lg border border-rose-200 text-rose-700 hover:bg-rose-50 transition"
+                  title="Report this photo"
+                >
+                  🚩 Report
+                </button>
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ===== Report Form Modal ===== */}
+      {reportOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          role="dialog"
+          aria-modal="true"
+          onClick={handleCloseReport}
+        >
+          <form
+            onSubmit={handleSubmitReport}
+            className="relative w-full max-w-lg bg-white rounded-xl shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-4 py-3 border-b">
+              <h3 className="text-lg font-semibold">Report Photo</h3>
+              <button
+                type="button"
+                onClick={handleCloseReport}
+                className="h-8 w-8 rounded-full bg-black/10 hover:bg-black/20"
+                aria-label="Close report form"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="px-4 py-4 space-y-4">
+              <div className="text-sm text-gray-600">
+                Reporting upload ID: <span className="font-mono">{reportDraft.uploadId}</span>
+              </div>
+
+              <label className="block">
+                <span className="text-sm font-medium text-gray-800">Reason</span>
+                <select
+                  className="mt-1 w-full rounded-lg border px-3 py-2"
+                  required
+                  value={reportDraft.reason}
+                  onChange={(e) => setReportDraft((d) => ({ ...d, reason: e.target.value }))}
+                >
+                  <option value="" disabled>Select a reason…</option>
+                  <option value="inappropriate">Inappropriate content</option>
+                  <option value="spam">Spam / advertisement</option>
+                  <option value="wrong-item">Wrong stall/dish</option>
+                  <option value="copyright">Copyright / ownership</option>
+                  <option value="other">Other</option>
+                </select>
+              </label>
+
+              <label className="block">
+                <span className="text-sm font-medium text-gray-800">Details</span>
+                <textarea
+                  className="mt-1 w-full rounded-lg border px-3 py-2 min-h-[120px]"
+                  placeholder="Describe the issue (at least 10 characters)…"
+                  required
+                  value={reportDraft.details}
+                  onChange={(e) => setReportDraft((d) => ({ ...d, details: e.target.value }))}
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-sm font-medium text-gray-800">Contact (optional)</span>
+                <input
+                  type="email"
+                  className="mt-1 w-full rounded-lg border px-3 py-2"
+                  placeholder="your@email.com"
+                  value={reportDraft.contact}
+                  onChange={(e) => setReportDraft((d) => ({ ...d, contact: e.target.value }))}
+                />
+              </label>
+            </div>
+
+            <div className="px-4 py-3 border-t flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={handleCloseReport}
+                className="px-4 py-2 rounded-lg border hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={
+                  submittingReport ||
+                  !reportDraft.reason ||
+                  (reportDraft.details?.trim().length ?? 0) < 10
+                }
+                className={[
+                  "px-4 py-2 rounded-lg text-white",
+                  submittingReport ? "bg-gray-400" : "bg-rose-600 hover:bg-rose-700",
+                  "disabled:opacity-60 disabled:cursor-not-allowed"
+                ].join(" ")}
+              >
+                {submittingReport ? "Submitting…" : "Submit report"}
+              </button>
+            </div>
+          </form>
         </div>
       )}
     </section>
