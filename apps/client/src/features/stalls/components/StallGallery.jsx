@@ -1,7 +1,5 @@
 import  { useMemo, useState, useEffect } from "react";
 
-const WEIGHTED_POOL = ["2x1","2x1","2x1","2x1","2x1","2x1","1x1","1x1","1x2","1x2"];
-
 export default function CustomBentoGrid() {
   // ===== Simulate logged-in user =====
   const currentUserId = "u1";
@@ -77,6 +75,10 @@ export default function CustomBentoGrid() {
     return m;
   }, [items]);
 
+  const weightedPool = useMemo(
+    () => ["2x1","2x1","2x1","2x1","2x1","2x1","1x1","1x1","1x2","1x2"],
+    []
+  );
   const shapeById = useMemo(() => {
     const map = new Map();
     const hashToIndex = (id) => {
