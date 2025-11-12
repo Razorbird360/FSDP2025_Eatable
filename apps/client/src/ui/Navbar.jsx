@@ -155,7 +155,9 @@ export default function Navbar() {
       <div
         aria-hidden={!isMobileMenuOpen}
         inert={!isMobileMenuOpen ? '' : undefined}
-        className={`fixed inset-0 z-50 md:hidden ${isMobileMenuOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}
+        className={`fixed inset-0 z-50 transition-opacity duration-300 md:hidden ${
+          isMobileMenuOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
+        }`}
       >
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
           <span
