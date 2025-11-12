@@ -1,5 +1,5 @@
 // pages/StallEmenu.jsx
-import React, { useMemo, useState, useRef, useEffect } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import foodStallIcon from "./Assets/FoodStall_Icon.png";
 import { Link } from "react-router-dom";
 
@@ -595,8 +595,7 @@ export default function StallEmenu() {
         item={selected}
         onClose={() => setShowItem(false)}
         onAdd={({ item, qty, notes }) => {
-          // hook up to your cart here
-          // console.log("add", item.name, qty, notes);
+          console.log("Add to cart:", { item, qty, notes });
         }}
       />
     </div>
