@@ -3,7 +3,7 @@ import RootLayout from '../layouts/RootLayout';
 import ProtectedLayout from '../layouts/ProtectedLayout';
 import HomePage from '../pages/HomePage';
 import AboutPage from '../pages/AboutPage';
-import StallGallery from '../pages/StallGallery';
+import StallGallery from '../features/stalls/components/StallGallery';
 
 // Placeholder pages - to be replaced with actual feature pages
 const Stalls = () => <div className="p-8"><h1 className="text-3xl font-bold">Stalls</h1></div>;
@@ -16,6 +16,7 @@ const NotFound = () => <div className="p-8"><h1 className="text-3xl font-bold">4
 
 function AppRoutes() {
   return (
+    
     <Routes>
       <Route element={<RootLayout />}>
         {/* Public routes */}
