@@ -9,6 +9,7 @@ import CuisineBox from '../ui/CuisineBox';
 import HeroAdvertisement from '../ui/HeroAdvertisement';
 import { Button } from '@chakra-ui/react';
 import logo_full from '../assets/logo/logo_full.png';
+import profilePlaceholder from '../assets/navbar/profile_placeholder.jpg';
 
 const CUISINE_TYPES = ['malay', 'indian', 'western', 'chinese', 'desserts', 'local'];
 
@@ -63,8 +64,8 @@ function HomePage() {
 
   return (
     <section className="box-border flex w-full flex-col items-center gap-6 px-4 pt-0 pb-6 max-[430px]:gap-5 max-[430px]:px-3.5 sm:px-8 md:px-0 md:pt-0 md:pb-0 md:flex-row md:gap-0 md:min-h-[calc(100vh-4rem)] md:items-stretch bg-[#FBF7F0]">
-      <div className="w-[90vw] max-w-[24rem] rounded-lg px-4 py-4 max-[430px]:w-[88vw] max-[430px]:max-w-[22rem] max-[430px]:px-3 md:w-[32vw] md:max-w-none md:py-6 md:pl-[4vw] md:pr-3 xl:py-8 xl:pl-[4.75vw] xl:pr-4 2xl:py-10 2xl:pl-[5.5vw]">
-        <img src={logo_full} alt="eatable logo" className='hidden md:block h-16 mb-16' />
+      <div className="w-[90vw] max-w-[24rem] rounded-lg px-4 py-4 max-[430px]:w-[88vw] max-[430px]:max-w-[22rem] max-[430px]:px-3 md:w-[32vw] md:max-w-none md:py-6 md:pl-[4vw] md:pr-3 xl:py-8 xl:pl-[4.75vw] xl:pr-4 2xl:py-10 2xl:pl-[5.5vw] flex h-full flex-col items-start">
+        <img src={logo_full} alt="eatable logo" className='hidden md:block h-16 w-auto mt-4 mb-12 self-start' />
         <div className='flex flex-col gap-4'>
           <p className="text-center md:mt-0 mt-5 text-brand text-2xl sm:text-4xl md:text-2xl font-bold leading-tight max-[430px]:text-xl sm:text-left">
             Discover, vote, and order from Singapore&apos;s hawker favourites
@@ -129,6 +130,20 @@ function HomePage() {
           <div className='flex items-center gap-3'>
             <img src={point} alt="" className="h-5 w-5" aria-hidden="true" />
             <p className='text-base'>Fast pickup guaranteed</p>
+          </div>
+        </div>
+
+        <div className="hidden md:flex items-center justify-between gap-3 pr-1 pt-4 border-gray-200 mt-[5vh]">
+          <p className="text-base font-medium text-brand whitespace-nowra">Recent community uploads</p>
+          <div className="flex items-center -space-x-3">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <img
+                key={`recent-upload-${index}`}
+                src={profilePlaceholder}
+                alt="Community upload"
+                className="h-8 w-8 rounded-full border-2 border-white object-cover"
+              />
+            ))}
           </div>
         </div>
       </div>
