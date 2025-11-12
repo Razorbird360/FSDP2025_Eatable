@@ -106,6 +106,7 @@ export default function CustomBentoGrid() {
         it.id === uploadId ? { ...it, uploadCount: it.uploadCount + 1 } : it
       )
     );
+    console.log("Upvoted upload ID:", uploadId);
   };
 
   const handleUnvote = (uploadId) => {
@@ -118,6 +119,7 @@ export default function CustomBentoGrid() {
         it.id === uploadId ? { ...it, uploadCount: Math.max(it.uploadCount - 1, 0) } : it
       )
     );
+    console.log("Unvoted upload ID:", uploadId);
   };
 
 
@@ -142,7 +144,7 @@ export default function CustomBentoGrid() {
   return (
     <section className="mt-12 mb-20 px-4 md:px-8">
       <h2 className="mb-8 text-3xl font-bold text-emerald-900 tracking-tight text-center">
-        Community Favourites
+        Customer Favourites
       </h2>
 
       <div className="bento-grid max-w-7xl mx-auto">
