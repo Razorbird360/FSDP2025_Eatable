@@ -144,7 +144,6 @@ function ItemDialog({ open, item, onClose, onAdd }) {
   }, [onClose]);
 
   useEffect(() => {
-    // reset when switching items
     if (open) {
       setQty(1);
       setNotes("");
@@ -190,7 +189,7 @@ function ItemDialog({ open, item, onClose, onAdd }) {
               ${item.price.toFixed(2)}
             </div>
           </div>
-                
+
           <p className="mt-2 text-sm text-gray-600">{item.desc}</p>
 
           <div className="mt-4">
@@ -246,9 +245,10 @@ export default function StallEmenu() {
   const [activeSection, setActiveSection] = useState("All");
   const [openFilter, setOpenFilter] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
+  const [showFullBlurb, setShowFullBlurb] = useState(false);
   const controlsRef = useRef(null);
 
-  // new: selected item modal state
+  // selected item modal state
   const [selected, setSelected] = useState(null);
   const [showItem, setShowItem] = useState(false);
 
@@ -304,16 +304,30 @@ export default function StallEmenu() {
     { label: STALL.market },
   ];
 
-  return (
-    <div className="min-h-screen bg-[#F5F7F2]">
-      <main className="mx-auto max-w-6xl px-4 py-6">
+  // mobile blurb clamp with "more"
+  const isMobile = typeof window !== "undefined" ? window.innerWidth < 768 : true;
+  const blurbLimit = 100;
+  const blurb =
+    showFullBlurb || !isMobile
+      ? STALL.blurb
+      : STALL.blurb.length > blurbLimit
+      ? STALL.blurb.slice(0, blurbLimit) + "…"
+      : STALL.blurb;
+
+    return (
+      <div className="relative min-h-screen overflow-x-hidden">
+        <div className="fixed inset-0 -z-10 bg-[#F5F7F2]" />
+
+
+        <main className="relative z-10 mx-auto w-full px-3 sm:px-4 py-5 max-w-[430px] md:max-w-6xl">
+
         {/* breadcrumb */}
-        <nav className="mb-3">
-          <ol className="flex items-center gap-2 text-sm">
+        <nav className="mb-2">
+          <ol className="flex items-center gap-1.5 text-xs md:text-sm">
             {crumbs.map((c, i) => {
               const isLast = i === crumbs.length - 1;
               return (
-                <li key={i} className="flex items-center gap-2">
+                <li key={i} className="flex items-center gap-1.5">
                   {c.to ? (
                     <Link to={c.to} className="text-gray-700 hover:text-[#21421B]">
                       {c.label}
@@ -321,7 +335,7 @@ export default function StallEmenu() {
                   ) : (
                     <span className="font-medium text-gray-900">{c.label}</span>
                   )}
-                  {!isLast && <Icon.Chevron className="w-4 h-4 text-gray-400" />}
+                  {!isLast && <Icon.Chevron className="w-3.5 h-3.5 text-gray-400" />}
                 </li>
               );
             })}
@@ -329,104 +343,108 @@ export default function StallEmenu() {
         </nav>
 
         {/* stall hero */}
-        <section className="bg-white rounded-2xl border p-4 md:p-6 flex gap-4">
+        <section className="bg-white rounded-2xl border p-3 md:p-6 flex gap-3 md:gap-4">
           <img
             src={foodStallIcon}
             alt="stall"
-            className="w-28 h-28 md:w-40 md:h-40 object-cover rounded-xl border"
+            className="w-20 h-20 md:w-40 md:h-40 object-cover rounded-xl border"
           />
           <div className="flex-1">
-            <h1 className="text-lg md:text-xl font-semibold">
+            <h1 className="text-base md:text-xl font-semibold">
               {STALL.name}{" "}
               <span className="text-gray-600 font-normal">({STALL.market})</span>
             </h1>
-            <p className="text-xs md:text-sm text-gray-600 mt-1 leading-snug line-clamp-2">
-              {STALL.blurb}
+            <p className="text-[11px] md:text-sm text-gray-600 mt-1 leading-snug">
+              {blurb}
+              {isMobile && STALL.blurb.length > blurbLimit && (
+                <button
+                  onClick={() => setShowFullBlurb((v) => !v)}
+                  className="ml-1 text-[#21421B] font-medium hover:underline"
+                >
+                  {showFullBlurb ? "show less" : "more"}
+                </button>
+              )}
             </p>
 
-            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="flex items-start gap-2 text-sm">
-                <Icon.MapPin className="w-4 h-4 mt-0.5" />
+            <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="flex items-start gap-1.5 text-[12px]">
+                <Icon.MapPin className="w-3.5 h-3.5 mt-0.5" />
                 <div>
                   <div className="font-medium">{STALL.address}</div>
-                  <div className="text-gray-600 text-xs">{STALL.distance}</div>
+                  <div className="text-gray-600 text-[11px]">{STALL.distance}</div>
                 </div>
               </div>
-              <div className="flex items-start gap-2 text-sm">
-                <Icon.Clock className="w-4 h-4 mt-0.5" />
+              <div className="flex items-start gap-1.5 text-[12px]">
+                <Icon.Clock className="w-3.5 h-3.5 mt-0.5" />
                 <div>
                   <div className="font-medium">{STALL.hours}</div>
-                  <div className="text-gray-600 text-xs">{STALL.days}</div>
+                  <div className="text-gray-600 text-[11px]">{STALL.days}</div>
                 </div>
               </div>
             </div>
 
-            <button className="mt-3 inline-flex items-center text-xs font-medium px-3 py-1.5 rounded-lg bg-[#21421B] text-white hover:bg-[#21421B]/90">
+            <button className="mt-2 inline-flex items-center text-[11px] font-medium px-2.5 py-1.5 rounded-lg bg-[#21421B] text-white hover:bg-[#21421B]/90">
               View on map
             </button>
           </div>
         </section>
 
-        {/* tabs + controls */}
-        <section className="mt-6">
-          <div className="flex items-center justify-between gap-3" ref={controlsRef}>
+        {/* tabs + controls — compact on phones */}
+        <section className="mt-4">
+          <div className="flex items-center justify-between gap-1" ref={controlsRef}>
             {/* tabs */}
-            <div className="inline-flex bg-white rounded-xl border p-1">
+            <div className="inline-flex bg-white rounded-xl border p-0.5">
               <button
                 onClick={() => setTab("menu")}
-                className={`flex items-center gap-2 px-3 py-2 text-sm rounded-lg ${
-                  tab === "menu"
-                    ? "bg-[#21421B] text-white"
-                    : "text-gray-700 hover:bg-gray-100"
-                }`}
+                className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg
+                  text-[11px] sm:text-sm
+                  ${tab === "menu" ? "bg-[#21421B] text-white" : "text-gray-700 hover:bg-gray-100"}`}
               >
-                <Icon.MenuList className="w-4 h-4" />
+                <Icon.MenuList className="w-3 h-3 sm:w-4 sm:h-4" />
                 Menu
               </button>
               <button
                 onClick={() => setTab("photos")}
-                className={`flex items-center gap-2 px-3 py-2 text-sm rounded-lg ${
-                  tab === "photos"
-                    ? "bg-[#21421B] text-white"
-                    : "text-gray-700 hover:bg-gray-100"
-                }`}
+                className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg
+                  text-[11px] sm:text-sm
+                  ${tab === "photos" ? "bg-[#21421B] text-white" : "text-gray-700 hover:bg-gray-100"}`}
               >
-                <Icon.Photo className="w-4 h-4" />
+                <Icon.Photo className="w-3 h-3 sm:w-4 sm:h-4" />
                 Photos
               </button>
               <button
                 onClick={() => setTab("about")}
-                className={`flex items-center gap-2 px-3 py-2 text-sm rounded-lg ${
-                  tab === "about"
-                    ? "bg-[#21421B] text-white"
-                    : "text-gray-700 hover:bg-gray-100"
-                }`}
+                className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg
+                  text-[11px] sm:text-sm
+                  ${tab === "about" ? "bg-[#21421B] text-white" : "text-gray-700 hover:bg-gray-100"}`}
               >
-                <Icon.Info className="w-4 h-4" />
+                <Icon.Info className="w-3 h-3 sm:w-4 sm:h-4" />
                 About
               </button>
             </div>
 
-            {/* filter + expanding search */}
+            {/* filter + search */}
             {tab === "menu" && (
-              <div className="relative flex items-center gap-2">
+              <div className="relative flex items-center gap-1.5">
                 {/* Filter button */}
                 <button
                   onClick={() => {
                     setOpenFilter((v) => !v);
                     setShowSearch(false);
                   }}
-                  className="relative w-40 h-10 rounded-xl border bg-white px-3 text-sm text-gray-700 flex items-center justify-between hover:bg-gray-50 focus:outline-none"
+                  className="relative h-8 w-24 sm:h-10 sm:w-40 rounded-xl border bg-white
+                             px-2 sm:px-3 text-[11px] sm:text-sm text-gray-700
+                             flex items-center justify-between hover:bg-gray-50 focus:outline-none"
                 >
                   <span className="truncate">
                     {activeSection === "All" ? "Filter" : activeSection}
                   </span>
-                  <Icon.Caret className="w-4 h-4 text-gray-500" />
+                  <Icon.Caret className="w-3 h-3 sm:w-4 sm:h-4 text-gray-500" />
                 </button>
 
                 {/* Dropdown */}
                 {openFilter && (
-                  <div className="absolute right-12 top-12 z-20 w-40 rounded-xl border bg-white shadow-sm py-1">
+                  <div className="absolute right-9 top-9 sm:right-12 sm:top-12 z-20 w-36 sm:w-40 rounded-xl border bg-white shadow-sm py-1">
                     {sections.map((s) => (
                       <button
                         key={s}
@@ -434,7 +452,7 @@ export default function StallEmenu() {
                           setActiveSection(s);
                           setOpenFilter(false);
                         }}
-                        className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-100 ${
+                        className={`w-full text-left px-3 py-1.5 text-[11px] sm:text-sm hover:bg-gray-100 ${
                           activeSection === s ? "font-medium text-[#21421B]" : "text-gray-800"
                         }`}
                       >
@@ -444,50 +462,46 @@ export default function StallEmenu() {
                   </div>
                 )}
 
-                {/* Search trigger button */}
+                {/* Search trigger */}
                 <button
                   onClick={() => {
                     setShowSearch(true);
                     setOpenFilter(false);
                   }}
-                  className={`w-10 h-10 grid place-items-center rounded-xl border bg-white hover:bg-gray-50 ${
+                  className={`grid place-items-center h-8 w-8 sm:h-10 sm:w-10 rounded-xl border bg-white hover:bg-gray-50 ${
                     showSearch ? "hidden" : ""
                   }`}
                   aria-label="Open search"
                 >
-                  <Icon.Search className="w-4 h-4 text-gray-700" />
+                  <Icon.Search className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-700" />
                 </button>
 
-                {/* Expanding search bar with inside close X */}
+                {/* Expanding search */}
                 <div
-                  className={`absolute right-0 top-0 h-10 z-30 transition-all duration-300 overflow-hidden ${
-                    showSearch
-                      ? "w-[11rem] md:w-[14rem]"
-                      : "w-0 opacity-0 pointer-events-none"
+                  className={`absolute right-0 top-0 h-8 sm:h-10 z-30 transition-all duration-300 overflow-hidden ${
+                    showSearch ? "w-[8.8rem] sm:w-[14rem]" : "w-0 opacity-0 pointer-events-none"
                   }`}
                 >
                   <div className="relative h-full">
-                    <Icon.Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                    <Icon.Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-500" />
                     <input
                       value={query}
                       onChange={(e) => setQuery(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") e.preventDefault();
-                      }}
+                      onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
                       placeholder="Search in menu"
-                      className="w-full h-10 pl-9 pr-9 rounded-xl border bg-white text-sm outline-none focus:border-gray-300"
+                      className="w-full h-full pl-8 pr-8 rounded-xl border bg-white
+                                 text-[11px] sm:text-sm outline-none focus:border-gray-300"
                     />
-                    {/* close X inside the field */}
                     <button
                       onClick={() => {
                         setQuery("");
                         setShowSearch(false);
                       }}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-100"
+                      className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-100"
                       aria-label="Close search"
                       type="button"
                     >
-                      <Icon.Close className="w-4 h-4 text-gray-600" />
+                      <Icon.Close className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-600" />
                     </button>
                   </div>
                 </div>
@@ -499,19 +513,19 @@ export default function StallEmenu() {
           {tab === "menu" && (
             <>
               {grouped.length === 0 ? (
-                <div className="mt-4 bg-white border rounded-xl p-6 text-sm text-gray-600">
+                <div className="mt-3 bg-white border rounded-xl p-5 text-sm text-gray-600">
                   No results for <span className="font-medium">“{query || activeSection}”</span> try a different term
                 </div>
               ) : (
-                <div className="mt-4 space-y-4">
+                <div className="mt-3 space-y-3">
                   {grouped.map(({ section, items }) => (
                     <div key={section}>
-                      <h2 className="text-lg font-semibold text-gray-800 mb-3">{section}</h2>
-                      <ul className="space-y-2 -mt-2.5">
+                      <h2 className="text-[15px] font-semibold text-gray-800 mb-2">{section}</h2>
+                      <ul className="space-y-2 -mt-1">
                         {items.map((item) => (
                           <li
                             key={`${item.id}-${item.name}`}
-                            className="bg-white rounded-xl border p-3 md:p-4 flex items-center gap-3 cursor-pointer"
+                            className="bg-white rounded-xl border p-2.5 md:p-4 flex items-center gap-2.5 cursor-pointer"
                             onClick={() => {
                               setSelected(item);
                               setShowItem(true);
@@ -520,16 +534,12 @@ export default function StallEmenu() {
                             <img
                               src={item.img}
                               alt={item.name}
-                              className="w-16 h-16 sm:w-20 sm:h-20 rounded-lg object-cover border"
+                              className="w-14 h-14 sm:w-20 sm:h-20 rounded-lg object-cover border"
                             />
                             <div className="flex-1">
-                              <div className="font-semibold">{item.name}</div>
-                              <div className="text-sm text-gray-800 mt-0.5">
-                                ${item.price.toFixed(2)}
-                              </div>
-                              <p className="text-xs text-gray-600 mt-1 line-clamp-2">
-                                {item.desc}
-                              </p>
+                              <div className="font-semibold text-[15px]">{item.name}</div>
+                              <div className="text-[13px] text-gray-800 mt-0.5">${item.price.toFixed(2)}</div>
+                              <p className="text-[12px] text-gray-600 mt-0.5 line-clamp-2">{item.desc}</p>
                             </div>
                             <button
                               className="ml-2 shrink-0 w-8 h-8 rounded-full bg-[#21421B] text-white grid place-items-center hover:bg-[#21421B]/90"
@@ -554,7 +564,7 @@ export default function StallEmenu() {
 
           {/* PHOTOS CONTENT respects search and section */}
           {tab === "photos" && (
-            <div className="mt-4 grid grid-cols-3 sm:grid-cols-4 gap-3">
+            <div className="mt-3 grid grid-cols-3 sm:grid-cols-4 gap-2.5">
               {filtered.map((m) => (
                 <img
                   key={`${m.id}-${m.name}`}
@@ -567,12 +577,12 @@ export default function StallEmenu() {
           )}
 
           {tab === "about" && (
-            <div className="mt-4 bg-white rounded-xl border p-4 text-sm text-gray-700">
+            <div className="mt-3 bg-white rounded-xl border p-4 text-sm text-gray-700">
               <p>
                 We serve classic local breakfast sets with kopi or teh choose your bread spread
                 and add-ons. Freshly brewed all day
               </p>
-              <div className="mt-4 grid sm:grid-cols-2 gap-3">
+              <div className="mt-3 grid sm:grid-cols-2 gap-3">
                 <div className="p-3 rounded-lg border">
                   <div className="text-xs text-gray-500">Address</div>
                   <div className="font-medium">{STALL.address}</div>

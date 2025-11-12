@@ -23,11 +23,10 @@ function AppRoutes() {
         <Route index element={<Navigate to="/home" replace />} />
         <Route path="/home" element={<HomePage />} />
         <Route path="/stalls" element={<Stalls />} />
-        <Route path="/stalls/:stallId" element={<StallDetail />} />
         <Route path="/about" element={<AboutPage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/stallEmenu" element={<StallEmenu />} /> 
+        <Route path="/stalls/:stallId" element={<StallEmenu />} /> 
 
 
 
