@@ -1,11 +1,14 @@
 import { BrowserRouter } from 'react-router-dom';
+import { ChakraProvider, defaultSystem } from '@chakra-ui/react';
 import AppRoutes from './routes';
 
 function App() {
   return (
-    <BrowserRouter>
-      <AppRoutes />
-    </BrowserRouter>
+    <ChakraProvider value={defaultSystem}>
+      <BrowserRouter>
+        <AppRoutes />
+      </BrowserRouter>
+    </ChakraProvider>
   );
 }
 
