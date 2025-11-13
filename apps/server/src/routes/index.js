@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import stallsRoutes from './stalls.routes.js';
 import authRoutes from './auth.routes.js';
+import mediaRoutes from './media.routes.js';
 
 const router = Router();
 
@@ -10,5 +11,6 @@ router.get('/health', (req, res) => {
 
 router.use('/stalls', stallsRoutes);
 router.use('/auth', authRoutes);
+router.use('/media', mediaRoutes);
 
 export default router;
