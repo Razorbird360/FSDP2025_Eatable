@@ -159,7 +159,21 @@ export const mediaController = {
       // 3. Extract file path from URL
       const file_path = storageService.extractPathFromUrl(upload.imageUrl, BUCKET_NAME);
 
-      // 4. Delete from Supabase Storage (non-blocking if fails)
+      // 4. Validate path format (defense against path traversal)
+      // Expected format: stallId/menuItemId/uuid.jpg
+      const uuid_pattern = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
+      const path_segments = file_path.split('/');
+
+      if (path_segments.length !== 3 ||
+          !uuid_pattern.test(path_segments[0]) ||
+          !uuid_pattern.test(path_segments[1]) ||
+          !path_segments[2].match(/^[a-f0-9-]+\.(jpg|jpeg)$/i)) {
+        return res.status(400).json({
+          error: 'Invalid file path format. File may have been corrupted.'
+        });
+      }
+
+      // 5. Delete from Supabase Storage (non-blocking if fails)
       try {
         await storageService.deleteFile(BUCKET_NAME, file_path);
       } catch (storage_error) {
@@ -167,7 +181,7 @@ export const mediaController = {
         // Continue with database deletion even if storage fails
       }
 
-      // 5. Delete from database
+      // 6. Delete from database
       await mediaService.delete(uploadId);
 
       res.status(204).send();

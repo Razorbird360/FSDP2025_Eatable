@@ -21,7 +21,23 @@ export const storageService = {
    * @returns {Promise<Buffer>} Compressed image buffer
    */
   async compressImage(imageBuffer) {
-    const metadata = await sharp(imageBuffer).metadata();
+    // Validate buffer
+    if (!Buffer.isBuffer(imageBuffer) || imageBuffer.length === 0) {
+      throw new Error('Invalid image buffer provided');
+    }
+
+    // Extract metadata with error handling
+    let metadata;
+    try {
+      metadata = await sharp(imageBuffer).metadata();
+    } catch (error) {
+      throw new Error(`Failed to parse image: ${error.message}`);
+    }
+
+    if (!metadata.width || !metadata.height) {
+      throw new Error('Invalid image dimensions');
+    }
+
     const aspect_ratio = metadata.width / metadata.height;
 
     let resize_options;
@@ -60,12 +76,20 @@ export const storageService = {
    * @returns {Promise<string>} Public URL of uploaded file
    */
   async uploadFile(bucket, path, fileBuffer, contentType = 'image/jpeg') {
+    // Validate inputs
+    if (!bucket || !path) {
+      throw new Error('Bucket and path are required');
+    }
+    if (!Buffer.isBuffer(fileBuffer) || fileBuffer.length === 0) {
+      throw new Error('Invalid file buffer provided');
+    }
+
     const { data, error } = await supabaseAdmin.storage
       .from(bucket)
       .upload(path, fileBuffer, {
         contentType,
         cacheControl: '3600',
-        upsert: false,
+        upsert: false, // UUID filenames prevent collisions
       });
 
     if (error) {
