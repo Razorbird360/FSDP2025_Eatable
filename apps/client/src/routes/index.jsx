@@ -25,8 +25,6 @@ function AppRoutes() {
         <Route index element={<Navigate to="/home" replace />} />
         <Route path="/home" element={<HomePage />} />
         <Route path="/stalls" element={<Stalls />} />
-        <Route path="/stalls/:stallId" element={<StallDetail />} />
-        <Route path="/stalls/:stallId/gallery" element={<StallGallery />} />
 
         <Route path="/about" element={<AboutPage />} />
         <Route path="/login" element={<Login />} />
@@ -35,6 +33,7 @@ function AppRoutes() {
 
 
 
+        <Route path="/stalls/:stallId/gallery" element={<StallGallery />} />
         {/* Protected routes - requires authentication */}
         <Route element={<ProtectedLayout />}>
           <Route path="/cart" element={<Cart />} />

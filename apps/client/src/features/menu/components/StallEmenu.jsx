@@ -2,6 +2,7 @@
 import { useMemo, useState, useRef, useEffect } from "react";
 import foodStallIcon from "./Assets/FoodStall_Icon.png";
 import { Link } from "react-router-dom";
+import CustomBentoGrid from '../../stalls/components/StallGallery'
 
 const STALL = {
   name: "Ah Heng Coffee Stall",
@@ -564,7 +565,7 @@ export default function StallEmenu() {
 
           {/* PHOTOS CONTENT respects search and section */}
           {tab === "photos" && (
-            <div className="mt-3 grid grid-cols-3 sm:grid-cols-4 gap-2.5">
+            /*<div className="mt-3 grid grid-cols-3 sm:grid-cols-4 gap-2.5">
               {filtered.map((m) => (
                 <img
                   key={`${m.id}-${m.name}`}
@@ -573,6 +574,9 @@ export default function StallEmenu() {
                   className="w-full aspect-square object-cover rounded-lg border"
                 />
               ))}
+            </div>*/
+            <div className="mt-3">
+              <CustomBentoGrid />
             </div>
           )}
 
