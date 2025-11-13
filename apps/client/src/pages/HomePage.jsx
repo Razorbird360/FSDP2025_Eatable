@@ -63,7 +63,7 @@ function HomePage() {
 
   return (
     <section className="box-border flex w-full flex-col items-center gap-6 px-4 pt-0 pb-6 max-[430px]:gap-5 max-[430px]:px-3.5 sm:px-8 md:px-0 md:pt-0 md:pb-0 md:flex-row md:gap-0 md:min-h-[calc(100vh-4rem)] md:items-stretch bg-[#FBF7F0]">
-      <div className="w-[90vw] max-w-[24rem] rounded-lg px-4 py-4 max-[430px]:w-[88vw] max-[430px]:max-w-[22rem] max-[430px]:px-3 md:w-[32vw] md:max-w-none md:py-6 md:pl-[4vw] md:pr-3 xl:py-8 xl:pl-[4.75vw] xl:pr-4 2xl:py-10 2xl:pl-[5.5vw] flex h-full flex-col items-start">
+      <div className="w-[90vw] max-w-[24rem] rounded-lg px-4 py-4 max-[430px]:w-[88vw] max-[430px]:max-w-[22rem] max-[430px]:px-3 md:w-[38vw] lg:w-[36vw] xl:w-[34vw] 2xl:w-[34vw] md:max-w-none md:py-6 md:pl-[4vw] md:pr-3 xl:py-8 xl:pl-[4.75vw] xl:pr-4 2xl:py-10 2xl:pl-[5.5vw] flex h-full flex-col items-start">
         <img src={logo_full} alt="eatable logo" className='hidden md:block h-16 w-auto mt-4 mb-12 self-start' />
         <div className='flex flex-col gap-4'>
           <p className="text-center md:mt-0 mt-5 text-brand text-2xl sm:text-4xl md:text-2xl font-bold leading-tight max-[430px]:text-xl sm:text-left">
@@ -72,9 +72,9 @@ function HomePage() {
           <p className='mt-2 text-base hidden md:block'>Community-powered reviews and reliable menus from your local hawker centres</p>
         </div>
         <div className='mt-6 hidden md:block'>
-          <div className="flex flex-col gap-3.5 max-w-[20vw]">  
+          <div className="flex flex-col gap-3.5 w-full max-w-[34rem]">
             <Button
-              height="56px"
+              height="44px"
               rounded="10px"
               w="full"
               px={6}
@@ -92,7 +92,7 @@ function HomePage() {
             </Button>
 
             <Button
-              height="56px"
+              height="44px"
               rounded="10px"
               w="full"
               px={6}
