@@ -11,16 +11,20 @@ import {
   chakra,
 } from '@chakra-ui/react';
 import { LuEye, LuEyeOff } from 'react-icons/lu';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../useAuth';
 import LogoImage from '../../../assets/logo/logo_full.png';
 import BannerImage from '../../../assets/Login/Banner.jpg';
 import GoogleIcon from '../../../assets/Login/google.png';
 
 /**
  * SignupForm Component
- * UI-only form for Step 1 (no API wiring yet)
+ * Step 2: Form with validation, error handling, and Supabase integration
  */
 const SignupForm = () => {
+  const navigate = useNavigate();
+  const { signup, loading, error: authError } = useAuth();
+
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -28,14 +32,75 @@ const SignupForm = () => {
     password: '',
     agreeToTerms: false,
   });
+  const [errors, setErrors] = useState({});
 
   const handleChange = (field) => (event) => {
     const value = field === 'agreeToTerms' ? event.target.checked : event.target.value;
     setFormData((prev) => ({ ...prev, [field]: value }));
+
+    // Clear error for this field when user starts typing
+    if (errors[field]) {
+      setErrors((prev) => ({ ...prev, [field]: '' }));
+    }
   };
 
-  const handleSubmit = (event) => {
+  /**
+   * Validate form fields
+   * @returns {Object} Object with field errors (empty if valid)
+   */
+  const validateForm = () => {
+    const newErrors = {};
+
+    // Name validation
+    if (!formData.name.trim()) {
+      newErrors.name = 'Name is required';
+    } else if (formData.name.trim().length < 2) {
+      newErrors.name = 'Name must be at least 2 characters';
+    }
+
+    // Email validation
+    if (!formData.email.trim()) {
+      newErrors.email = 'Email is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = 'Please enter a valid email address';
+    }
+
+    // Password validation
+    if (!formData.password) {
+      newErrors.password = 'Password is required';
+    } else if (formData.password.length < 8) {
+      newErrors.password = 'Password must be at least 8 characters';
+    }
+
+    // Terms validation
+    if (!formData.agreeToTerms) {
+      newErrors.agreeToTerms = 'You must agree to the Terms & Conditions';
+    }
+
+    return newErrors;
+  };
+
+  const handleSubmit = async (event) => {
     event.preventDefault();
+    setErrors({}); // Clear previous errors
+
+    // Validate form
+    const validationErrors = validateForm();
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      return;
+    }
+
+    // Call signup API
+    const result = await signup(formData.email, formData.password, formData.name);
+
+    if (result.success) {
+      // Success! Redirect to home page
+      navigate('/home');
+    } else {
+      // Show error from Supabase
+      setErrors({ submit: result.error });
+    }
   };
 
   return (
@@ -103,20 +168,20 @@ const SignupForm = () => {
               height={{ base: '52px', lg: '48px' }}
               borderRadius="14px"
               border="1px solid"
-              borderColor="#E1E9DF"
+              borderColor={errors.name ? '#E53E3E' : '#E1E9DF'}
               bg="white"
               color="#1C201D"
               fontSize={{ base: '15px', lg: '14px' }}
               px="20px"
               _placeholder={{ color: '#6B7D73' }}
-              _hover={{ borderColor: '#21421B', bg: 'white' }}
+              _hover={{ borderColor: errors.name ? '#E53E3E' : '#21421B', bg: 'white' }}
               _focus={{
-                borderColor: '#21421B',
+                borderColor: errors.name ? '#E53E3E' : '#21421B',
                 boxShadow: 'none',
                 outline: 'none',
               }}
               _focusVisible={{
-                borderColor: '#21421B',
+                borderColor: errors.name ? '#E53E3E' : '#21421B',
                 boxShadow: 'none',
                 outline: 'none',
               }}
@@ -125,6 +190,11 @@ const SignupForm = () => {
               value={formData.name}
               onChange={handleChange('name')}
             />
+            {errors.name && (
+              <Text fontSize="13px" color="#E53E3E" mt={2}>
+                {errors.name}
+              </Text>
+            )}
           </Box>
 
           <Box>
@@ -140,20 +210,20 @@ const SignupForm = () => {
               height={{ base: '52px', lg: '48px' }}
               borderRadius="14px"
               border="1px solid"
-              borderColor="#E1E9DF"
+              borderColor={errors.email ? '#E53E3E' : '#E1E9DF'}
               bg="white"
               color="#1C201D"
               fontSize={{ base: '15px', lg: '14px' }}
               px="20px"
               _placeholder={{ color: '#6B7D73' }}
-              _hover={{ borderColor: '#21421B', bg: 'white' }}
+              _hover={{ borderColor: errors.email ? '#E53E3E' : '#21421B', bg: 'white' }}
               _focus={{
-                borderColor: '#21421B',
+                borderColor: errors.email ? '#E53E3E' : '#21421B',
                 boxShadow: 'none',
                 outline: 'none',
               }}
               _focusVisible={{
-                borderColor: '#21421B',
+                borderColor: errors.email ? '#E53E3E' : '#21421B',
                 boxShadow: 'none',
                 outline: 'none',
               }}
@@ -163,6 +233,11 @@ const SignupForm = () => {
               value={formData.email}
               onChange={handleChange('email')}
             />
+            {errors.email && (
+              <Text fontSize="13px" color="#E53E3E" mt={2}>
+                {errors.email}
+              </Text>
+            )}
           </Box>
 
           <Box>
@@ -179,20 +254,20 @@ const SignupForm = () => {
                 height={{ base: '52px', lg: '48px' }}
                 borderRadius="14px"
                 border="1px solid"
-                borderColor="#E1E9DF"
+                borderColor={errors.password ? '#E53E3E' : '#E1E9DF'}
                 bg="white"
                 color="#1C201D"
                 fontSize={{ base: '15px', lg: '14px' }}
                 px="20px"
                 _placeholder={{ color: '#6B7D73' }}
-                _hover={{ borderColor: '#21421B', bg: 'white' }}
+                _hover={{ borderColor: errors.password ? '#E53E3E' : '#21421B', bg: 'white' }}
                 _focus={{
-                  borderColor: '#21421B',
+                  borderColor: errors.password ? '#E53E3E' : '#21421B',
                   boxShadow: 'none',
                   outline: 'none',
                 }}
                 _focusVisible={{
-                  borderColor: '#21421B',
+                  borderColor: errors.password ? '#E53E3E' : '#21421B',
                   boxShadow: 'none',
                   outline: 'none',
                 }}
@@ -217,6 +292,11 @@ const SignupForm = () => {
                 {showPassword ? <LuEye size={18} /> : <LuEyeOff size={18} />}
               </IconButton>
             </Box>
+            {errors.password && (
+              <Text fontSize="13px" color="#E53E3E" mt={2}>
+                {errors.password}
+              </Text>
+            )}
           </Box>
 
           <Box mt={1}>
@@ -244,7 +324,29 @@ const SignupForm = () => {
                 </Text>
               </Text>
             </Flex>
+            {errors.agreeToTerms && (
+              <Text fontSize="13px" color="#E53E3E" mt={2}>
+                {errors.agreeToTerms}
+              </Text>
+            )}
           </Box>
+
+          {/* General submit error */}
+          {errors.submit && (
+            <Box
+              bg="rgba(229, 62, 62, 0.1)"
+              border="1px solid"
+              borderColor="#E53E3E"
+              borderRadius="10px"
+              px={4}
+              py={3}
+              mt={2}
+            >
+              <Text fontSize="14px" color="#E53E3E">
+                {errors.submit}
+              </Text>
+            </Box>
+          )}
 
           <Button
             type="submit"
@@ -254,11 +356,14 @@ const SignupForm = () => {
             borderRadius="12px"
             fontSize={{ base: '16px', lg: '15px' }}
             fontWeight="600"
-            _hover={{ bg: '#1A3517' }}
-            _active={{ bg: '#142812' }}
+            _hover={{ bg: loading ? '#21421B' : '#1A3517' }}
+            _active={{ bg: loading ? '#21421B' : '#142812' }}
             mt={{ base: 3, lg: 2 }}
+            disabled={loading}
+            cursor={loading ? 'not-allowed' : 'pointer'}
+            opacity={loading ? 0.7 : 1}
           >
-            Sign up
+            {loading ? 'Creating account...' : 'Sign up'}
           </Button>
 
           <Flex align="center" gap={4}>
