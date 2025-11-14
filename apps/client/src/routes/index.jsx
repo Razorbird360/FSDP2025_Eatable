@@ -7,6 +7,7 @@ import StallEmenu from "../features/menu/components/StallEmenu"
 import SignupPage from '../features/auth/SignupPage';
 import LoginPage from '../features/auth/LoginPage';
 
+import StallGallery from '../features/stalls/components/StallGallery';
 
 // Placeholder pages - to be replaced with actual feature pages
 const Stalls = () => <div className="p-8"><h1 className="text-3xl font-bold">Stalls</h1></div>;
@@ -17,17 +18,20 @@ const NotFound = () => <div className="p-8"><h1 className="text-3xl font-bold">4
 
 function AppRoutes() {
   return (
+    
     <Routes>
       <Route element={<RootLayout />}>
         {/* Public routes */}
         <Route index element={<Navigate to="/home" replace />} />
         <Route path="/home" element={<HomePage />} />
         <Route path="/stalls" element={<Stalls />} />
+
         <Route path="/about" element={<AboutPage />} />
         <Route path="/stalls/:stallId" element={<StallEmenu />} /> 
 
 
 
+        <Route path="/stalls/:stallId/gallery" element={<StallGallery />} />
         {/* Protected routes - requires authentication */}
         <Route element={<ProtectedLayout />}>
           <Route path="/cart" element={<Cart />} />

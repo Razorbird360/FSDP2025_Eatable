@@ -8,6 +8,8 @@ const router = Router();
 router.get('/', stallsController.getAll);
 router.get('/:id', stallsController.getById);
 
+router.get('/:id/gallery', stallsController.getGallery);
+
 // Protected routes
 router.post('/', authMiddleware, stallsController.create);
 router.put('/:id', authMiddleware, stallsController.update);
