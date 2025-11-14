@@ -1,4 +1,3 @@
-import React from "react";
 import { useCart } from "./CartContext";
 
 /* back arrow */
@@ -31,20 +30,6 @@ function ClockIcon(props) {
 }
 
 /* new header cart icon (basket with 2 wheels) */
-function HeaderCartIcon(props) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" {...props}>
-      <path
-        d="M4 6h16l-1.5 8H8.5L7 8H4"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <circle cx="10" cy="18" r="1.4" strokeWidth="2" />
-      <circle cx="17" cy="18" r="1.4" strokeWidth="2" />
-    </svg>
-  );
-}
 
 export default function CartSidebar() {
   const { items, total, isOpen, closeCart, updateQty, removeItem } = useCart();
