@@ -11,7 +11,7 @@ export const STALL = {
 };
 
 
-const MENU = [
+export const MENU = [
   {
     id: 1,
     section: "Breakfast",

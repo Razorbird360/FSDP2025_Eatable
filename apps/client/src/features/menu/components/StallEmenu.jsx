@@ -547,7 +547,7 @@ export default function StallEmenu() {
           )}
 
           {tab === "photos" && (
-            <div className="mt-3 grid grid-cols-3 sm:grid-cols-4 gap-2.5">
+            /*<div className="mt-3 grid grid-cols-3 sm:grid-cols-4 gap-2.5">
               {filtered.map((m) => (
                 <img
                   key={`${m.id}-${m.name}`}
