@@ -57,4 +57,13 @@ export const stallsService = {
       where: { id },
     });
   },
+
+  async getGallery(stallId) {
+    return await prisma.mediaUpload.findMany({
+      where: { stallId: stallId },
+      orderBy: {
+        uploadCount: 'desc',
+      },
+    });
+  }
 };

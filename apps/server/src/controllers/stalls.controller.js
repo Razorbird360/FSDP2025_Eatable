@@ -48,4 +48,13 @@ export const stallsController = {
       next(error);
     }
   },
+
+  async getGallery(req, res, next) {
+    try {
+      const gallery = await stallsService.getGallery(req.params.id);
+      res.json(gallery);
+    } catch (error) {
+      next(error);
+    } 
+  },
 };

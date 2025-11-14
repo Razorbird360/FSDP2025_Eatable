@@ -4,6 +4,7 @@ import { validate, syncUserSchema, authMiddleware } from '../middleware/auth.mid
 
 const router = express.Router();
 
+router.post('/check-availability', authController.checkAvailability);
 router.get('/me', authMiddleware, authController.getCurrentUser);
 router.post('/sync-user', authMiddleware, validate(syncUserSchema), authController.syncUser);
 

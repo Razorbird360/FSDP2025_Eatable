@@ -1,6 +1,7 @@
 import { useMemo, useState, useRef, useEffect } from "react";
 import foodStallIcon from "./Assets/FoodStall_Icon.png";
 import { Link } from "react-router-dom";
+import StallGallery from '../../stalls/components/StallGallery'
 import { useCart } from "../../orders/components/CartContext";
 import { STALL, MENU } from "./StallData";
 
@@ -546,8 +547,8 @@ export default function StallEmenu() {
           )}
 
           {tab === "photos" && (
-            <div className="mt-3 grid grid-cols-3 gap-2.5 sm:grid-cols-4">
-              {filtered.map(m => (
+            <div className="mt-3 grid grid-cols-3 sm:grid-cols-4 gap-2.5">
+              {filtered.map((m) => (
                 <img
                   key={`${m.id}-${m.name}`}
                   src={m.img}
@@ -555,6 +556,9 @@ export default function StallEmenu() {
                   className="aspect-square w-full rounded-lg border object-cover"
                 />
               ))}
+            </div>*/
+            <div className="mt-3">
+              <StallGallery />
             </div>
           )}
 
