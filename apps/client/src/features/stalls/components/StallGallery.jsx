@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { UseMemo, UseState } from "react";
 
 export default function d() {
   // ===== Simulate logged-in user =====
@@ -112,24 +112,24 @@ const baseItems = [
     { userId: "u1", uploadId: "a4", value: 0 },
   ];
 
-  const [items, setItems] = useState(baseItems);
-  const [relations, setRelations] = useState(initialRelations);
+  const [items, setItems] = UseState(baseItems);
+  const [relations, setRelations] = UseState(initialRelations);
 
   // ===== Frozen display order: SORT BY UPVOTES ONLY =====
-  const [displayOrder] = useState(() =>
+  const [displayOrder] = UseState(() =>
     [...baseItems]
       .sort((a, b) => b.upvoteCount - a.upvoteCount)
       .map((it) => it.id)
   );
 
   // ===== Lookup maps =====
-  const itemById = useMemo(() => {
+  const itemById = UseMemo(() => {
     const m = new Map();
     items.forEach(it => m.set(it.id, it));
     return m;
   }, [items]);
 
-  const voteMap = useMemo(() => {
+  const voteMap = UseMemo(() => {
     const map = new Map();
     relations.forEach(r => map.set(`${r.userId}::${r.uploadId}`, r.value));
     return map;
@@ -138,12 +138,12 @@ const baseItems = [
   const getVoteValue = (id) => voteMap.get(`${currentUserId}::${id}`);
 
   // ===== Bento shape logic unchanged =====
-  const weightedPool = useMemo(
+  const weightedPool = UseMemo(
     () => ["2x1", "2x1", "2x1", "1x1", "1x1", "1x2", "1x2"],
     []
   );
 
-  const shapeById = useMemo(() => {
+  const shapeById = UseMemo(() => {
     const map = new Map();
     const hash = (id) => {
       let h = 0;
@@ -172,7 +172,7 @@ const baseItems = [
   
   // ===== Voting Actions =====
 
-    const [notice, setNotice] = useState(null);
+    const [setNotice] = UseState(null);
 
   const showNotice = (msg) => {
     setNotice(msg);
@@ -218,7 +218,7 @@ const baseItems = [
 
 
   // ===== Image Popup =====
-  const [popupId, setPopupId] = useState(null);
+  const [popupId, setPopupId] = UseState(null);
 
   // ===== Render =====
   return (
@@ -253,7 +253,7 @@ const baseItems = [
 
               {/* Upvote/Downvote count pill */}
               <div className="absolute top-3 left-3 bg-black/50 backdrop-blur px-3 py-1 rounded-full text-white opacity-0 group-hover:opacity-100 duration-200 text-sm">
-                👍 {it.upvoteCount}  👎 {it.downvoteCount}
+                👍 {it.upvoteCount}👎 {it.downvoteCount}
               </div>
 
               {/* Upvote (icon → expand on hover) */}
@@ -326,7 +326,7 @@ const baseItems = [
             </div>
 
               <div className="font-medium text-gray-700">
-                👍 {itemById.get(popupId)?.upvoteCount}  👎 {itemById.get(popupId)?.downvoteCount}
+                👍 {itemById.get(popupId)?.upvoteCount}👎 {itemById.get(popupId)?.downvoteCount}
               </div>
             </div>
           </div>
