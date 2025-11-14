@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Input, Box } from '@chakra-ui/react';
+import { useCart } from '../features/orders/components/CartContext';
 
 const homeIcon = new URL('../assets/navbar/home.svg', import.meta.url).href;
 const foodIcon = new URL('../assets/navbar/food.svg', import.meta.url).href;
@@ -46,10 +47,11 @@ function IconPill({ icon, label, href, isActive }) {
   );
 }
 
-function IconAction({ icon, label, badge }) {
+function IconAction({ icon, label, badge, onClick }) {
   return (
     <button
       type="button"
+      onClick={onClick}
       className="relative flex h-11 w-11 items-center justify-center rounded-xl text-[#4A554B] transition-colors hover:bg-[#F8FDF3]"
       aria-label={label}
     >
@@ -67,12 +69,15 @@ export default function Navbar() {
   const { pathname } = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
+  const { count, openCart } = useCart();
+
   const isActive = (href) => {
     if (href === '/') {
       return pathname === '/';
     }
     return pathname.startsWith(href);
   };
+
   const closeMobileMenu = () => {
     setIsMobileMenuOpen(false);
     setIsMobileSearchOpen(false);
@@ -80,6 +85,7 @@ export default function Navbar() {
 
   return (
     <header className="fixed inset-x-0 top-0 z-40 border-b border-[#E7EEE7] bg-white shadow-sm">
+      {/* desktop */}
       <div className="hidden w-full md:flex">
         <div className="flex w-full items-center gap-6 px-[4vw] py-3">
           <nav className="flex shrink-0 items-center gap-2.5" aria-label="Primary navigation">
@@ -128,7 +134,7 @@ export default function Navbar() {
 
           <div className="flex shrink-0 items-center gap-3">
             <IconAction icon={favouriteIcon} label="Favourites" />
-            <IconAction icon={cartIcon} label="Cart" badge={2} />
+            <IconAction icon={cartIcon} label="Cart" badge={count} onClick={openCart} />
             <div className="flex items-center rounded-full border border-[#E7EEE7] bg-white p-0.5">
               <img src={profilePlaceholder} alt="Profile" className="h-10 w-10 rounded-full object-cover" />
             </div>
@@ -136,10 +142,11 @@ export default function Navbar() {
         </div>
       </div>
 
+      {/* mobile top bar */}
       <div className="flex items-center justify-between pl-4 pr-6 py-4 md:hidden">
         <img src={logoFull} alt="Eatable" className="h-10 w-auto pl-2" />
         <div className="flex items-center gap-3">
-          <IconAction icon={cartIcon} label="Cart" badge={2} />
+          <IconAction icon={cartIcon} label="Cart" badge={count} onClick={openCart} />
           <button
             type="button"
             aria-label="Open navigation menu"
@@ -152,6 +159,7 @@ export default function Navbar() {
         </div>
       </div>
 
+      {/* mobile slide menu */}
       <div
         aria-hidden={!isMobileMenuOpen}
         inert={!isMobileMenuOpen ? '' : undefined}
@@ -193,14 +201,14 @@ export default function Navbar() {
               : 'translate-x-full shadow-none'
           }`}
         >
-          <div className="mb-4 flex items-center justify-between pl-4 pr-4">
+          <div className="mb-4 flex items-center justify بین pl-4 pr-4">
             <button
               type="button"
               aria-label="Open search"
               aria-expanded={isMobileSearchOpen}
               onClick={() => setIsMobileSearchOpen(true)}
               className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-[#F8FDF3] transition-all duration-200 ${
-                isMobileSearchOpen ? 'opacity-0 pointer-events-none scale-95' : 'opacity-100'
+                isMobileSearchOpen ? 'pointer-events-none scale-95 opacity-0' : 'opacity-100'
               }`}
             >
               <img src={searchIcon} alt="" className="h-5 w-5" />
@@ -218,8 +226,8 @@ export default function Navbar() {
           <div
             className={`overflow-hidden transition-all duration-300 ${
               isMobileSearchOpen
-                ? 'max-h-32 opacity-100 translate-y-0'
-                : 'pointer-events-none -translate-y-2 max-h-0 opacity-0'
+                ? 'max-h-32 translate-y-0 opacity-100'
+                : '-translate-y-2 max-h-0 pointer-events-none opacity-0'
             }`}
           >
             <Box className="relative w-full" position="relative">
