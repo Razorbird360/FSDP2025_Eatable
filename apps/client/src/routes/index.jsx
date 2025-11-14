@@ -5,6 +5,7 @@ import HomePage from '../pages/HomePage';
 import AboutPage from '../pages/AboutPage';
 import StallEmenu from "../features/menu/components/StallEmenu"
 import SignupPage from '../features/auth/SignupPage';
+import LoginPage from '../features/auth/LoginPage';
 
 
 // Placeholder pages - to be replaced with actual feature pages
@@ -12,7 +13,6 @@ const Stalls = () => <div className="p-8"><h1 className="text-3xl font-bold">Sta
 //const StallDetail = () => <div className="p-8"><h1 className="text-3xl font-bold">Stall Detail</h1></div>;
 const Cart = () => <div className="p-8"><h1 className="text-3xl font-bold">Cart</h1></div>;
 const OrderHistory = () => <div className="p-8"><h1 className="text-3xl font-bold">Order History</h1></div>;
-const Login = () => <div className="p-8"><h1 className="text-3xl font-bold">Login</h1></div>;
 const NotFound = () => <div className="p-8"><h1 className="text-3xl font-bold">404 - Not Found</h1></div>;
 
 function AppRoutes() {
@@ -24,7 +24,6 @@ function AppRoutes() {
         <Route path="/home" element={<HomePage />} />
         <Route path="/stalls" element={<Stalls />} />
         <Route path="/about" element={<AboutPage />} />
-        <Route path="/login" element={<Login />} />
         <Route path="/stalls/:stallId" element={<StallEmenu />} /> 
 
 
@@ -40,6 +39,7 @@ function AppRoutes() {
 
       <Route path="/signup" element={<SignupPage />} />
       <Route path="/register" element={<SignupPage />} />
+      <Route path="/login" element={<LoginPage />} />
 
       {/* 404 */}
       <Route path="*" element={<NotFound />} />
