@@ -1,437 +1,335 @@
-import  { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 
-export default function CustomBentoGrid() {
+export default function d() {
   // ===== Simulate logged-in user =====
   const currentUserId = "u1";
 
-  // ===== Base content (uploads) =====
-  const baseItems = [
-    { id: "a1",  src: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=1200", uploadCount: 124 },
-    { id: "a2",  src: "https://images.unsplash.com/photo-1627308595229-7830a5c91f9f?q=80&w=1200", uploadCount: 312 },
-    { id: "a3",  src: "https://images.unsplash.com/photo-1546069901-eacef0df6022?q=80&w=1200", uploadCount: 87  },
-    { id: "a4",  src: "https://images.unsplash.com/photo-1627308595229-7830a5c91f9f?q=80&w=1200", uploadCount: 205 },
-    { id: "a5",  src: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=1200", uploadCount: 56  },
-    { id: "a6",  src: "https://images.unsplash.com/photo-1627308595229-7830a5c91f9f?q=80&w=1200", uploadCount: 98  },
-    { id: "a7",  src: "https://images.unsplash.com/photo-1546069901-eacef0df6022?q=80&w=1200", uploadCount: 177 },
-    { id: "a8",  src: "https://images.unsplash.com/photo-1627308595229-7830a5c91f9f?q=80&w=1200", uploadCount: 63  },
-    { id: "a9",  src: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=1200", uploadCount: 220 },
-    { id: "a10", src: "https://images.unsplash.com/photo-1627308595229-7830a5c91f9f?q=80&w=1200", uploadCount: 44  },
-    { id: "a11", src: "https://images.unsplash.com/photo-1546069901-eacef0df6022?q=80&w=1200", uploadCount: 91  },
-    { id: "a12", src: "https://images.unsplash.com/photo-1627308595229-7830a5c91f9f?q=80&w=1200", uploadCount: 131 },
-    { id: "a13", src: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=1200", uploadCount: 124 },
-    { id: "a14", src: "https://images.unsplash.com/photo-1627308595229-7830a5c91f9f?q=80&w=1200", uploadCount: 312 },
-    { id: "a15", src: "https://images.unsplash.com/photo-1546069901-eacef0df6022?q=80&w=1200", uploadCount: 87  },
-    { id: "a16", src: "https://images.unsplash.com/photo-1627308595229-7830a5c91f9f?q=80&w=1200", uploadCount: 205 },
-    { id: "a17", src: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=1200", uploadCount: 56  },
-    { id: "a18", src: "https://images.unsplash.com/photo-1627308595229-7830a5c91f9f?q=80&w=1200", uploadCount: 98  },
-    { id: "a19", src: "https://images.unsplash.com/photo-1546069901-eacef0df6022?q=80&w=1200", uploadCount: 177 },
-    { id: "a20", src: "https://images.unsplash.com/photo-1627308595229-7830a5c91f9f?q=80&w=1200", uploadCount: 63  },
-    { id: "a21", src: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=1200", uploadCount: 220 },
-    { id: "a22", src: "https://images.unsplash.com/photo-1627308595229-7830a5c91f9f?q=80&w=1200", uploadCount: 44  },
-    { id: "a23", src: "https://images.unsplash.com/photo-1546069901-eacef0df6022?q=80&w=1200", uploadCount: 91  },
-    { id: "a24", src: "https://images.unsplash.com/photo-1627308595229-7830a5c91f9f?q=80&w=1200", uploadCount: 131 },
+  // ===== Base content =====
+  // Converted voteScore → upvoteCount & downvoteCount
+const baseItems = [
+  { 
+    id: "a1",
+    src: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=1200",
+    upvoteCount: 124,
+    downvoteCount: 12,
+    caption: "Signature Chicken Rice",
+    verified: true
+  },
+  { 
+    id: "a2",
+    src: "https://images.unsplash.com/photo-1627308595229-7830a5c91f9f?q=80&w=1200",
+    upvoteCount: 312,
+    downvoteCount: 20,
+    caption: "Thai Basil Pork with Rice",
+    verified: false
+  },
+  { 
+    id: "a3",
+    src: "https://images.unsplash.com/photo-1546069901-eacef0df6022?q=80&w=1200",
+    upvoteCount: 87,
+    downvoteCount: 5,
+    caption: "Healthy Grain Bowl",
+    verified: true
+  },
+  { 
+    id: "a4",
+    src: "https://images.unsplash.com/photo-1627308595229-7830a5c91f9f?q=80&w=1200",
+    upvoteCount: 205,
+    downvoteCount: 14,
+    caption: "Crispy Fried Chicken",
+    verified: false
+  },
+  { 
+    id: "a5",
+    src: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=1200",
+    upvoteCount: 56,
+    downvoteCount: 3,
+    caption: "Claypot Chicken Rice",
+    verified: true
+  },
+  { 
+    id: "a6",
+    src: "https://images.unsplash.com/photo-1627308595229-7830a5c91f9f?q=80&w=1200",
+    upvoteCount: 98,
+    downvoteCount: 4,
+    caption: "Honey Soy Wings",
+    verified: false
+  },
+  { 
+    id: "a7",
+    src: "https://images.unsplash.com/photo-1546069901-eacef0df6022?q=80&w=1200",
+    upvoteCount: 177,
+    downvoteCount: 9,
+    caption: "Vegetarian Bento Box",
+    verified: true
+  },
+  { 
+    id: "a8",
+    src: "https://images.unsplash.com/photo-1627308595229-7830a5c91f9f?q=80&w=1200",
+    upvoteCount: 63,
+    downvoteCount: 6,
+    caption: "Garlic Butter Fish",
+    verified: false
+  },
+  { 
+    id: "a9",
+    src: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=1200",
+    upvoteCount: 220,
+    downvoteCount: 11,
+    caption: "Golden Chicken Cutlet",
+    verified: true
+  },
+  { 
+    id: "a10",
+    src: "https://images.unsplash.com/photo-1627308595229-7830a5c91f9f?q=80&w=1200",
+    upvoteCount: 44,
+    downvoteCount: 7,
+    caption: "Cheesy Omelette Rice",
+    verified: false
+  },
+  { 
+    id: "a11",
+    src: "https://images.unsplash.com/photo-1546069901-eacef0df6022?q=80&w=1200",
+    upvoteCount: 91,
+    downvoteCount: 10,
+    caption: "Stir Fry Vegetables",
+    verified: false
+  },
+  { 
+    id: "a12",
+    src: "https://images.unsplash.com/photo-1627308595229-7830a5c91f9f?q=80&w=1200",
+    upvoteCount: 131,
+    downvoteCount: 15,
+    caption: "Teriyaki Chicken Bowl",
+    verified: true
+  }
+];
+
+  // ===== Relations now use value: 1 (upvote) or 0 (downvote) =====
+  const initialRelations = [
+    { userId: "u1", uploadId: "a2", value: 1 },
+    { userId: "u1", uploadId: "a9", value: 1 },
+    { userId: "u1", uploadId: "a4", value: 0 },
   ];
 
-  // ===== Relation rows (userId, uploadId) =====
-  const upvoteRelation = [
-    { userId: "u1", uploadId: "a2" },
-    { userId: "u1", uploadId: "a4" },
-    { userId: "u1", uploadId: "a9" },
-    { userId: "u2", uploadId: "a1" },
-    { userId: "u2", uploadId: "a7" },
-    { userId: "u3", uploadId: "a2" },
-    { userId: "u3", uploadId: "a3" },
-    { userId: "u3", uploadId: "a12" },
-  ];
+  const [items, setItems] = useState(baseItems);
+  const [relations, setRelations] = useState(initialRelations);
 
-  // ===== Helper: add relation counts initially =====
-  const addRelationCounts = (items, relations) => {
-    const countByUpload = new Map(items.map((it) => [it.id, 0]));
-    for (const r of relations) {
-      if (countByUpload.has(r.uploadId)) {
-        countByUpload.set(r.uploadId, countByUpload.get(r.uploadId) + 1);
-      }
-    }
-    return items.map((it) => ({
-      ...it,
-      uploadCount: it.uploadCount + (countByUpload.get(it.id) || 0),
-    }));
-  };
-
-  // ===== State =====
-  const initialWithRelations = addRelationCounts(baseItems, upvoteRelation);
-  const [items, setItems] = useState(initialWithRelations);
-  const [relations, setRelations] = useState(upvoteRelation);
-
-  // Frozen display order (computed once)
+  // ===== Frozen display order: SORT BY UPVOTES ONLY =====
   const [displayOrder] = useState(() =>
-    [...initialWithRelations].sort((a, b) => b.uploadCount - a.uploadCount).map((it) => it.id)
+    [...baseItems]
+      .sort((a, b) => b.upvoteCount - a.upvoteCount)
+      .map((it) => it.id)
   );
 
-  // ===== Lookups =====
+  // ===== Lookup maps =====
   const itemById = useMemo(() => {
     const m = new Map();
-    items.forEach((it) => m.set(it.id, it));
+    items.forEach(it => m.set(it.id, it));
     return m;
   }, [items]);
 
+  const voteMap = useMemo(() => {
+    const map = new Map();
+    relations.forEach(r => map.set(`${r.userId}::${r.uploadId}`, r.value));
+    return map;
+  }, [relations]);
+
+  const getVoteValue = (id) => voteMap.get(`${currentUserId}::${id}`);
+
+  // ===== Bento shape logic unchanged =====
   const weightedPool = useMemo(
-    () => ["2x1","2x1","2x1","2x1","2x1","2x1","1x1","1x1","1x2","1x2"],
+    () => ["2x1", "2x1", "2x1", "1x1", "1x1", "1x2", "1x2"],
     []
   );
+
   const shapeById = useMemo(() => {
     const map = new Map();
-    const hashToIndex = (id) => {
+    const hash = (id) => {
       let h = 0;
       for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
       return h % weightedPool.length;
     };
-    displayOrder.forEach((id) => map.set(id, weightedPool[hashToIndex(id)]));
+    displayOrder.forEach(id => map.set(id, weightedPool[hash(id)]));
     return map;
   }, [displayOrder, weightedPool]);
 
-  const relationKeySet = useMemo(() => {
-    const s = new Set();
-    relations.forEach((r) => s.add(`${r.userId}::${r.uploadId}`));
-    return s;
-  }, [relations]);
-
-  const hasVoted = (uploadId) => relationKeySet.has(`${currentUserId}::${uploadId}`);
-
-  // ===== Upvote / Unvote actions =====
-  const handleUpvote = (uploadId) => {
-    if (hasVoted(uploadId)) return;
-    setRelations((prev) => [...prev, { userId: currentUserId, uploadId }]);
-    setItems((prev) =>
-      prev.map((it) =>
-        it.id === uploadId ? { ...it, uploadCount: it.uploadCount + 1 } : it
+  // ===== Update vote counters =====
+  const updateCounts = (id, upDelta, downDelta) => {
+    setItems(prev =>
+      prev.map(it =>
+        it.id === id
+          ? {
+              ...it,
+              upvoteCount: Math.max(0, it.upvoteCount + upDelta),
+              downvoteCount: Math.max(0, it.downvoteCount + downDelta),
+            }
+          : it
       )
     );
   };
 
-  const handleUnvote = (uploadId) => {
-    if (!hasVoted(uploadId)) return;
-    setRelations((prev) =>
-      prev.filter((r) => !(r.userId === currentUserId && r.uploadId === uploadId))
-    );
-    setItems((prev) =>
-      prev.map((it) =>
-        it.id === uploadId ? { ...it, uploadCount: Math.max(it.uploadCount - 1, 0) } : it
-      )
-    );
+  
+  // ===== Voting Actions =====
+
+    const [notice, setNotice] = useState(null);
+
+  const showNotice = (msg) => {
+    setNotice(msg);
+    setTimeout(() => setNotice(null), 3000); // auto dismiss after 3 sec
   };
+  const handleUpvote = (id) => {
+    const val = getVoteValue(id);
+
+    if (val === 1) {
+      // remove upvote
+      updateCounts(id, -1, 0);
+      setRelations(prev => prev.filter(r => !(r.userId === currentUserId && r.uploadId === id)));
+      return;
+    }
+
+    if (val === 0) {
+      showNotice("You cannot upvote a picture you already downvoted.");
+      return;
+    }
+
+    updateCounts(id, +1, 0);
+    setRelations(prev => [...prev, { userId: currentUserId, uploadId: id, value: 1 }]);
+  };
+
+  const handleDownvote = (id) => {
+    const val = getVoteValue(id);
+
+    if (val === 0) {
+      // remove downvote
+      updateCounts(id, 0, -1);
+      setRelations(prev => prev.filter(r => !(r.userId === currentUserId && r.uploadId === id)));
+      return;
+    }
+
+    if (val === 1) {
+      showNotice("You cannot downvote a picture you already upvoted.");
+      return;
+    }
+
+    updateCounts(id, 0, +1);
+    setRelations(prev => [...prev, { userId: currentUserId, uploadId: id, value: 0 }]);
+  };
+
 
   // ===== Image Popup =====
   const [popupId, setPopupId] = useState(null);
-  const handleOpenPopup = (uploadId) => setPopupId(uploadId);
-  const handleClosePopup = () => setPopupId(null);
-
-  // ===== Report Modal state =====
-  const [reportOpen, setReportOpen] = useState(false);
-  const [reportDraft, setReportDraft] = useState({
-    uploadId: null,
-    reason: "",
-    details: "",
-    contact: "",
-  });
-  const [submittingReport, setSubmittingReport] = useState(false);
-
-  // Open the report form for a given upload
-  const handleOpenReport = (uploadId) => {
-    // optional: close the image popup behind for clarity
-    setPopupId(null);
-    setReportDraft({ uploadId, reason: "", details: "", contact: "" });
-    setReportOpen(true);
-  };
-
-  const handleCloseReport = () => {
-    setReportOpen(false);
-    setReportDraft({ uploadId: null, reason: "", details: "", contact: "" });
-    setSubmittingReport(false);
-  };
-
-  // Submit handler — replace with API call later
-  const handleSubmitReport = async (e) => {
-    e.preventDefault();
-    if (!reportDraft.uploadId || !reportDraft.reason || reportDraft.details.trim().length < 10) {
-      // basic validation
-      return;
-    }
-    try {
-      setSubmittingReport(true);
-
-      // 🔧 Replace this with your API call to save a ContentReport
-      // e.g., await fetch('/api/reports', { method:'POST', body: JSON.stringify(reportDraft) })
-      console.log("Submitting report:", {
-        userId: currentUserId,
-        ...reportDraft,
-        createdAt: new Date().toISOString(),
-      });
-
-      // UX: pretend success
-      handleCloseReport();
-      // optional toast
-      alert("Thanks! Your report has been submitted.");
-    } catch (err) {
-      console.error(err);
-      alert("Something went wrong submitting the report.");
-    } finally {
-      setSubmittingReport(false);
-    }
-  };
-
-  // Close popup on ESC
-  useEffect(() => {
-    const onKey = (e) => {
-      if (e.key === "Escape") {
-        setPopupId(null);
-        setReportOpen(false);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
 
   // ===== Render =====
   return (
     <section className="mt-12 mb-20 px-4 md:px-8">
-      <h2 className="mb-8 text-3xl font-bold text-emerald-900 tracking-tight text-center">
+      <h2 className="text-center text-3xl font-bold text-emerald-900 mb-8">
         Customer Favourites
       </h2>
 
       <div className="bento-grid max-w-7xl mx-auto">
         {displayOrder.map((id) => {
           const it = itemById.get(id);
-          if (!it) return null;
-
+          const voteVal = getVoteValue(id);
           const shape = shapeById.get(id);
-          const voted = hasVoted(id);
 
           return (
             <div
               key={id}
-              data-upload-id={id}
-              className={`bento-item span-${shape} group relative overflow-hidden rounded-xl shadow-sm transition-all duration-300 hover:scale-[1.02] hover:shadow-xl`}
-              role="group"
-              aria-label={`Image with ${it.uploadCount} uploads`}
+              className={`bento-item span-${shape} group relative rounded-xl overflow-hidden shadow-sm hover:shadow-xl hover:scale-[1.02] duration-300`}
             >
               <img
                 src={it.src}
-                alt="Community favourite"
-                data-upload-id={id}
-                onClick={() => handleOpenPopup(id)}
-                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 cursor-pointer"
-                draggable={false}
+                alt=""
+                onClick={() => setPopupId(id)}
+                className="w-full h-full object-cover cursor-pointer group-hover:scale-110 duration-500"
               />
 
-              {/* Gradient overlay */}
-              <div
-                className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                data-upload-id={id}
-                onClick={() => handleOpenPopup(id)}
-                role="button"
-                tabIndex={0}
-                aria-label="Open photo"
-              />
+              {it.verified && (
+                <div className="absolute top-3 right-3 bg-white/80 backdrop-blur px-2 py-1 rounded-full text-blue-600 text-xs font-bold shadow">
+                  ✔ Verified
+                </div>
+              )}
 
-              {/* Upload count pill */}
-              <div
-                data-upload-id={id}
-                className={[
-                  "absolute left-3 top-3 z-10",
-                  "px-3 py-1 rounded-full text-white text-sm font-semibold",
-                  "backdrop-blur-md bg-black/50 border border-white/10 shadow",
-                  "opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                ].join(" ")}
-              >
-                {it.uploadCount.toLocaleString()} uploads
+              {/* Upvote/Downvote count pill */}
+              <div className="absolute top-3 left-3 bg-black/50 backdrop-blur px-3 py-1 rounded-full text-white opacity-0 group-hover:opacity-100 duration-200 text-sm">
+                👍 {it.upvoteCount}  👎 {it.downvoteCount}
               </div>
 
-              {/* Upvote / Unvote */}
-              {voted ? (
-                <button
-                  type="button"
-                  data-upload-id={id}
-                  onClick={(e) => { e.stopPropagation(); handleUnvote(id); }}
-                  className={[
-                    "absolute left-3 bottom-3 z-10",
-                    "px-3 py-1 rounded-full text-white text-sm font-semibold",
-                    "backdrop-blur-md border border-white/10 shadow",
-                    "bg-emerald-700/70",
-                    "opacity-0 group-hover:opacity-100 transition-opacity duration-200",
-                    "focus:outline-none focus:ring-2 focus:ring-white/60"
-                  ].join(" ")}
-                  title="Remove your upvote"
-                >
-                  💚 Unvote
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  data-upload-id={id}
-                  onClick={(e) => { e.stopPropagation(); handleUpvote(id); }}
-                  className={[
-                    "absolute left-3 bottom-3 z-10",
-                    "px-3 py-1 rounded-full text-white text-sm font-semibold",
-                    "backdrop-blur-md border border-white/10 shadow",
-                    "bg-black/50 hover:bg-black/70",
-                    "opacity-0 group-hover:opacity-100 transition-opacity duration-200",
-                    "focus:outline-none focus:ring-2 focus:ring-white/60"
-                  ].join(" ")}
-                  title="Upvote"
-                >
-                  👍 Upvote
-                </button>
-              )}
+              {/* Upvote (icon → expand on hover) */}
+              <button
+                onClick={(e) => { e.stopPropagation(); handleUpvote(id); }}
+                disabled={voteVal === 0}
+                className={`absolute bottom-3 left-3
+                  flex items-center gap-2 px-2 py-1
+                  rounded-full text-white text-sm
+                  backdrop-blur border border-white/10 shadow
+                  transition-all duration-200 overflow-hidden
+                  w-[34px] hover:w-[110px]
+                  ${voteVal === 1 ? "bg-emerald-700/70" : "bg-black/50 hover:bg-black/70"}
+                  ${voteVal === 1 ? "opacity-100" : "opacity-0 group-hover:opacity-100"}
+                  disabled:opacity-40`}
+              >
+                <span>👍</span>
+                <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                  Upvote
+                </span>
+              </button>
+
+              {/* Downvote (icon → expand on hover) */}
+              <button
+                onClick={(e) => { e.stopPropagation(); handleDownvote(id); }}
+                disabled={voteVal === 1}
+                className={`absolute bottom-3 right-3
+                  flex items-center gap-2 px-2 py-1
+                  rounded-full text-white text-sm
+                  backdrop-blur border border-white/10 shadow
+                  transition-all duration-200 overflow-hidden
+                  w-[34px] hover:w-[120px]
+                  ${voteVal === 0 ? "bg-rose-700/70" : "bg-black/50 hover:bg-black/70"}
+                  ${voteVal === 0 ? "opacity-100" : "opacity-0 group-hover:opacity-100"}
+                  disabled:opacity-40`}
+              >
+                <span>👎</span>
+                <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                  Downvote
+                </span>
+              </button>
             </div>
           );
         })}
       </div>
 
-      {/* ===== Image Popup / Modal ===== */}
+      {/* ===== POPUP ===== */}
       {popupId && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-          role="dialog"
-          aria-modal="true"
-          onClick={handleClosePopup}
-        >
-          <div
-            className="relative max-w-3xl w-full bg-white rounded-xl overflow-hidden shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setPopupId(null)}>
+          <div className="relative bg-white rounded-xl max-w-3xl w-full overflow-hidden shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <button
-              type="button"
-              onClick={handleClosePopup}
-              className="absolute right-3 top-3 h-8 w-8 rounded-full bg-black/10 hover:bg-black/20 text-black"
-              aria-label="Close"
+              className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/10 hover:bg-black/20"
+              onClick={() => setPopupId(null)}
             >
               ✕
             </button>
 
             <img
               src={itemById.get(popupId)?.src}
-              alt="Selected"
-              className="w-full object-cover max-h-[70vh]"
+              className="w-full max-h-[70vh] object-cover"
             />
 
-            <div className="p-4 flex items-center justify-between gap-2">
-              <div className="text-sm text-gray-600">
-                ID: <span className="font-mono">{popupId}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="text-sm text-gray-800 font-medium">
-                  {itemById.get(popupId)?.uploadCount.toLocaleString()} uploads
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleOpenReport(popupId)}
-                  className="px-3 py-1 rounded-lg border border-rose-200 text-rose-700 hover:bg-rose-50 transition"
-                  title="Report this photo"
-                >
-                  🚩 Report
-                </button>
+            <div className="p-4 flex justify-between items-center">
+            <div className="flex items-center gap-2 text-lg font-semibold text-gray-800">
+              {itemById.get(popupId)?.caption}
+
+              {itemById.get(popupId)?.verified && (
+                <span className="text-blue-500 text-xl">✔</span>
+              )}
+            </div>
+
+              <div className="font-medium text-gray-700">
+                👍 {itemById.get(popupId)?.upvoteCount}  👎 {itemById.get(popupId)?.downvoteCount}
               </div>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* ===== Report Form Modal ===== */}
-      {reportOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-          role="dialog"
-          aria-modal="true"
-          onClick={handleCloseReport}
-        >
-          <form
-            onSubmit={handleSubmitReport}
-            className="relative w-full max-w-lg bg-white rounded-xl shadow-2xl overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between px-4 py-3 border-b">
-              <h3 className="text-lg font-semibold">Report Photo</h3>
-              <button
-                type="button"
-                onClick={handleCloseReport}
-                className="h-8 w-8 rounded-full bg-black/10 hover:bg-black/20"
-                aria-label="Close report form"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="px-4 py-4 space-y-4">
-              <div className="text-sm text-gray-600">
-                Reporting upload ID: <span className="font-mono">{reportDraft.uploadId}</span>
-              </div>
-
-              <label className="block">
-                <span className="text-sm font-medium text-gray-800">Reason</span>
-                <select
-                  className="mt-1 w-full rounded-lg border px-3 py-2"
-                  required
-                  value={reportDraft.reason}
-                  onChange={(e) => setReportDraft((d) => ({ ...d, reason: e.target.value }))}
-                >
-                  <option value="" disabled>Select a reason…</option>
-                  <option value="inappropriate">Inappropriate content</option>
-                  <option value="spam">Spam / advertisement</option>
-                  <option value="wrong-item">Wrong stall/dish</option>
-                  <option value="copyright">Copyright / ownership</option>
-                  <option value="other">Other</option>
-                </select>
-              </label>
-
-              <label className="block">
-                <span className="text-sm font-medium text-gray-800">Details</span>
-                <textarea
-                  className="mt-1 w-full rounded-lg border px-3 py-2 min-h-[120px]"
-                  placeholder="Describe the issue (at least 10 characters)…"
-                  required
-                  value={reportDraft.details}
-                  onChange={(e) => setReportDraft((d) => ({ ...d, details: e.target.value }))}
-                />
-              </label>
-
-              <label className="block">
-                <span className="text-sm font-medium text-gray-800">Contact (optional)</span>
-                <input
-                  type="email"
-                  className="mt-1 w-full rounded-lg border px-3 py-2"
-                  placeholder="your@email.com"
-                  value={reportDraft.contact}
-                  onChange={(e) => setReportDraft((d) => ({ ...d, contact: e.target.value }))}
-                />
-              </label>
-            </div>
-
-            <div className="px-4 py-3 border-t flex items-center justify-end gap-2">
-              <button
-                type="button"
-                onClick={handleCloseReport}
-                className="px-4 py-2 rounded-lg border hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={
-                  submittingReport ||
-                  !reportDraft.reason ||
-                  (reportDraft.details?.trim().length ?? 0) < 10
-                }
-                className={[
-                  "px-4 py-2 rounded-lg text-white",
-                  submittingReport ? "bg-gray-400" : "bg-rose-600 hover:bg-rose-700",
-                  "disabled:opacity-60 disabled:cursor-not-allowed"
-                ].join(" ")}
-              >
-                {submittingReport ? "Submitting…" : "Submit report"}
-              </button>
-            </div>
-          </form>
         </div>
       )}
     </section>

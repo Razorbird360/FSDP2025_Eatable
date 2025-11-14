@@ -2,7 +2,7 @@
 import { useMemo, useState, useRef, useEffect } from "react";
 import foodStallIcon from "./Assets/FoodStall_Icon.png";
 import { Link } from "react-router-dom";
-import CustomBentoGrid from '../../stalls/components/StallGallery'
+import StallGallery from '../../stalls/components/StallGallery'
 
 const STALL = {
   name: "Ah Heng Coffee Stall",
@@ -576,7 +576,7 @@ export default function StallEmenu() {
               ))}
             </div>*/
             <div className="mt-3">
-              <CustomBentoGrid />
+              <StallGallery />
             </div>
           )}
 
