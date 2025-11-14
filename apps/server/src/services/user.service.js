@@ -7,17 +7,24 @@ export const userService = {
     });
   },
 
+  async findByUsername(username) {
+    return await prisma.user.findUnique({
+      where: { username },
+    });
+  },
+
   async findById(id) {
     return await prisma.user.findUnique({
       where: { id },
     });
   },
 
-  async createUser({ id, email, displayName, role = 'user' }) {
+  async createUser({ id, email, username, displayName, role = 'user' }) {
     return await prisma.user.create({
       data: {
         id,
         email,
+        username,
         displayName,
         role,
       },

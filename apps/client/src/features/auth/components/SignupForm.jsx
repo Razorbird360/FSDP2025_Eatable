@@ -13,6 +13,7 @@ import {
 import { LuEye, LuEyeOff } from 'react-icons/lu';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../useAuth';
+import api from '../../../lib/api';
 import LogoImage from '../../../assets/logo/logo_full.png';
 import BannerImage from '../../../assets/Login/Banner.jpg';
 import GoogleIcon from '../../../assets/Login/google.png';
@@ -27,7 +28,7 @@ const SignupForm = () => {
 
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
-    name: '',
+    username: '',
     email: '',
     password: '',
     agreeToTerms: false,
@@ -51,11 +52,16 @@ const SignupForm = () => {
   const validateForm = () => {
     const newErrors = {};
 
-    // Name validation
-    if (!formData.name.trim()) {
-      newErrors.name = 'Name is required';
-    } else if (formData.name.trim().length < 2) {
-      newErrors.name = 'Name must be at least 2 characters';
+    // Username validation
+    const username = formData.username.trim();
+    if (!username) {
+      newErrors.username = 'Username is required';
+    } else if (username.length < 3) {
+      newErrors.username = 'Username must be at least 3 characters';
+    } else if (username.length > 20) {
+      newErrors.username = 'Username cannot exceed 20 characters';
+    } else if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+      newErrors.username = 'Only letters, numbers, and underscores are allowed';
     }
 
     // Email validation
@@ -91,8 +97,30 @@ const SignupForm = () => {
       return;
     }
 
+    // Check if email or username already exist
+    try {
+      const { data } = await api.post('/auth/check-availability', {
+        email: formData.email.trim().toLowerCase(),
+        username: formData.username.trim().toLowerCase(),
+      });
+
+      if (data.usernameTaken || data.emailTaken) {
+        setErrors({
+          ...(data.usernameTaken && { username: 'Username is already taken' }),
+          ...(data.emailTaken && { email: 'Email is already registered' }),
+        });
+        return;
+      }
+    } catch (availabilityError) {
+      console.error('Availability check failed:', availabilityError);
+      setErrors({
+        submit: 'Unable to verify username/email. Please try again.',
+      });
+      return;
+    }
+
     // Call signup API
-    const result = await signup(formData.email, formData.password, formData.name);
+    const result = await signup(formData.email, formData.password, formData.username);
 
     if (result.success) {
       // Success! Redirect to home page
@@ -162,37 +190,37 @@ const SignupForm = () => {
               color={{ base: 'white', lg: '#1C201D' }}
               mb={2}
             >
-              Name
+              Username
             </Text>
             <Input
               height={{ base: '52px', lg: '48px' }}
               borderRadius="14px"
               border="1px solid"
-              borderColor={errors.name ? '#E53E3E' : '#E1E9DF'}
+              borderColor={errors.username ? '#E53E3E' : '#E1E9DF'}
               bg="white"
               color="#1C201D"
               fontSize={{ base: '15px', lg: '14px' }}
               px="20px"
               _placeholder={{ color: '#6B7D73' }}
-              _hover={{ borderColor: errors.name ? '#E53E3E' : '#21421B', bg: 'white' }}
+              _hover={{ borderColor: errors.username ? '#E53E3E' : '#21421B', bg: 'white' }}
               _focus={{
-                borderColor: errors.name ? '#E53E3E' : '#21421B',
+                borderColor: errors.username ? '#E53E3E' : '#21421B',
                 boxShadow: 'none',
                 outline: 'none',
               }}
               _focusVisible={{
-                borderColor: errors.name ? '#E53E3E' : '#21421B',
+                borderColor: errors.username ? '#E53E3E' : '#21421B',
                 boxShadow: 'none',
                 outline: 'none',
               }}
-              name="name"
-              placeholder="Enter your name"
-              value={formData.name}
-              onChange={handleChange('name')}
+              name="username"
+              placeholder="Choose a username"
+              value={formData.username}
+              onChange={handleChange('username')}
             />
-            {errors.name && (
+            {errors.username && (
               <Text fontSize="13px" color="#E53E3E" mt={2}>
-                {errors.name}
+                {errors.username}
               </Text>
             )}
           </Box>

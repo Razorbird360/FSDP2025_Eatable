@@ -9,16 +9,29 @@ function App() {
   useEffect(() => {
     let isSyncing = false;
 
+    const buildUsername = (session) => {
+      const fromMeta = session.user.user_metadata?.username;
+      if (fromMeta) {
+        return String(fromMeta).toLowerCase();
+      }
+
+      const emailHandle = session.user.email?.split('@')[0] ?? '';
+      const sanitized = emailHandle.replace(/[^a-zA-Z0-9_]/g, '');
+      return (sanitized || 'eatable_user').toLowerCase();
+    };
+
     const syncUser = async (session) => {
       if (!session || isSyncing) return;
       isSyncing = true;
 
       try {
+        const username = buildUsername(session);
         await api.post('/auth/sync-user', {
+          username,
           displayName:
             session.user.user_metadata?.display_name ??
-            session.user.email?.split('@')[0] ??
-            'Eatable User',
+            session.user.user_metadata?.username ??
+            username,
         });
       } catch (error) {
         // Non-blocking: sync failures shouldn't crash the app

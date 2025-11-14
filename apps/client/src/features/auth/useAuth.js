@@ -15,21 +15,26 @@ export const useAuth = () => {
    * Sign up a new user
    * @param {string} email - User email
    * @param {string} password - User password
-   * @param {string} displayName - User's display name
+   * @param {string} username - Desired username (also used as default display name)
    * @returns {Promise<{success: boolean, user?: object, error?: string}>}
    */
-  const signup = async (email, password, displayName) => {
+  const signup = async (email, password, username) => {
     setLoading(true);
     setError(null);
 
     try {
+      const normalizedEmail = email.trim().toLowerCase();
+      const normalizedUsername = username.trim().toLowerCase();
+      const displayName = username.trim();
+
       // 1. Create Supabase auth user
       const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
+        email: normalizedEmail,
         password,
         options: {
           data: {
             display_name: displayName,
+            username: normalizedUsername,
           },
         },
       });
@@ -42,6 +47,7 @@ export const useAuth = () => {
       if (session) {
         try {
           await api.post('/auth/sync-user', {
+            username: normalizedUsername,
             displayName,
           });
         } catch (syncError) {

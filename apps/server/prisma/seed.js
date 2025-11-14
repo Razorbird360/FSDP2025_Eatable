@@ -10,6 +10,7 @@ async function main() {
     update: {},
     create: {
       email: 'john@example.com',
+      username: 'john',
       displayName: 'John Tan',
       role: 'user',
     },
@@ -20,13 +21,23 @@ async function main() {
     update: {},
     create: {
       email: 'owner@hawker.sg',
+      username: 'hawkerowner',
       displayName: 'Hawker Owner',
       role: 'stall_owner',
     },
   });
 
-  const stall1 = await prisma.stall.create({
-    data: {
+  const stall1 = await prisma.stall.upsert({
+    where: { name: 'Ah Seng Chicken Rice' },
+    update: {
+      ownerId: stallOwner.id,
+      description: 'Famous for tender chicken rice since 1985',
+      location: 'Block 123 Hougang Ave 1, #01-234',
+      latitude: 1.3521,
+      longitude: 103.8198,
+      isVerified: true,
+    },
+    create: {
       ownerId: stallOwner.id,
       name: 'Ah Seng Chicken Rice',
       description: 'Famous for tender chicken rice since 1985',
@@ -37,8 +48,16 @@ async function main() {
     },
   });
 
-  const stall2 = await prisma.stall.create({
-    data: {
+  const stall2 = await prisma.stall.upsert({
+    where: { name: 'Laksa Paradise' },
+    update: {
+      description: 'Authentic Singaporean laksa with rich coconut broth',
+      location: 'Block 456 Bedok North Street 1, #01-567',
+      latitude: 1.3282,
+      longitude: 103.9332,
+      isVerified: false,
+    },
+    create: {
       name: 'Laksa Paradise',
       description: 'Authentic Singaporean laksa with rich coconut broth',
       location: 'Block 456 Bedok North Street 1, #01-567',
@@ -48,32 +67,50 @@ async function main() {
     },
   });
 
-  const menuItem1 = await prisma.menuItem.create({
-    data: {
+  await prisma.menuItem.upsert({
+    where: { stallId_name: { stallId: stall1.id, name: 'Roasted Chicken Rice' } },
+    update: {
+      description: 'Tender roasted chicken with fragrant rice',
+      priceCents: 450,
+      isActive: true,
+    },
+    create: {
       stallId: stall1.id,
       name: 'Roasted Chicken Rice',
       description: 'Tender roasted chicken with fragrant rice',
-      priceCents: 450, // $4.50
+      priceCents: 450,
       isActive: true,
     },
   });
 
-  const menuItem2 = await prisma.menuItem.create({
-    data: {
+  await prisma.menuItem.upsert({
+    where: { stallId_name: { stallId: stall1.id, name: 'Steamed Chicken Rice' } },
+    update: {
+      description: 'Healthy steamed chicken with ginger sauce',
+      priceCents: 420,
+      isActive: true,
+    },
+    create: {
       stallId: stall1.id,
       name: 'Steamed Chicken Rice',
       description: 'Healthy steamed chicken with ginger sauce',
-      priceCents: 420, // $4.20
+      priceCents: 420,
       isActive: true,
     },
   });
 
-  const menuItem3 = await prisma.menuItem.create({
-    data: {
+  await prisma.menuItem.upsert({
+    where: { stallId_name: { stallId: stall2.id, name: 'Special Laksa' } },
+    update: {
+      description: 'Spicy coconut curry noodle soup',
+      priceCents: 550,
+      isActive: true,
+    },
+    create: {
       stallId: stall2.id,
       name: 'Special Laksa',
       description: 'Spicy coconut curry noodle soup',
-      priceCents: 550, // $5.50
+      priceCents: 550,
       isActive: true,
     },
   });
