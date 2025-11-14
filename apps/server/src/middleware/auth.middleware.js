@@ -2,14 +2,26 @@ import Joi from 'joi';
 import { supabaseAdmin } from '../lib/supabaseAdmin.js';
 
 export const syncUserSchema = Joi.object({
+  username: Joi.string()
+    .pattern(/^[a-zA-Z0-9_]+$/)
+    .min(3)
+    .max(20)
+    .lowercase()
+    .required()
+    .messages({
+      'string.pattern.base':
+        'Username can only contain letters, numbers, and underscores',
+      'string.min': 'Username must be at least 3 characters long',
+      'string.max': 'Username cannot exceed 20 characters',
+      'any.required': 'Username is required',
+    }),
   displayName: Joi.string()
     .min(2)
     .max(50)
-    .required()
+    .default(Joi.ref('username'))
     .messages({
       'string.min': 'Display name must be at least 2 characters long',
       'string.max': 'Display name cannot exceed 50 characters',
-      'any.required': 'Display name is required',
     }),
 });
 
