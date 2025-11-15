@@ -374,6 +374,11 @@ export default function StallGallery() {
     );
   }
 
+  // ===== Popup item (for convenience) =====
+  const popupItem = popupId ? itemById.get(popupId) : null;
+  const uploaderName =
+    popupItem?.raw?.user?.displayName || "Anonymous foodie";
+
   // ===== Render =====
   return (
     <section className="mt-12 mb-20 px-4 md:px-8">
@@ -487,7 +492,7 @@ export default function StallGallery() {
       </div>
 
       {/* ===== IMAGE PREVIEW POPUP ===== */}
-      {popupId && (
+      {popupId && popupItem && (
         <div
           className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
           onClick={() => setPopupId(null)}
@@ -504,13 +509,19 @@ export default function StallGallery() {
             </button>
 
             <img
-              src={itemById.get(popupId)?.src}
+              src={popupItem.src}
               className="w-full max-h-[70vh] object-cover"
             />
 
             <div className="p-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <div className="flex items_CENTER gap-2 text-lg font-semibold text-gray-800">
-                {itemById.get(popupId)?.caption}
+              <div className="flex flex-col gap-1">
+                <div className="flex items_CENTER gap-2 text-lg font-semibold text-gray-800">
+                  {popupItem.caption}
+                </div>
+                {/* NEW: uploader display name */}
+                <div className="text-xs text-gray-500">
+                  Uploaded by <span className="font-medium">{uploaderName}</span>
+                </div>
               </div>
 
               <div className="flex flex-col items-start md:flex-row md:items-center md:gap-6 gap-2">
@@ -522,7 +533,7 @@ export default function StallGallery() {
                       alt="Upvotes"
                       className="h-6 w-6"
                     />
-                    {itemById.get(popupId)?.upvoteCount}
+                    {popupItem.upvoteCount}
                   </span>
                   <span className="flex items-center gap-1">
                     <img
@@ -530,23 +541,21 @@ export default function StallGallery() {
                       alt="Downvotes"
                       className="h-6 w-6 translate-y-[3px]"
                     />
-                    {itemById.get(popupId)?.downvoteCount}
+                    {popupItem.downvoteCount}
                   </span>
                 </div>
 
                 {/* Open report form popup */}
                 <button
                   onClick={openReportModal}
-                  className={`text-xs md:text-sm px-3 py-1 rounded-full border 
+                  className={`text-[11px] md:text-xs px-2.5 py-1 rounded-full border whitespace-nowrap
                     ${
                       reportedIds.includes(popupId)
                         ? "border-rose-300 bg-rose-50 text-rose-500 cursor-default"
                         : "border-rose-400 text-rose-600 hover:bg-rose-50"
                     }`}
                 >
-                  {reportedIds.includes(popupId)
-                    ? "Reported"
-                    : "Report photo"}
+                  {reportedIds.includes(popupId) ? "Reported" : "Report Post"}
                 </button>
               </div>
             </div>
