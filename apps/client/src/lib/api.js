@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { supabase } from './supabase';
+import { getCachedSession, hydrateSessionFromStorage } from '../features/auth/sessionCache';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api',
@@ -9,14 +9,17 @@ const api = axios.create({
   },
 });
 
+const resolveSession = () => getCachedSession() ?? hydrateSessionFromStorage();
+
 // Request interceptor to add auth token
 api.interceptors.request.use(
-  async (config) => {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+  (config) => {
+    const session = resolveSession();
 
     if (session?.access_token) {
+      if (!config.headers) {
+        config.headers = {};
+      }
       config.headers.Authorization = `Bearer ${session.access_token}`;
     }
 

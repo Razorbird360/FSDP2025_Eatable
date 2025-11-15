@@ -1,4 +1,6 @@
-import { Outlet, Navigate } from 'react-router-dom';
+import { Outlet, Navigate, useLocation } from 'react-router-dom';
+import { Center, Spinner } from '@chakra-ui/react';
+import { useAuth } from '../features/auth/useAuth';
 
 /**
  * ProtectedLayout - Wraps authenticated routes
@@ -6,11 +8,19 @@ import { Outlet, Navigate } from 'react-router-dom';
  * Used for: Order history, profile, photo uploads, cart checkout
  */
 function ProtectedLayout() {
-  // TODO: Get actual auth state from Supabase context
-  const isAuthenticated = false; // Placeholder
+  const location = useLocation();
+  const { status } = useAuth();
 
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+  if (status === 'loading') {
+    return (
+      <Center minH="60vh">
+        <Spinner size="lg" thickness="4px" color="#21421B" label="Loading account" />
+      </Center>
+    );
+  }
+
+  if (status !== 'authenticated') {
+    return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
   return <Outlet />;

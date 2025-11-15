@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Box,
   Button,
@@ -10,7 +10,7 @@ import {
   VStack,
 } from '@chakra-ui/react';
 import { LuEye, LuEyeOff } from 'react-icons/lu';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../useAuth';
 import LogoImage from '../../../assets/logo/logo_full.png';
 import BannerImage from '../../../assets/Login/Banner.jpg';
@@ -22,7 +22,8 @@ import GoogleIcon from '../../../assets/Login/google.png';
  */
 const LoginForm = () => {
   const navigate = useNavigate();
-  const { login, loading, error: authError } = useAuth();
+  const location = useLocation();
+  const { login, loading, error: authError, status } = useAuth();
 
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
@@ -30,6 +31,20 @@ const LoginForm = () => {
     password: '',
   });
   const [errors, setErrors] = useState({});
+
+  const redirectPath = location.state?.from?.pathname ?? '/home';
+
+  useEffect(() => {
+    if (status === 'authenticated') {
+      navigate(redirectPath, { replace: true });
+    }
+  }, [status, redirectPath, navigate]);
+
+  useEffect(() => {
+    if (authError) {
+      setErrors((prev) => ({ ...prev, submit: authError }));
+    }
+  }, [authError]);
 
   const handleChange = (field) => (event) => {
     const value = event.target.value;
@@ -77,10 +92,7 @@ const LoginForm = () => {
     // Call login API
     const result = await login(formData.email, formData.password);
 
-    if (result.success) {
-      // Success! Redirect to home page
-      navigate('/home');
-    } else {
+    if (!result.success) {
       // Show error from Supabase
       setErrors({ submit: result.error });
     }
@@ -116,28 +128,28 @@ const LoginForm = () => {
         <Image
           src={LogoImage}
           alt="Eatable Logo"
-          width={{ base: '140px', lg: '130px' }}
-          mb={{ base: 10, lg: 8 }}
+          width={{ base: '140px', lg: '115px' }}
+          mb={{ base: 10, lg: 5 }}
           display={{ base: 'none', lg: 'block' }}
         />
         <Text
-          fontSize={{ base: '28px', md: '36px', lg: '32px' }}
+          fontSize={{ base: '28px', md: '36px', lg: '28px' }}
           fontWeight="700"
           color={{ base: 'white', lg: '#1C201D' }}
-          mb={3}
+          mb={{ base: 3, lg: 2 }}
         >
           Welcome back
         </Text>
         <Text
-          fontSize={{ base: '15px', lg: '14px' }}
+          fontSize={{ base: '15px', lg: '13px' }}
           color={{ base: 'rgba(255, 255, 255, 0.9)', lg: '#6B7D73' }}
-          mb={{ base: 8, lg: 7 }}
+          mb={{ base: 8, lg: 5 }}
           lineHeight="1.6"
         >
           Log in to continue exploring your favorite hawker stalls and discover new ones.
         </Text>
 
-        <VStack as="form" onSubmit={handleSubmit} spacing={{ base: 5, lg: 4 }} align="stretch">
+        <VStack as="form" onSubmit={handleSubmit} spacing={{ base: 5, lg: 3 }} align="stretch">
           <Box>
             <Text
               fontSize={{ base: '14px', lg: '13px' }}
@@ -148,7 +160,7 @@ const LoginForm = () => {
               Email
             </Text>
             <Input
-              height={{ base: '52px', lg: '48px' }}
+              height={{ base: '52px', lg: '44px' }}
               borderRadius="14px"
               border="1px solid"
               borderColor={errors.email ? '#E53E3E' : '#E1E9DF'}
@@ -192,7 +204,7 @@ const LoginForm = () => {
               </Text>
               <Link to="/forgot-password">
                 <Text
-                  fontSize={{ base: '13px', lg: '12px' }}
+                  fontSize={{ base: '13px', lg: '11px' }}
                   fontWeight="600"
                   color={{ base: 'rgba(255, 255, 255, 0.9)', lg: '#21421B' }}
                   _hover={{ textDecoration: 'underline' }}
@@ -203,7 +215,7 @@ const LoginForm = () => {
             </Flex>
             <Box position="relative">
               <Input
-                height={{ base: '52px', lg: '48px' }}
+                height={{ base: '52px', lg: '44px' }}
                 borderRadius="14px"
                 border="1px solid"
                 borderColor={errors.password ? '#E53E3E' : '#E1E9DF'}
@@ -272,13 +284,13 @@ const LoginForm = () => {
             type="submit"
             bg="#21421B"
             color="white"
-            height={{ base: '52px', lg: '48px' }}
+            height={{ base: '52px', lg: '44px' }}
             borderRadius="12px"
-            fontSize={{ base: '16px', lg: '15px' }}
+            fontSize={{ base: '16px', lg: '14px' }}
             fontWeight="600"
             _hover={{ bg: loading ? '#21421B' : '#1A3517' }}
             _active={{ bg: loading ? '#21421B' : '#142812' }}
-            mt={{ base: 3, lg: 2 }}
+            mt={{ base: 3, lg: 1 }}
             disabled={loading}
             cursor={loading ? 'not-allowed' : 'pointer'}
             opacity={loading ? 0.7 : 1}
@@ -289,7 +301,7 @@ const LoginForm = () => {
           <Flex align="center" gap={4}>
             <Box flex="1" height="1px" bg="rgba(255, 255, 255, 0.35)" display={{ base: 'block', lg: 'none' }} />
             <Box flex="1" height="1px" bg="#E1E9DF" display={{ base: 'none', lg: 'block' }} />
-            <Text fontSize="13px" fontWeight="600" color={{ base: 'white', lg: '#6B7D73' }}>
+            <Text fontSize={{ base: '13px', lg: '12px' }} fontWeight="600" color={{ base: 'white', lg: '#6B7D73' }}>
               or
             </Text>
             <Box flex="1" height="1px" bg="rgba(255, 255, 255, 0.35)" display={{ base: 'block', lg: 'none' }} />
@@ -301,9 +313,9 @@ const LoginForm = () => {
             borderColor={{ base: 'transparent', lg: '#E1E9DF' }}
             bg={{ base: 'rgba(255,255,255,0.12)', lg: 'white' }}
             color={{ base: 'white', lg: '#1C201D' }}
-            height={{ base: '52px', lg: '48px' }}
+            height={{ base: '52px', lg: '44px' }}
             borderRadius="12px"
-            fontSize={{ base: '16px', lg: '15px' }}
+            fontSize={{ base: '16px', lg: '14px' }}
             fontWeight="600"
             gap={3}
             _hover={{ bg: { base: 'rgba(255,255,255,0.16)', lg: '#F6FBF2' } }}
@@ -314,15 +326,15 @@ const LoginForm = () => {
           </Button>
         </VStack>
 
-        <Flex mt={{ base: 6, lg: 5 }} direction="column" gap={2}>
+        <Flex mt={{ base: 6, lg: 3 }} direction="column" gap={2}>
           <Text
-            fontSize="14px"
+            fontSize={{ base: '14px', lg: '13px' }}
             color={{ base: 'rgba(255, 255, 255, 0.9)', lg: '#6B7D73' }}
             textAlign="center"
           >
-            Don't have an account?{' '}
+            Don&apos;t have an account?{' '}
             <Link to="/signup">
-              <Text as="span" fontWeight="600" color={{ base: 'white', lg: '#21421B' }}>
+              <Text as="span" className='hover:underline' fontWeight="600" color={{ base: 'white', lg: '#21421B' }}>
                 Sign up
               </Text>
             </Link>

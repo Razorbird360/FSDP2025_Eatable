@@ -5,32 +5,9 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('Starting database seed');
 
-  const user1 = await prisma.user.upsert({
-    where: { email: 'john@example.com' },
-    update: {},
-    create: {
-      email: 'john@example.com',
-      username: 'john',
-      displayName: 'John Tan',
-      role: 'user',
-    },
-  });
-
-  const stallOwner = await prisma.user.upsert({
-    where: { email: 'owner@hawker.sg' },
-    update: {},
-    create: {
-      email: 'owner@hawker.sg',
-      username: 'hawkerowner',
-      displayName: 'Hawker Owner',
-      role: 'stall_owner',
-    },
-  });
-
   const stall1 = await prisma.stall.upsert({
     where: { name: 'Ah Seng Chicken Rice' },
     update: {
-      ownerId: stallOwner.id,
       description: 'Famous for tender chicken rice since 1985',
       location: 'Block 123 Hougang Ave 1, #01-234',
       latitude: 1.3521,
@@ -38,7 +15,6 @@ async function main() {
       isVerified: true,
     },
     create: {
-      ownerId: stallOwner.id,
       name: 'Ah Seng Chicken Rice',
       description: 'Famous for tender chicken rice since 1985',
       location: 'Block 123 Hougang Ave 1, #01-234',
@@ -115,10 +91,9 @@ async function main() {
     },
   });
 
-  console.log('✅ Seed completed successfully!');
-  console.log(`Created ${2} users`);
-  console.log(`Created ${2} stalls`);
-  console.log(`Created ${3} menu items`);
+  console.log('Seed completed successfully!');
+  console.log(`Ensured ${2} stalls exist`);
+  console.log(`Ensured ${3} menu items exist`);
 }
 
 main()
