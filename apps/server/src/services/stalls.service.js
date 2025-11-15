@@ -59,47 +59,47 @@ export const stallsService = {
   },
 
   async getApprovedMediaByStallId(stallId) {
-  if (!stallId) {
-    throw new Error('stallId is required');
+    if (!stallId) {
+      throw new Error('stallId is required');
+    }
+
+    const uploads = await prisma.mediaUpload.findMany({
+      where: {
+        // all media whose menu item belongs to this stall
+        menuItem: {
+          stallId: stallId, // shorthand `stallId` is also fine
+          isActive: true,
+        },
+      },
+      orderBy: {
+        upvoteCount: 'desc', // or createdAt, etc.
+      },
+      include: {
+        menuItem: {
+          select: {
+            id: true,
+            name: true,
+            stallId: true,
+          },
+        },
+        user: {
+          select: {
+            id: true,
+            displayName: true,
+            username: true,
+          },
+        },
+        _count: {
+          select: {
+            votes: true,
+            reports: true,
+          },
+        },
+      },
+    });
+
+    return uploads;
   }
 
-  const uploads = await prisma.mediaUpload.findMany({
-    where: {
-      validationStatus: 'approved',
-      // only media whose menu item belongs to this stall
-      menuItem: {
-        stallId,
-      },
-    },
-    orderBy: {
-      voteScore: 'desc', // you can change this (createdAt, upvoteCount, etc.)
-    },
-    include: {
-      menuItem: {
-        select: {
-          id: true,
-          name: true,
-          stallId: true,
-        },
-      },
-      user: {
-        select: {
-          id: true,
-          displayName: true,
-          username: true,
-        },
-      },
-      // Optional: counts of votes/reports if you want them
-      _count: {
-        select: {
-          votes: true,
-          reports: true,
-        },
-      },
-    },
-  });
-  return uploads;
-
-}
 
 };

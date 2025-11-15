@@ -1,167 +1,21 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import UpvoteIcon from "../assets/upvote.svg";
 import DownvoteIcon from "../assets/downvote.svg";
+import { useParams } from "react-router-dom";
 
 export default function StallGallery() {
   // ===== Simulate logged-in user =====
-  const currentUserId = "u1";
+  // TODO: replace with your real logged-in user id
+  const currentUserId = "6704fc2c-d52f-4206-b777-47aff4bd6906";
+  const { stallId } = useParams();
 
-  // ===== Base content =====
-  const baseItems = [
-    {
-      id: "h1",
-      src: "https://images.unsplash.com/photo-1604908176997-125f2dd03a37?q=80&w=1200&auto=format&fit=crop",
-      upvoteCount: 156,
-      downvoteCount: 4,
-      caption: "Kaya Toast Set",
-      verified: true,
-    },
-    {
-      id: "h2",
-      src: "https://images.unsplash.com/photo-1574482620828-158b0b94f50b?q=80&w=1200&auto=format&fit=crop",
-      upvoteCount: 122,
-      downvoteCount: 3,
-      caption: "French Toast with Kaya",
-      verified: true,
-    },
-    {
-      id: "h3",
-      src: "https://images.unsplash.com/photo-1508737027454-e6454ef45afd?q=80&w=1200&auto=format&fit=crop",
-      upvoteCount: 188,
-      downvoteCount: 6,
-      caption: "Soft-Boiled Eggs",
-      verified: true,
-    },
-    {
-      id: "h4",
-      src: "https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?q=80&w=1200&auto=format&fit=crop",
-      upvoteCount: 141,
-      downvoteCount: 8,
-      caption: "Tuna Mayo Toastwich",
-      verified: true,
-    },
-    {
-      id: "h5",
-      src: "https://images.unsplash.com/photo-1603048565287-4325c36a16c6?q=80&w=1200&auto=format&fit=crop",
-      upvoteCount: 115,
-      downvoteCount: 4,
-      caption: "Ham & Cheese Sandwich",
-      verified: false,
-    },
-    {
-      id: "h4",
-      src: "https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?q=80&w=1200&auto=format&fit=crop",
-      upvoteCount: 141,
-      downvoteCount: 8,
-      caption: "Tuna Mayo Toastwich",
-      verified: true,
-    },
-    {
-      id: "h5",
-      src: "https://images.unsplash.com/photo-1603048565287-4325c36a16c6?q=80&w=1200&auto=format&fit=crop",
-      upvoteCount: 115,
-      downvoteCount: 4,
-      caption: "Ham & Cheese Sandwich",
-      verified: false,
-    },
-    {
-      id: "h6",
-      src: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=1200&auto=format&fit=crop",
-      upvoteCount: 220,
-      downvoteCount: 9,
-      caption: "Chicken Rice",
-      verified: true,
-    },
-    {
-      id: "h7",
-      src: "https://images.unsplash.com/photo-1498654896293-37aacf113fd9?q=80&w=1200&auto=format&fit=crop",
-      upvoteCount: 174,
-      downvoteCount: 7,
-      caption: "Laksa",
-      verified: true,
-    },
-    {
-      id: "h8",
-      src: "https://images.unsplash.com/photo-1626074353765-4230baf9fc94?q=80&w=1200&auto=format&fit=crop",
-      upvoteCount: 196,
-      downvoteCount: 10,
-      caption: "Char Kway Teow",
-      verified: false,
-    },
-    {
-      id: "h9",
-      src: "https://images.unsplash.com/photo-1604908554028-094f7d2ec76c?q=80&w=1200&auto=format&fit=crop",
-      upvoteCount: 163,
-      downvoteCount: 5,
-      caption: "Mee Rebus",
-      verified: true,
-    },
-    {
-      id: "h10",
-      src: "https://images.unsplash.com/photo-1631515242808-49755d0dcdf6?q=80&w=1200&auto=format&fit=crop",
-      upvoteCount: 137,
-      downvoteCount: 8,
-      caption: "Mee Siam",
-      verified: false,
-    },
-    {
-      id: "h11",
-      src: "https://images.unsplash.com/photo-1604908554843-b4aa751a93ce?q=80&w=1200&auto=format&fit=crop",
-      upvoteCount: 152,
-      downvoteCount: 4,
-      caption: "Fishball Noodle Soup",
-      verified: true,
-    },
-    {
-      id: "h12",
-      src: "https://images.unsplash.com/photo-1490645935967-10de6ba17061?q=80&w=1200&auto=format&fit=crop",
-      upvoteCount: 130,
-      downvoteCount: 3,
-      caption: "Fried Carrot Cake (White)",
-      verified: true,
-    },
-    {
-      id: "h13",
-      src: "https://images.unsplash.com/photo-1589302168068-964664d93dc0?q=80&w=1200&auto=format&fit=crop",
-      upvoteCount: 148,
-      downvoteCount: 5,
-      caption: "Roti Prata with Curry",
-      verified: false,
-    },
-    {
-      id: "h14",
-      src: "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?q=80&w=1200&auto=format&fit=crop",
-      upvoteCount: 201,
-      downvoteCount: 2,
-      caption: "Kopi C",
-      verified: true,
-    },
-    {
-      id: "h15",
-      src: "https://images.unsplash.com/photo-1586190848861-99aa4a171e90?q=80&w=1200&auto=format&fit=crop",
-      upvoteCount: 190,
-      downvoteCount: 4,
-      caption: "Teh Tarik",
-      verified: true,
-    },
-    {
-      id: "h16",
-      src: "https://images.unsplash.com/photo-1613478881243-97d28942f2ca?q=80&w=1200&auto=format&fit=crop",
-      upvoteCount: 175,
-      downvoteCount: 6,
-      caption: "Iced Milo Dinosaur",
-      verified: false,
-    },
-  ];
+  // ===== API data state =====
+  const [items, setItems] = useState([]); // normalized items used everywhere
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   // ===== Relations now use value: 1 (upvote) or 0 (downvote) =====
-  const initialRelations = [
-    { userId: "u1", uploadId: "a2", value: 1 },
-    { userId: "u1", uploadId: "a9", value: 1 },
-    { userId: "u1", uploadId: "a4", value: 0 },
-  ];
-
-  const [items, setItems] = useState(baseItems);
+  const initialRelations = [];
   const [relations, setRelations] = useState(initialRelations);
 
   // NEW: keep track of which images this user has reported
@@ -172,12 +26,106 @@ export default function StallGallery() {
   const [reportReason, setReportReason] = useState("");
   const [reportDetails, setReportDetails] = useState("");
 
+  // ===== Notification bar state =====
+  const [notice, setNotice] = useState(null);
+
+  // ===== Image Popup =====
+  const [popupId, setPopupId] = useState(null);
+
+  // ===== Fetch gallery from API =====
+  useEffect(() => {
+    async function fetchGallery() {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const res = await fetch(
+          `http://localhost:3000/api/stalls/${stallId}/gallery`
+        );
+
+        if (!res.ok) {
+          throw new Error(`Failed to load gallery (status ${res.status})`);
+        }
+
+        const data = await res.json();
+        // data is expected to be like:
+        // [
+        //   {
+        //     id, imageUrl, caption, validationStatus,
+        //     upvoteCount, downvoteCount, ...
+        //   }
+        // ]
+
+        const normalized = data.map((u) => ({
+          id: u.id,
+          src: u.imageUrl,
+          upvoteCount: u.upvoteCount ?? 0,
+          downvoteCount: u.downvoteCount ?? 0,
+          caption: u.caption || u.menuItem?.name || "Photo",
+          // Treat approved as "verified"
+          verified: u.validationStatus === "approved",
+          // keep the raw object if needed later
+          raw: u,
+        }));
+
+        setItems(normalized);
+      } catch (err) {
+        console.error(err);
+        setError(err.message || "Unknown error");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    if (stallId) {
+      fetchGallery();
+    }
+  }, [stallId]);
+
+  // ===== Fetch user's votes from API =====
+  useEffect(() => {
+    async function fetchVotes() {
+      try {
+        if (!currentUserId) return;
+
+        const res = await fetch(
+          `http://localhost:3000/api/media/getVotes/${currentUserId}`
+        );
+
+        if (!res.ok) {
+          throw new Error(`Failed to load votes (status ${res.status})`);
+        }
+
+        const data = await res.json();
+        // data.votes is expected to be:
+        // [
+        //   { uploadId, userId, vote: 1 | -1, ... }
+        // ]
+
+        const normalizedRelations =
+          (data.votes || []).map((v) => ({
+            userId: data.userId,
+            uploadId: v.uploadId,
+            // internal value: 1 = upvote, 0 = downvote
+            value: v.vote === 1 ? 1 : 0,
+          })) ?? [];
+
+        setRelations(normalizedRelations);
+      } catch (err) {
+        console.error(err);
+        // We don't show an error banner for votes; gallery still works
+      }
+    }
+
+    fetchVotes();
+  }, [currentUserId]);
+
   // ===== Frozen display order: SORT BY UPVOTES ONLY =====
-  const [displayOrder] = useState(() =>
-    [...baseItems]
+  const displayOrder = useMemo(() => {
+    return [...items]
       .sort((a, b) => b.upvoteCount - a.upvoteCount)
-      .map((it) => it.id)
-  );
+      .map((it) => it.id);
+  }, [items]);
 
   // ===== Lookup maps =====
   const itemById = useMemo(() => {
@@ -226,69 +174,124 @@ export default function StallGallery() {
     );
   };
 
-  // ===== Notification bar state =====
-  const [notice, setNotice] = useState(null);
-
   const showNotice = (msg) => {
     setNotice(msg);
     setTimeout(() => setNotice(null), 3000); // auto dismiss after 3 sec
   };
 
   // ===== Voting Actions =====
-  const handleUpvote = (id) => {
+  const handleUpvote = async (id) => {
     const val = getVoteValue(id);
+    console.log("Upvote:", id, "current val:", val);
 
+    // already upvoted -> remove upvote
     if (val === 1) {
-      // remove upvote
-      updateCounts(id, -1, 0);
-      setRelations((prev) =>
-        prev.filter(
-          (r) => !(r.userId === currentUserId && r.uploadId === id)
-        )
-      );
+      try {
+        const res = await fetch(
+          `http://localhost:3000/api/media/removeupvote/${id}/${currentUserId}`,
+          { method: "DELETE" }
+        );
+        if (!res.ok) {
+          throw new Error(`Server responded ${res.status}`);
+        }
+
+        // only update UI after successful response
+        updateCounts(id, -1, 0);
+        setRelations((prev) =>
+          prev.filter(
+            (r) => !(r.userId === currentUserId && r.uploadId === id)
+          )
+        );
+      } catch (err) {
+        console.error(err);
+        showNotice("Failed to update upvote on server.");
+      }
       return;
     }
 
+    // already downvoted
     if (val === 0) {
       showNotice("You cannot upvote a picture you already downvoted.");
       return;
     }
 
-    updateCounts(id, +1, 0);
-    setRelations((prev) => [
-      ...prev,
-      { userId: currentUserId, uploadId: id, value: 1 },
-    ]);
+    // new upvote
+    try {
+      const res = await fetch(
+        `http://localhost:3000/api/media/upvote/${id}/${currentUserId}`,
+        { method: "POST" }
+      );
+      if (!res.ok) {
+        throw new Error(`Server responded ${res.status}`);
+      }
+
+      updateCounts(id, +1, 0);
+      setRelations((prev) => [
+        ...prev,
+        { userId: currentUserId, uploadId: id, value: 1 },
+      ]);
+    } catch (err) {
+      console.error(err);
+      showNotice("Failed to update upvote on server.");
+    }
   };
 
-  const handleDownvote = (id) => {
+  const handleDownvote = async (id) => {
     const val = getVoteValue(id);
+    console.log("Downvote:", id, "current val:", val);
 
+    // already downvoted -> remove downvote
     if (val === 0) {
-      // remove downvote
-      updateCounts(id, 0, -1);
-      setRelations((prev) =>
-        prev.filter(
-          (r) => !(r.userId === currentUserId && r.uploadId === id)
-        )
-      );
+      try {
+        const res = await fetch(
+          `http://localhost:3000/api/media/removedownvote/${id}/${currentUserId}`,
+          { method: "DELETE" }
+        );
+        if (!res.ok) {
+          throw new Error(`Server responded ${res.status}`);
+        }
+
+        // only update UI after successful response
+        updateCounts(id, 0, -1);
+        setRelations((prev) =>
+          prev.filter(
+            (r) => !(r.userId === currentUserId && r.uploadId === id)
+          )
+        );
+      } catch (err) {
+        console.error(err);
+        showNotice("Failed to update downvote on server.");
+      }
       return;
     }
 
+    // already upvoted
     if (val === 1) {
       showNotice("You cannot downvote a picture you already upvoted.");
       return;
     }
 
-    updateCounts(id, 0, +1);
-    setRelations((prev) => [
-      ...prev,
-      { userId: currentUserId, uploadId: id, value: 0 },
-    ]);
-  };
+    // new downvote
+    try {
+      const res = await fetch(
+        `http://localhost:3000/api/media/downvote/${id}/${currentUserId}`,
+        { method: "POST" }
+      );
+      console.log(res);
+      if (!res.ok) {
+        throw new Error(`Server responded ${res.status}`);
+      }
 
-  // ===== Image Popup =====
-  const [popupId, setPopupId] = useState(null);
+      updateCounts(id, 0, +1);
+      setRelations((prev) => [
+        ...prev,
+        { userId: currentUserId, uploadId: id, value: 0 },
+      ]);
+    } catch (err) {
+      console.error(err);
+      showNotice("Failed to update downvote on server.");
+    }
+  };
 
   // ===== Report Actions =====
   const openReportModal = () => {
@@ -322,6 +325,44 @@ export default function StallGallery() {
     showNotice("Thanks for reporting. We'll review this photo shortly.");
   };
 
+  // ===== Loading / Error States =====
+  if (loading) {
+    return (
+      <section className="mt-12 mb-20 px-4 md:px-8">
+        <h2 className="text-center text-3xl font-bold text-emerald-900 mb-8">
+          Customer Favourites
+        </h2>
+        <div className="text-center text-gray-600">Loading gallery…</div>
+      </section>
+    );
+  }
+
+  if (error) {
+    return (
+      <section className="mt-12 mb-20 px-4 md:px-8">
+        <h2 className="text-center text-3xl font-bold text-emerald-900 mb-8">
+          Customer Favourites
+        </h2>
+        <div className="text-center text-red-600">
+          Failed to load gallery: {error}
+        </div>
+      </section>
+    );
+  }
+
+  if (!items.length) {
+    return (
+      <section className="mt-12 mb-20 px-4 md:px-8">
+        <h2 className="text-center text-3xl font-bold text-emerald-900 mb-8">
+          Customer Favourites
+        </h2>
+        <div className="text-center text-gray-600">
+          No photos uploaded for this stall yet.
+        </div>
+      </section>
+    );
+  }
+
   // ===== Render =====
   return (
     <section className="mt-12 mb-20 px-4 md:px-8">
@@ -332,6 +373,7 @@ export default function StallGallery() {
       <div className="bento-grid max-w-7xl mx-auto">
         {displayOrder.map((id) => {
           const it = itemById.get(id);
+          if (!it) return null;
           const voteVal = getVoteValue(id);
           const shape = shapeById.get(id);
 
@@ -342,7 +384,7 @@ export default function StallGallery() {
             >
               <img
                 src={it.src}
-                alt=""
+                alt={it.caption}
                 onClick={() => setPopupId(id)}
                 className="w-full h-full object-cover cursor-pointer group-hover:scale-110 duration-500"
               />
@@ -456,7 +498,7 @@ export default function StallGallery() {
             />
 
             <div className="p-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <div className="flex items-center gap-2 text-lg font-semibold text-gray-800">
+              <div className="flex items_CENTER gap-2 text-lg font-semibold text-gray-800">
                 {itemById.get(popupId)?.caption}
               </div>
 
@@ -505,7 +547,7 @@ export default function StallGallery() {
       {reportModalOpen && popupId && (
         <div
           className="fixed inset-0 bg-black/60 z-50 
-             flex items-start justify-center p-4 pt-20"
+             flex items-start justify_CENTER p-4 pt-20"
           onClick={() => setReportModalOpen(false)}
         >
           <div

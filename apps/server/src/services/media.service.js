@@ -209,5 +209,115 @@ export const mediaService = {
         { createdAt: 'desc' },  // newest first when score ties
       ],
     });
+  },
+
+  async getVotesByUserId(userId) {
+    return await prisma.mediaUploadVote.findMany({
+      where: { userId }
+    });
+  },
+
+  async upvote(uploadId, userId) {
+    // Check if user has already voted
+    const existingVote = await prisma.mediaUploadVote.findUnique({
+      where: {
+        uploadId_userId: {
+          uploadId,
+          userId,
+        },
+      },
+    });
+
+    if (existingVote) {
+      // User has already voted; return existing vote
+      return { message: 'User has already upvoted this upload.', vote: existingVote };
+    }
+
+    // Create new upvote
+    const newVote = await prisma.mediaUploadVote.create({
+      data: {
+        uploadId,
+        userId,
+        vote: 1,
+      },
+    });
+
+    await prisma.mediaUpload.update({
+      where: { id: uploadId },
+      data: {
+        upvoteCount: { increment: 1 },
+      },
+    }); 
+
+    return { message: 'Upvote recorded.', vote: newVote };
+  },
+
+
+  async downvote(uploadId, userId) {
+    // Check if user has already voted
+    const existingVote = await prisma.mediaUploadVote.findUnique({
+      where: {
+        uploadId_userId: {
+          uploadId,
+          userId,
+        },
+      },
+    });
+    if (existingVote) {
+      // User has already voted; return existing vote
+      return { message: 'User has already downvoted this upload.', vote: existingVote };
+    }
+
+    // Create new downvote
+    const newVote = await prisma.mediaUploadVote.create({
+      data: {
+        uploadId,
+        userId,
+        vote: -1,
+      },
+    });
+
+      await prisma.mediaUpload.update({
+      where: { id: uploadId },
+      data: {
+        downvoteCount: { increment: 1 },
+      },
+    }); 
+
+    return { message: 'Downvote recorded.', vote: newVote };
+
+
+  },
+
+  async removeUpvote(uploadId, userId) {
+    const deletedVote = await prisma.mediaUploadVote.deleteMany({
+      where: {
+        uploadId,
+        userId,
+        vote: 1,
+      },
+    });
+    await prisma.mediaUpload.update({
+      where: { id: uploadId },
+      data: {
+        upvoteCount: { decrement: 1 },
+      },
+    }); 
+  },
+
+  async removeDownvote(uploadId, userId) {
+    const deletedVote = await prisma.mediaUploadVote.deleteMany({
+      where: {
+        uploadId,
+        userId,
+        vote: -1,
+      },
+    });
+    await prisma.mediaUpload.update({
+      where: { id: uploadId },
+      data: {
+        downvoteCount: { decrement: 1 },
+      },
+    }); 
   }
 };

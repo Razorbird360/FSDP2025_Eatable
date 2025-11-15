@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { stallsController } from '../controllers/stalls.controller.js';
 import { authMiddleware } from '../middleware/auth.middleware.js';
 
+
 const router = Router();
 
 // Public routes
