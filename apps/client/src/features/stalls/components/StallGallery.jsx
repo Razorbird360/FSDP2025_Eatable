@@ -15,7 +15,7 @@ export default function StallGallery() {
     let cancelled = false;
 
     async function loadUser() {
-      const { data, error } = await supabase.auth.getSession();
+      const { data} = await supabase.auth.getSession();
 
       if (cancelled) return;
 
