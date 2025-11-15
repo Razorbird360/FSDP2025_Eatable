@@ -22,7 +22,13 @@ export function AuthProvider({ children }) {
   const [status, setStatus] = useState('loading');
   const [error, setError] = useState(null);
 
+  const sessionRef = useRef(null);
   const isSyncingRef = useRef(false);
+  const refreshPromiseRef = useRef(null);
+
+  useEffect(() => {
+    sessionRef.current = session;
+  }, [session]);
 
   const syncUser = useCallback(async (activeSession) => {
     if (!activeSession || isSyncingRef.current) return;
@@ -48,56 +54,101 @@ export function AuthProvider({ children }) {
   }, []);
 
   const refreshProfile = useCallback(
-    async (activeSession = session) => {
-      if (!activeSession) {
+    async (activeSession = null, options = {}) => {
+      const {
+        suppressError = false,
+        force = false,
+        useStoredSession = true,
+      } = options;
+      const sessionToUse =
+        useStoredSession && activeSession == null
+          ? sessionRef.current
+          : activeSession;
+
+      if (!sessionToUse) {
         setProfile(null);
         setStatus('unauthenticated');
         return null;
       }
 
+      if (refreshPromiseRef.current && suppressError && !force) {
+        return refreshPromiseRef.current;
+      }
+
       setStatus((prev) => (prev === 'authenticated' ? prev : 'loading'));
 
-      try {
-        let { data } = await api.get('/auth/me');
+      const request = (async () => {
+        try {
+          let { data } = await api.get('/auth/me');
 
-        if (data?.isSynced === false && !isSyncingRef.current) {
-          await syncUser(activeSession);
-          const refreshed = await api.get('/auth/me');
-          data = refreshed.data;
+          if (data?.isSynced === false && !isSyncingRef.current) {
+            await syncUser(sessionToUse);
+            const refreshed = await api.get('/auth/me');
+            data = refreshed.data;
+          }
+
+          setProfile(data);
+          setStatus('authenticated');
+          setError(null);
+          return data;
+        } catch (profileError) {
+          console.error('Failed to load profile:', profileError);
+          setProfile(null);
+
+          const isUnauthorized =
+            profileError.response?.status === 401 ||
+            profileError?.message?.toLowerCase().includes('unauthorized');
+
+          setStatus('unauthenticated');
+
+          if (suppressError) {
+            return null;
+          }
+
+          setError(
+            profileError.message ??
+              (profileError.code === 'ECONNABORTED'
+                ? 'Request timed out while loading profile'
+                : 'Failed to load profile')
+          );
+          throw profileError;
+        } finally {
+          refreshPromiseRef.current = null;
         }
+      })();
 
-        setProfile(data);
-        setStatus('authenticated');
-        setError(null);
-        return data;
-      } catch (profileError) {
-        console.error('Failed to load profile:', profileError);
-        setError(profileError.message ?? 'Failed to load profile');
-        setStatus('error');
-        throw profileError;
-      }
+      refreshPromiseRef.current = request;
+      return request;
     },
-    [session, syncUser]
+    [syncUser]
   );
 
   useEffect(() => {
     let isMounted = true;
 
     const bootstrap = async () => {
-      const {
-        data: { session: currentSession },
-      } = await supabase.auth.getSession();
+      try {
+        const {
+          data: { session: currentSession },
+        } = await supabase.auth.getSession();
 
-      if (!isMounted) return;
+        if (!isMounted) return;
 
-      setSession(currentSession);
-      setSupabaseUser(currentSession?.user ?? null);
+        setSession(currentSession);
+        setSupabaseUser(currentSession?.user ?? null);
 
-      if (currentSession) {
-        await refreshProfile(currentSession);
-      } else {
+        if (currentSession) {
+          await refreshProfile(currentSession, { suppressError: true });
+        } else {
+          setProfile(null);
+          setStatus('unauthenticated');
+        }
+      } catch (bootstrapError) {
+        console.error('Failed to initialize auth session:', bootstrapError);
+        if (!isMounted) return;
         setProfile(null);
         setStatus('unauthenticated');
+        setError(bootstrapError.message ?? 'Failed to initialize auth');
       }
     };
 
@@ -112,7 +163,7 @@ export function AuthProvider({ children }) {
       setSupabaseUser(newSession?.user ?? null);
 
       if (newSession) {
-        await refreshProfile(newSession);
+        await refreshProfile(newSession, { suppressError: true });
       } else {
         setProfile(null);
         setStatus('unauthenticated');

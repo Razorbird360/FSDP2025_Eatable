@@ -170,10 +170,6 @@ export default function Navbar() {
                   <span>{authLoading ? 'Signing out...' : 'Log out'}</span>
                 </span>
               </button>
-            ) : status === 'loading' ? (
-              <div className="flex h-11 items-center rounded-2xl border border-[#E7EEE7] px-4 text-sm text-[#6d7f68]">
-                Checking account...
-              </div>
             ) : (
               <Link
                 to="/login"

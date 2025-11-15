@@ -35,6 +35,7 @@ const SignupForm = () => {
     agreeToTerms: false,
   });
   const [errors, setErrors] = useState({});
+  const [pendingEmail, setPendingEmail] = useState(null);
 
   const redirectPath = location.state?.from?.pathname ?? '/home';
 
@@ -139,8 +140,96 @@ const SignupForm = () => {
 
     if (!result.success) {
       setErrors({ submit: result.error });
+      return;
+    }
+
+    if (result.needsConfirmation) {
+      setPendingEmail(formData.email.trim().toLowerCase());
     }
   };
+
+  const renderPendingConfirmation = () => (
+    <Box
+      bg={{ base: 'transparent', lg: 'white' }}
+      height="100vh"
+      display="flex"
+      alignItems="center"
+      justifyContent="center"
+      px={{ base: 8, md: 12, lg: 16, xl: 20 }}
+      overflow="auto"
+      position="relative"
+      backgroundImage={{ base: `url(${BannerImage})`, lg: 'none' }}
+      backgroundSize="cover"
+      backgroundPosition="center"
+    >
+      <Box
+        position="absolute"
+        top="0"
+        left="0"
+        right="0"
+        bottom="0"
+        bg="rgba(0, 0, 0, 0.55)"
+        display={{ base: 'block', lg: 'none' }}
+        zIndex="1"
+      />
+
+      <Box
+        width="100%"
+        maxWidth={{ base: '420px', lg: '420px' }}
+        position="relative"
+        zIndex="2"
+        bg={{ base: 'rgba(255,255,255,0.08)', lg: '#F6FBF2' }}
+        borderRadius={{ base: 0, lg: '24px' }}
+        p={{ base: 8, lg: 10 }}
+        boxShadow={{ base: 'none', lg: '0px 20px 60px rgba(22, 38, 29, 0.12)' }}
+      >
+        <Image
+          src={LogoImage}
+          alt="Eatable Logo"
+          width={{ base: '140px', lg: '120px' }}
+          mb={{ base: 8, lg: 5 }}
+          display={{ base: 'none', lg: 'block' }}
+        />
+        <VStack align="stretch" spacing={5}>
+          <Text fontSize={{ base: '28px', lg: '24px' }} fontWeight="700" color={{ base: 'white', lg: '#1C201D' }}>
+            Verify your email
+          </Text>
+          <Text fontSize="md" color={{ base: 'rgba(255,255,255,0.9)', lg: '#4A554B' }} lineHeight="1.6">
+            We just sent a confirmation link to{' '}
+            <Text as="span" fontWeight="600">
+              {pendingEmail}
+            </Text>
+            . Open that email to activate your account. Once confirmed, return here and log in.
+          </Text>
+          <Button
+            onClick={() => navigate('/login')}
+            bg="#21421B"
+            color="white"
+            height="48px"
+            borderRadius="12px"
+            fontSize="16px"
+            fontWeight="600"
+            _hover={{ bg: '#1A3517' }}
+          >
+            Go to log in
+          </Button>
+          <Button
+            variant="outline"
+            borderColor={{ base: 'white', lg: '#21421B' }}
+            color={{ base: 'white', lg: '#21421B' }}
+            borderRadius="12px"
+            onClick={() => setPendingEmail(null)}
+          >
+            Use a different email
+          </Button>
+        </VStack>
+      </Box>
+    </Box>
+  );
+
+  if (pendingEmail && status !== 'authenticated') {
+    return renderPendingConfirmation();
+  }
 
   return (
     <Box

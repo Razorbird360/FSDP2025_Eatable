@@ -42,12 +42,13 @@ export const useAuth = () => {
       if (error) throw error;
 
       if (data.session) {
-        await refreshProfile(data.session);
+        await refreshProfile(data.session, { force: true });
       }
 
       return {
         success: true,
         user: data.user,
+        needsConfirmation: !data.session,
       };
     } catch (err) {
       const message = err.message || 'An error occurred during signup';
@@ -70,7 +71,7 @@ export const useAuth = () => {
 
       if (error) throw error;
 
-      await refreshProfile(data.session);
+      await refreshProfile(data.session, { force: true });
 
       return {
         success: true,
@@ -94,7 +95,11 @@ export const useAuth = () => {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
 
-      await refreshProfile(null);
+      await refreshProfile(null, {
+        suppressError: true,
+        force: true,
+        useStoredSession: false,
+      });
       return { success: true };
     } catch (err) {
       const message = err.message || 'An error occurred during logout';
