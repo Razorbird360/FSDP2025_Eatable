@@ -179,4 +179,35 @@ export const mediaService = {
       },
     });
   },
+
+  async getByStall(stallId) {
+    return this.prisma.mediaUpload.findMany({
+      where: {
+        menuItem: {
+          stallId, // from the Stall relation
+        },
+        // "verified" uploads only – change 'approved' if your enum/string differs
+        validationStatus: 'approved',
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            displayName: true,
+          },
+        },
+        menuItem: {
+          select: {
+            id: true,
+            name: true,
+            stallId: true,
+          },
+        },
+      },
+      orderBy: [
+        { voteScore: 'desc' },  // highest-scoring first
+        { createdAt: 'desc' },  // newest first when score ties
+      ],
+    });
+  }
 };

@@ -8,6 +8,7 @@ const router = Router();
 // Public routes - anyone can view uploads
 router.get('/menu-item/:menuItemId', mediaController.getByMenuItem);
 router.get('/:uploadId', mediaController.getById);
+router.get('/stall/:stallId', mediaController.getByStall);
 
 // Protected routes - require authentication
 router.post(

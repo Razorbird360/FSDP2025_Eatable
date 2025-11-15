@@ -9,59 +9,57 @@ datasource db {
 }
 
 model User {
-  id          String   @id @default(uuid()) @db.Uuid
-  email       String   @unique
-  displayName String   @map("display_name")
-  role        String   @default("user")
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  ownedStalls   Stall[]
-  mediaUploads  MediaUpload[]
-  votes         MediaUploadVote[]
-  orders        Order[]
-  favorites     UserFavorite[]
-  reports       ContentReport[]
+  id           String            @id @default(uuid()) @db.Uuid
+  email        String            @unique
+  displayName  String            @map("display_name")
+  role         String            @default("user")
+  createdAt    DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  username     String            @unique
+  reports      ContentReport[]
+  votes        MediaUploadVote[]
+  mediaUploads MediaUpload[]
+  orders       Order[]
+  ownedStalls  Stall[]
+  favorites    UserFavorite[]
 
   @@map("users")
 }
 
 model Stall {
-  id          String   @id @default(uuid()) @db.Uuid
-  ownerId     String?  @map("owner_id") @db.Uuid
-  name        String   @unique
+  id          String         @id @default(uuid()) @db.Uuid
+  ownerId     String?        @map("owner_id") @db.Uuid
+  name        String         @unique
   description String?
   location    String?
-  latitude    Float?   @db.DoublePrecision
-  longitude   Float?   @db.DoublePrecision
-  isVerified  Boolean  @default(false) @map("is_verified")
-  cuisineType String?  @map("cuisine_type")
-  tags        String[] @default([])
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  owner     User?          @relation(fields: [ownerId], references: [id], onDelete: SetNull)
-  menuItems MenuItem[]
-  orders    Order[]
-  favorites UserFavorite[]
+  latitude    Float?
+  longitude   Float?
+  isVerified  Boolean        @default(false) @map("is_verified")
+  cuisineType String?        @map("cuisine_type")
+  tags        String[]       @default([])
+  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+  menuItems   MenuItem[]
+  orders      Order[]
+  owner       User?          @relation(fields: [ownerId], references: [id])
+  favorites   UserFavorite[]
 
   @@map("stalls")
 }
 
 model MenuItem {
-  id           String   @id @default(uuid()) @db.Uuid
-  stallId      String   @map("stall_id") @db.Uuid
+  id           String         @id @default(uuid()) @db.Uuid
+  stallId      String         @map("stall_id") @db.Uuid
   name         String
   description  String?
-  priceCents   Int      @map("price_cents")
+  priceCents   Int            @map("price_cents")
   category     String?
-  prepTimeMins Int?     @map("prep_time_mins")
-  isActive     Boolean  @default(true) @map("is_active")
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  stall        Stall           @relation(fields: [stallId], references: [id], onDelete: Cascade)
+  prepTimeMins Int?           @map("prep_time_mins")
+  isActive     Boolean        @default(true) @map("is_active")
+  createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
   mediaUploads MediaUpload[]
+  stall        Stall          @relation(fields: [stallId], references: [id], onDelete: Cascade)
   orderItems   OrderItem[]
   favorites    UserFavorite[]
 
@@ -70,59 +68,56 @@ model MenuItem {
 }
 
 model MediaUpload {
-  id                String    @id @default(uuid()) @db.Uuid
-  menuItemId        String    @map("menu_item_id") @db.Uuid
-  userId            String    @map("user_id") @db.Uuid
-  imageUrl          String    @map("image_url")
+  id                String            @id @default(uuid()) @db.Uuid
+  menuItemId        String            @map("menu_item_id") @db.Uuid
+  userId            String            @map("user_id") @db.Uuid
+  imageUrl          String            @map("image_url")
   caption           String?
-  validationStatus  String    @default("pending") @map("validation_status")
-  rejectionReason   String?   @map("rejection_reason")
-  aiConfidenceScore Float?    @map("ai_confidence_score")
-  reviewedAt        DateTime? @map("reviewed_at") @db.Timestamptz(6)
-  reviewedBy        String?   @map("reviewed_by") @db.Uuid
-  upvoteCount       Int       @default(0) @map("upvote_count")
-  downvoteCount     Int       @default(0) @map("downvote_count")
-  voteScore         Int       @default(0) @map("vote_score")
-  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  menuItem MenuItem          @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
-  user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  votes    MediaUploadVote[]
-  reports  ContentReport[]
+  validationStatus  String            @default("pending") @map("validation_status")
+  rejectionReason   String?           @map("rejection_reason")
+  aiConfidenceScore Float?            @map("ai_confidence_score")
+  reviewedAt        DateTime?         @map("reviewed_at") @db.Timestamptz(6)
+  reviewedBy        String?           @map("reviewed_by") @db.Uuid
+  upvoteCount       Int               @default(0) @map("upvote_count")
+  downvoteCount     Int               @default(0) @map("downvote_count")
+  voteScore         Int               @default(0) @map("vote_score")
+  createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  reports           ContentReport[]
+  votes             MediaUploadVote[]
+  menuItem          MenuItem          @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("media_uploads")
 }
 
 model MediaUploadVote {
-  uploadId  String   @map("upload_id") @db.Uuid
-  userId    String   @map("user_id") @db.Uuid
-  vote      Int      @db.SmallInt
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  upload MediaUpload @relation(fields: [uploadId], references: [id], onDelete: Cascade)
-  user   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  uploadId  String      @map("upload_id") @db.Uuid
+  userId    String      @map("user_id") @db.Uuid
+  vote      Int         @db.SmallInt
+  createdAt DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+  upload    MediaUpload @relation(fields: [uploadId], references: [id], onDelete: Cascade)
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([uploadId, userId])
   @@map("media_upload_votes")
 }
 
 model Order {
-  id                 String    @id @default(uuid()) @db.Uuid
-  userId             String    @map("user_id") @db.Uuid
-  stallId            String    @map("stall_id") @db.Uuid
-  status             String    @default("pending")
-  totalCents         Int       @default(0) @map("total_cents")
-  netsTxnId          String?   @map("nets_txn_id")
-  estimatedReadyTime DateTime? @map("estimated_ready_time") @db.Timestamptz(6)
-  completedAt        DateTime? @map("completed_at") @db.Timestamptz(6)
-  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  stall      Stall       @relation(fields: [stallId], references: [id], onDelete: Cascade)
-  orderItems OrderItem[]
+  id                 String      @id @default(uuid()) @db.Uuid
+  userId             String      @map("user_id") @db.Uuid
+  stallId            String      @map("stall_id") @db.Uuid
+  status             String      @default("pending")
+  totalCents         Int         @default(0) @map("total_cents")
+  netsTxnId          String?     @map("nets_txn_id")
+  estimatedReadyTime DateTime?   @map("estimated_ready_time") @db.Timestamptz(6)
+  completedAt        DateTime?   @map("completed_at") @db.Timestamptz(6)
+  createdAt          DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+  orderItems         OrderItem[]
+  stall              Stall       @relation(fields: [stallId], references: [id], onDelete: Cascade)
+  user               User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("orders")
 }
@@ -135,23 +130,21 @@ model OrderItem {
   unitCents  Int      @map("unit_cents")
   createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  order    Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  menuItem MenuItem @relation(fields: [menuItemId], references: [id])
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@map("order_items")
 }
 
 model UserFavorite {
-  id         String   @id @default(uuid()) @db.Uuid
-  userId     String   @map("user_id") @db.Uuid
-  menuItemId String?  @map("menu_item_id") @db.Uuid
-  stallId    String?  @map("stall_id") @db.Uuid
-  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-
-  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  menuItem MenuItem? @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
-  stall    Stall?    @relation(fields: [stallId], references: [id], onDelete: Cascade)
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  menuItemId String?   @map("menu_item_id") @db.Uuid
+  stallId    String?   @map("stall_id") @db.Uuid
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  menuItem   MenuItem? @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  stall      Stall?    @relation(fields: [stallId], references: [id], onDelete: Cascade)
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, menuItemId])
   @@unique([userId, stallId])
@@ -159,16 +152,15 @@ model UserFavorite {
 }
 
 model ContentReport {
-  id         String   @id @default(uuid()) @db.Uuid
-  uploadId   String   @map("upload_id") @db.Uuid
-  reporterId String   @map("reporter_id") @db.Uuid
+  id         String      @id @default(uuid()) @db.Uuid
+  uploadId   String      @map("upload_id") @db.Uuid
+  reporterId String      @map("reporter_id") @db.Uuid
   reason     String
-  status     String   @default("pending")
-  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
-
-  upload   MediaUpload @relation(fields: [uploadId], references: [id], onDelete: Cascade)
-  reporter User        @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+  status     String      @default("pending")
+  createdAt  DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+  reporter   User        @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+  upload     MediaUpload @relation(fields: [uploadId], references: [id], onDelete: Cascade)
 
   @@map("content_reports")
 }

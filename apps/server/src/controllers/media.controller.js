@@ -219,4 +219,20 @@ export const mediaController = {
       next(error);
     }
   },
+
+
+  /* * Gets all APPROVED uploads for a stall */
+  async getByStall(req, res, next) {
+    try {
+      const { stallId } = req.params;
+      const uploads = await mediaService.getByStall(stallId);
+      res.json({
+        stallId,
+        count: uploads.length,
+        uploads,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 };
