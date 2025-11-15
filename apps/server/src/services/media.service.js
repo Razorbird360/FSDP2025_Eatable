@@ -200,36 +200,6 @@ export const mediaService = {
     });
   },
 
-  async getByStall(stallId) {
-    return this.prisma.mediaUpload.findMany({
-      where: {
-        menuItem: {
-          stallId, // from the Stall relation
-        },
-        // "verified" uploads only – change 'approved' if your enum/string differs
-        validationStatus: 'approved',
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            displayName: true,
-          },
-        },
-        menuItem: {
-          select: {
-            id: true,
-            name: true,
-            stallId: true,
-          },
-        },
-      },
-      orderBy: [
-        { voteScore: 'desc' },  // highest-scoring first
-        { createdAt: 'desc' },  // newest first when score ties
-      ],
-    });
-  },
 
   async getVotesByUserId(userId) {
     return await prisma.mediaUploadVote.findMany({
@@ -237,9 +207,10 @@ export const mediaService = {
     });
   },
 
-  async upvote(uploadId, userId) {
+async upvote(uploadId, userId) {
+  return prisma.$transaction(async (tx) => {
     // Check if user has already voted
-    const existingVote = await prisma.mediaUploadVote.findUnique({
+    const existingVote = await tx.mediaUploadVote.findUnique({
       where: {
         uploadId_userId: {
           uploadId,
@@ -248,13 +219,16 @@ export const mediaService = {
       },
     });
 
-    if (existingVote) {
-      // User has already voted; return existing vote
-      return { message: 'User has already upvoted this upload.', vote: existingVote };
+    if (existingVote?.vote === 1) {
+      // User has already upvoted
+      return { message: 'already upvoted', vote: existingVote };
+    } else if (existingVote?.vote === -1) {
+      // User has already downvoted
+      return { message: 'already downvoted', vote: existingVote };
     }
 
     // Create new upvote
-    const newVote = await prisma.mediaUploadVote.create({
+    const newVote = await tx.mediaUploadVote.create({
       data: {
         uploadId,
         userId,
@@ -262,20 +236,21 @@ export const mediaService = {
       },
     });
 
-    await prisma.mediaUpload.update({
+    await tx.mediaUpload.update({
       where: { id: uploadId },
       data: {
         upvoteCount: { increment: 1 },
       },
-    }); 
+    });
 
     return { message: 'Upvote recorded.', vote: newVote };
-  },
+  });
+},
 
-
-  async downvote(uploadId, userId) {
+async downvote(uploadId, userId) {
+  return prisma.$transaction(async (tx) => {
     // Check if user has already voted
-    const existingVote = await prisma.mediaUploadVote.findUnique({
+    const existingVote = await tx.mediaUploadVote.findUnique({
       where: {
         uploadId_userId: {
           uploadId,
@@ -283,13 +258,15 @@ export const mediaService = {
         },
       },
     });
-    if (existingVote) {
-      // User has already voted; return existing vote
-      return { message: 'User has already downvoted this upload.', vote: existingVote };
+
+    if (existingVote?.vote === 1) {
+      return { message: 'already upvoted', vote: existingVote };
+    } else if (existingVote?.vote === -1) {
+      return { message: 'already downvoted', vote: existingVote };
     }
 
     // Create new downvote
-    const newVote = await prisma.mediaUploadVote.create({
+    const newVote = await tx.mediaUploadVote.create({
       data: {
         uploadId,
         userId,
@@ -297,47 +274,81 @@ export const mediaService = {
       },
     });
 
-      await prisma.mediaUpload.update({
+    await tx.mediaUpload.update({
       where: { id: uploadId },
       data: {
         downvoteCount: { increment: 1 },
       },
-    }); 
+    });
 
     return { message: 'Downvote recorded.', vote: newVote };
+  });
+},
 
-
-  },
-
-  async removeUpvote(uploadId, userId) {
-    const deletedVote = await prisma.mediaUploadVote.deleteMany({
+async removeUpvote(uploadId, userId) {
+  return prisma.$transaction(async (tx) => {
+    const deletedVote = await tx.mediaUploadVote.deleteMany({
       where: {
         uploadId,
         userId,
         vote: 1,
       },
     });
-    await prisma.mediaUpload.update({
-      where: { id: uploadId },
-      data: {
-        upvoteCount: { decrement: 1 },
-      },
-    }); 
-  },
 
-  async removeDownvote(uploadId, userId) {
-    const deletedVote = await prisma.mediaUploadVote.deleteMany({
+    if (deletedVote.count > 0) {
+      // Clamp: decrement but never below zero
+      await tx.mediaUpload.update({
+        where: { id: uploadId },
+        data: {
+          upvoteCount: {
+            decrement: deletedVote.count,
+          },
+        },
+      });
+
+      // Force clamp to zero in case DB inconsistent
+      await tx.$queryRaw`
+        UPDATE "media_uploads"
+        SET upvote_count = GREATEST(upvote_count, 0)
+        WHERE id = ${uploadId}::uuid;
+      `;
+    }
+
+    return { message: "Upvote removed.", removed: deletedVote.count };
+  });
+},
+
+async removeDownvote(uploadId, userId) {
+  return prisma.$transaction(async (tx) => {
+    const deletedVote = await tx.mediaUploadVote.deleteMany({
       where: {
         uploadId,
         userId,
         vote: -1,
       },
     });
-    await prisma.mediaUpload.update({
-      where: { id: uploadId },
-      data: {
-        downvoteCount: { decrement: 1 },
-      },
-    }); 
-  }
+
+    if (deletedVote.count > 0) {
+      // Decrement but never below zero
+      await tx.mediaUpload.update({
+        where: { id: uploadId },
+        data: {
+          downvoteCount: {
+            decrement: deletedVote.count,
+          },
+        },
+      });
+
+      // Clamp negative safety
+      await tx.$queryRaw`
+        UPDATE "media_uploads"
+        SET downvote_count = GREATEST(downvote_count, 0)
+        WHERE id = ${uploadId}::uuid;
+      `;
+    }
+
+    return { message: "Downvote removed.", removed: deletedVote.count };
+  });
+},
+
 };

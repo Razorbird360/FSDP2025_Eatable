@@ -70,6 +70,7 @@ export const stallsService = {
           stallId: stallId, // shorthand `stallId` is also fine
           isActive: true,
         },
+        validationStatus: 'approved',
       },
       orderBy: {
         upvoteCount: 'desc', // or createdAt, etc.

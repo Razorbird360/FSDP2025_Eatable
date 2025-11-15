@@ -461,7 +461,7 @@ export default function StallGallery() {
                   handleDownvote(id);
                 }}
                 className={`absolute bottom-3 right-3
-                  flex items_CENTER gap-2 px-2 py-1
+                  flex items-center gap-2 px-2 py-1
                   rounded-full text-white text-sm
                   backdrop-blur border border-white/10 shadow
                   transition-all duration-200 overflow-hidden
@@ -515,7 +515,7 @@ export default function StallGallery() {
 
             <div className="p-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div className="flex flex-col gap-1">
-                <div className="flex items_CENTER gap-2 text-lg font-semibold text-gray-800">
+                <div className="flex items-center gap-2 text-lg font-semibold text-gray-800">
                   {popupItem.caption}
                 </div>
                 {/* NEW: uploader display name */}
@@ -567,7 +567,7 @@ export default function StallGallery() {
       {reportModalOpen && popupId && (
         <div
           className="fixed inset-0 bg-black/60 z-50 
-             flex items-start justify_CENTER p-4 pt-20"
+             flex items-start justify-center p-4 pt-20"
           onClick={() => setReportModalOpen(false)}
         >
           <div
