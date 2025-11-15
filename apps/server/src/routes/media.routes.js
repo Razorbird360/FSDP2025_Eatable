@@ -7,6 +7,7 @@ const router = Router();
 
 // Public routes - anyone can view uploads
 router.get('/menu-item/:menuItemId', mediaController.getByMenuItem);
+router.get('/user/:userId', authMiddleware, mediaController.getByUser);
 router.get('/:uploadId', mediaController.getById);
 
 // Protected routes - require authentication
@@ -18,7 +19,5 @@ router.post(
 );
 
 router.delete('/:uploadId', authMiddleware, mediaController.deleteUpload);
-
-router.get('/user/:userId', authMiddleware, mediaController.getByUser);
 
 export default router;
