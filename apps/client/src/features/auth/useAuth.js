@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { supabase } from '../../lib/supabase';
-import { useAuthContext } from './AuthProvider';
+import { useAuthContext } from './AuthContext';
 import {
   cacheSession,
   clearSessionCache,

@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import api from '../../lib/api';
 import {
@@ -6,8 +6,7 @@ import {
   clearSessionCache,
   hydrateSessionFromStorage,
 } from './sessionCache';
-
-const AuthContext = createContext(null);
+import { AuthContext } from './AuthContext';
 
 const buildUsername = (session) => {
   const fromMeta = session.user?.user_metadata?.username;
@@ -99,10 +98,6 @@ export function AuthProvider({ children }) {
         } catch (profileError) {
           console.error('Failed to load profile:', profileError);
           setProfile(null);
-
-          const isUnauthorized =
-            profileError.response?.status === 401 ||
-            profileError?.message?.toLowerCase().includes('unauthorized');
 
           setStatus('unauthenticated');
 
@@ -198,11 +193,3 @@ export function AuthProvider({ children }) {
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
-
-export const useAuthContext = () => {
-  const context = useContext(AuthContext);
-  if (context === null) {
-    throw new Error('useAuthContext must be used within an AuthProvider');
-  }
-  return context;
-};
