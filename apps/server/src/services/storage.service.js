@@ -135,8 +135,38 @@ export const storageService = {
    * @returns {string} Generated path (e.g., 'stallId/menuItemId/uuid.jpg')
    */
   generateFilePath(folder, subfolder, extension = 'jpg') {
-    const fileName = `${randomUUID()}.${extension}`;
-    return `${folder}/${subfolder}/${fileName}`;
+    const sanitizeSegment = (segment, name) => {
+      if (typeof segment !== 'string' || segment.trim() === '') {
+        throw new Error(`${name} is required`);
+      }
+
+      if (segment.includes('/') || segment.includes('\\') || segment.includes('..')) {
+        throw new Error(`${name} contains invalid characters`);
+      }
+
+      return segment;
+    };
+
+    const sanitizeExtension = (ext) => {
+      if (typeof ext !== 'string' || ext.trim() === '') {
+        return 'jpg';
+      }
+
+      const normalizedExt = ext.replace(/^\./, '').toLowerCase();
+
+      if (!/^[a-z0-9]+$/.test(normalizedExt)) {
+        throw new Error('Invalid file extension');
+      }
+
+      return normalizedExt;
+    };
+
+    const safeFolder = sanitizeSegment(folder, 'Folder');
+    const safeSubfolder = sanitizeSegment(subfolder, 'Subfolder');
+    const safeExtension = sanitizeExtension(extension);
+
+    const fileName = `${randomUUID()}.${safeExtension}`;
+    return `${safeFolder}/${safeSubfolder}/${fileName}`;
   },
 
   /**

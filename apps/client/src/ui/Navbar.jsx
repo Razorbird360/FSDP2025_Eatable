@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Input, Box } from '@chakra-ui/react';
 import { useCart } from '../features/orders/components/CartContext';
+import { useAuth } from '../features/auth/useAuth';
 
 const homeIcon = new URL('../assets/navbar/home.svg', import.meta.url).href;
 const foodIcon = new URL('../assets/navbar/food.svg', import.meta.url).href;
@@ -70,6 +71,19 @@ export default function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const { count, openCart } = useCart();
+  const { status, profile, logout, loading: authLoading } = useAuth();
+
+  const profileIdentifier =
+    profile?.displayName ?? profile?.username ?? profile?.email ?? 'Guest';
+  const profileInitial = profileIdentifier.charAt(0).toUpperCase();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (logoutError) {
+      console.error('Logout failed:', logoutError);
+    }
+  };
 
   const isActive = (href) => {
     if (href === '/') {
@@ -82,6 +96,8 @@ export default function Navbar() {
     setIsMobileMenuOpen(false);
     setIsMobileSearchOpen(false);
   };
+
+  const mobileMenuNavItems = status === 'authenticated' ? mobileNavItems : navIcons;
 
   return (
     <header className="fixed inset-x-0 top-0 z-40 border-b border-[#E7EEE7] bg-white shadow-sm">
@@ -133,11 +149,35 @@ export default function Navbar() {
           </div>
 
           <div className="flex shrink-0 items-center gap-3">
-            <IconAction icon={favouriteIcon} label="Favourites" />
-            <IconAction icon={cartIcon} label="Cart" badge={count} onClick={openCart} />
-            <div className="flex items-center rounded-full border border-[#E7EEE7] bg-white p-0.5">
-              <img src={profilePlaceholder} alt="Profile" className="h-10 w-10 rounded-full object-cover" />
-            </div>
+            {status === 'authenticated' && (
+              <>
+                <IconAction icon={favouriteIcon} label="Favourites" />
+                <IconAction icon={cartIcon} label="Cart" badge={count} onClick={openCart} />
+              </>
+            )}
+            {status === 'authenticated' ? (
+              <button
+                type="button"
+                onClick={handleLogout}
+                disabled={authLoading}
+                className="flex items-center gap-2 rounded-2xl border border-[#E7EEE7] bg-white px-3 py-1.5 text-left transition-colors hover:border-[#21421B]"
+              >
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#21421B] text-sm font-semibold text-white">
+                  {profileInitial}
+                </span>
+                <span className="hidden flex-col text-xs text-[#6d7f68] lg:flex">
+                  <span className="text-sm font-semibold text-[#1C201D]">{profileIdentifier}</span>
+                  <span>{authLoading ? 'Signing out...' : 'Log out'}</span>
+                </span>
+              </button>
+            ) : (
+              <Link
+                to="/login"
+                className="rounded-xl border border-[#21421B] px-4 py-2 text-sm font-semibold text-[#21421B] transition-colors hover:bg-[#21421B] hover:text-white"
+              >
+                Log in
+              </Link>
+            )}
           </div>
         </div>
       </div>
@@ -146,7 +186,9 @@ export default function Navbar() {
       <div className="flex items-center justify-between pl-4 pr-6 py-4 md:hidden">
         <img src={logoFull} alt="Eatable" className="h-10 w-auto pl-2" />
         <div className="flex items-center gap-3">
-          <IconAction icon={cartIcon} label="Cart" badge={count} onClick={openCart} />
+          {status === 'authenticated' && (
+            <IconAction icon={cartIcon} label="Cart" badge={count} onClick={openCart} />
+          )}
           <button
             type="button"
             aria-label="Open navigation menu"
@@ -201,7 +243,7 @@ export default function Navbar() {
               : 'translate-x-full shadow-none'
           }`}
         >
-          <div className="mb-4 flex items-center justify بین pl-4 pr-4">
+          <div className="mb-4 flex items-center justify-between px-4">
             <button
               type="button"
               aria-label="Open search"
@@ -216,7 +258,7 @@ export default function Navbar() {
             <button
               type="button"
               onClick={closeMobileMenu}
-              className="flex items-center gap-2 pr-2 text-[#21421B]"
+              className="ml-auto flex items-center gap-2 text-[#21421B]"
             >
               <span className="text-base">Close</span>
               <img src={closeIcon} alt="Close menu" className="h-4 w-4" />
@@ -259,7 +301,7 @@ export default function Navbar() {
           </div>
 
           <nav className="mt-6 flex-1 space-y-4 overflow-y-auto">
-            {mobileNavItems.map(({ label, icon, href }) => (
+            {mobileMenuNavItems.map(({ label, icon, href }) => (
               <Link
                 key={label}
                 to={href}
@@ -275,16 +317,37 @@ export default function Navbar() {
               </Link>
             ))}
 
-            <button
-              type="button"
-              className="flex items-center gap-3 rounded-2xl border border-[#F1F1F1] px-4 py-3 text-left"
-            >
-              <img src={profilePlaceholder} alt="Profile" className="h-10 w-10 rounded-full object-cover" />
-              <div>
-                <p className="text-sm font-semibold text-[#1C201D]">Profile</p>
-                <p className="text-xs text-[#6d7f68]">Tap to view account</p>
-              </div>
-            </button>
+            {status === 'authenticated' ? (
+              <button
+                type="button"
+                onClick={async () => {
+                  await handleLogout();
+                  closeMobileMenu();
+                }}
+                disabled={authLoading}
+                className="flex items-center gap-3 rounded-2xl border border-[#21421B] px-4 py-3 text-left"
+              >
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#21421B] text-base font-semibold text-white">
+                  {profileInitial}
+                </span>
+                <div>
+                  <p className="text-sm font-semibold text-[#1C201D]">{profileIdentifier}</p>
+                  <p className="text-xs text-[#6d7f68]">{authLoading ? 'Signing out...' : 'Tap to sign out'}</p>
+                </div>
+              </button>
+            ) : (
+              <Link
+                to="/login"
+                onClick={closeMobileMenu}
+                className="flex items-center gap-3 rounded-2xl border border-[#21421B] px-4 py-3 text-left text-[#21421B]"
+              >
+                <img src={profilePlaceholder} alt="Profile" className="h-10 w-10 rounded-full object-cover" />
+                <div>
+                  <p className="text-sm font-semibold">Log in or Sign up</p>
+                  <p className="text-xs text-[#6d7f68]">Access saved stalls & orders</p>
+                </div>
+              </Link>
+            )}
           </nav>
         </div>
       </div>

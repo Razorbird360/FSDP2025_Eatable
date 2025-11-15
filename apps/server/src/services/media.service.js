@@ -4,6 +4,24 @@ import prisma from '../lib/prisma.js';
  * MediaUpload table CRUD operations
  * Follows the pattern of menu.service.js, stalls.service.js, user.service.js
  */
+const ALLOWED_UPDATE_FIELDS = ['caption', 'validationStatus', 'rejectionReason'];
+
+const sanitizeUpdateData = (data = {}) => {
+  const safeData = {};
+
+  for (const field of ALLOWED_UPDATE_FIELDS) {
+    if (Object.prototype.hasOwnProperty.call(data, field) && data[field] !== undefined) {
+      safeData[field] = data[field];
+    }
+  }
+
+  if (Object.keys(safeData).length === 0) {
+    throw new Error('No valid fields provided for media update');
+  }
+
+  return safeData;
+};
+
 export const mediaService = {
   /**
    * Create new media upload record
@@ -115,9 +133,11 @@ export const mediaService = {
    * @returns {Promise<Object>} Updated MediaUpload record
    */
   async update(id, data) {
+    const sanitizedData = sanitizeUpdateData(data);
+
     return await prisma.mediaUpload.update({
       where: { id },
-      data,
+      data: sanitizedData,
       include: {
         menuItem: {
           select: {

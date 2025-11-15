@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Box,
   Button,
@@ -11,7 +11,7 @@ import {
   chakra,
 } from '@chakra-ui/react';
 import { LuEye, LuEyeOff } from 'react-icons/lu';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../useAuth';
 import api from '../../../lib/api';
 import LogoImage from '../../../assets/logo/logo_full.png';
@@ -24,7 +24,8 @@ import GoogleIcon from '../../../assets/Login/google.png';
  */
 const SignupForm = () => {
   const navigate = useNavigate();
-  const { signup, loading, error: authError } = useAuth();
+  const location = useLocation();
+  const { signup, loading, error: authError, status } = useAuth();
 
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
@@ -34,6 +35,21 @@ const SignupForm = () => {
     agreeToTerms: false,
   });
   const [errors, setErrors] = useState({});
+  const [pendingEmail, setPendingEmail] = useState(null);
+
+  const redirectPath = location.state?.from?.pathname ?? '/home';
+
+  useEffect(() => {
+    if (status === 'authenticated') {
+      navigate(redirectPath, { replace: true });
+    }
+  }, [status, redirectPath, navigate]);
+
+  useEffect(() => {
+    if (authError) {
+      setErrors((prev) => ({ ...prev, submit: authError }));
+    }
+  }, [authError]);
 
   const handleChange = (field) => (event) => {
     const value = field === 'agreeToTerms' ? event.target.checked : event.target.value;
@@ -122,14 +138,98 @@ const SignupForm = () => {
     // Call signup API
     const result = await signup(formData.email, formData.password, formData.username);
 
-    if (result.success) {
-      // Success! Redirect to home page
-      navigate('/home');
-    } else {
-      // Show error from Supabase
+    if (!result.success) {
       setErrors({ submit: result.error });
+      return;
+    }
+
+    if (result.needsConfirmation) {
+      setPendingEmail(formData.email.trim().toLowerCase());
     }
   };
+
+  const renderPendingConfirmation = () => (
+    <Box
+      bg={{ base: 'transparent', lg: 'white' }}
+      height="100vh"
+      display="flex"
+      alignItems="center"
+      justifyContent="center"
+      px={{ base: 8, md: 12, lg: 16, xl: 20 }}
+      overflow="auto"
+      position="relative"
+      backgroundImage={{ base: `url(${BannerImage})`, lg: 'none' }}
+      backgroundSize="cover"
+      backgroundPosition="center"
+    >
+      <Box
+        position="absolute"
+        top="0"
+        left="0"
+        right="0"
+        bottom="0"
+        bg="rgba(0, 0, 0, 0.55)"
+        display={{ base: 'block', lg: 'none' }}
+        zIndex="1"
+      />
+
+      <Box
+        width="100%"
+        maxWidth={{ base: '420px', lg: '420px' }}
+        position="relative"
+        zIndex="2"
+        bg={{ base: 'rgba(255,255,255,0.08)', lg: '#F6FBF2' }}
+        borderRadius={{ base: 0, lg: '24px' }}
+        p={{ base: 8, lg: 10 }}
+        boxShadow={{ base: 'none', lg: '0px 20px 60px rgba(22, 38, 29, 0.12)' }}
+      >
+        <Image
+          src={LogoImage}
+          alt="Eatable Logo"
+          width={{ base: '140px', lg: '120px' }}
+          mb={{ base: 8, lg: 5 }}
+          display={{ base: 'none', lg: 'block' }}
+        />
+        <VStack align="stretch" spacing={5}>
+          <Text fontSize={{ base: '28px', lg: '24px' }} fontWeight="700" color={{ base: 'white', lg: '#1C201D' }}>
+            Verify your email
+          </Text>
+          <Text fontSize="md" color={{ base: 'rgba(255,255,255,0.9)', lg: '#4A554B' }} lineHeight="1.6">
+            We just sent a confirmation link to{' '}
+            <Text as="span" fontWeight="600">
+              {pendingEmail}
+            </Text>
+            . Open that email to activate your account. Once confirmed, return here and log in.
+          </Text>
+          <Button
+            onClick={() => navigate('/login')}
+            bg="#21421B"
+            color="white"
+            height="48px"
+            borderRadius="12px"
+            fontSize="16px"
+            fontWeight="600"
+            _hover={{ bg: '#1A3517' }}
+          >
+            Go to log in
+          </Button>
+          <Button
+            variant="outline"
+            borderColor={{ base: 'white', lg: '#21421B' }}
+            color={{ base: 'white', lg: '#21421B' }}
+            borderRadius="12px"
+            onClick={() => setPendingEmail(null)}
+          >
+            Use a different email
+          </Button>
+        </VStack>
+      </Box>
+    </Box>
+  );
+
+  if (pendingEmail && status !== 'authenticated') {
+    return renderPendingConfirmation();
+  }
 
   return (
     <Box
@@ -161,28 +261,28 @@ const SignupForm = () => {
         <Image
           src={LogoImage}
           alt="Eatable Logo"
-          width={{ base: '140px', lg: '130px' }}
-          mb={{ base: 10, lg: 8 }}
+          width={{ base: '140px', lg: '115px' }}
+          mb={{ base: 10, lg: 5 }}
           display={{ base: 'none', lg: 'block' }}
         />
         <Text
-          fontSize={{ base: '28px', md: '36px', lg: '32px' }}
+          fontSize={{ base: '28px', md: '36px', lg: '28px' }}
           fontWeight="700"
           color={{ base: 'white', lg: '#1C201D' }}
-          mb={3}
+          mb={{ base: 3, lg: 2 }}
         >
           Create an account
         </Text>
         <Text
-          fontSize={{ base: '15px', lg: '14px' }}
+          fontSize={{ base: '15px', lg: '13px' }}
           color={{ base: 'rgba(255, 255, 255, 0.9)', lg: '#6B7D73' }}
-          mb={{ base: 8, lg: 7 }}
+          mb={{ base: 8, lg: 5 }}
           lineHeight="1.6"
         >
           Be the first to know about newly onboarded stalls and keep your hawker favourites in sync.
         </Text>
 
-        <VStack as="form" onSubmit={handleSubmit} spacing={{ base: 5, lg: 4 }} align="stretch">
+        <VStack as="form" onSubmit={handleSubmit} spacing={{ base: 5, lg: 3 }} align="stretch">
           <Box>
             <Text
               fontSize={{ base: '14px', lg: '13px' }}
@@ -193,7 +293,7 @@ const SignupForm = () => {
               Username
             </Text>
             <Input
-              height={{ base: '52px', lg: '48px' }}
+              height={{ base: '52px', lg: '44px' }}
               borderRadius="14px"
               border="1px solid"
               borderColor={errors.username ? '#E53E3E' : '#E1E9DF'}
@@ -235,7 +335,7 @@ const SignupForm = () => {
               Email
             </Text>
             <Input
-              height={{ base: '52px', lg: '48px' }}
+              height={{ base: '52px', lg: '44px' }}
               borderRadius="14px"
               border="1px solid"
               borderColor={errors.email ? '#E53E3E' : '#E1E9DF'}
@@ -279,7 +379,7 @@ const SignupForm = () => {
             </Text>
             <Box position="relative">
               <Input
-                height={{ base: '52px', lg: '48px' }}
+                height={{ base: '52px', lg: '44px' }}
                 borderRadius="14px"
                 border="1px solid"
                 borderColor={errors.password ? '#E53E3E' : '#E1E9DF'}
@@ -327,7 +427,7 @@ const SignupForm = () => {
             )}
           </Box>
 
-          <Box mt={1}>
+          <Box mt={{ base: 1, lg: 0 }}>
             <Flex align="center" gap={3}>
               <chakra.input
                 type="checkbox"
@@ -343,7 +443,7 @@ const SignupForm = () => {
                 bg="white"
               />
               <Text
-                fontSize="14px"
+                fontSize={{ base: '14px', lg: '13px' }}
                 color={{ base: 'rgba(255, 255, 255, 0.9)', lg: '#6B7D73' }}
               >
                 I agree to all the{' '}
@@ -380,13 +480,13 @@ const SignupForm = () => {
             type="submit"
             bg="#21421B"
             color="white"
-            height={{ base: '52px', lg: '48px' }}
+            height={{ base: '52px', lg: '44px' }}
             borderRadius="12px"
-            fontSize={{ base: '16px', lg: '15px' }}
+            fontSize={{ base: '16px', lg: '14px' }}
             fontWeight="600"
             _hover={{ bg: loading ? '#21421B' : '#1A3517' }}
             _active={{ bg: loading ? '#21421B' : '#142812' }}
-            mt={{ base: 3, lg: 2 }}
+            mt={{ base: 3, lg: 1 }}
             disabled={loading}
             cursor={loading ? 'not-allowed' : 'pointer'}
             opacity={loading ? 0.7 : 1}
@@ -397,7 +497,7 @@ const SignupForm = () => {
           <Flex align="center" gap={4}>
             <Box flex="1" height="1px" bg="rgba(255, 255, 255, 0.35)" display={{ base: 'block', lg: 'none' }} />
             <Box flex="1" height="1px" bg="#E1E9DF" display={{ base: 'none', lg: 'block' }} />
-            <Text fontSize="13px" fontWeight="600" color={{ base: 'white', lg: '#6B7D73' }}>
+            <Text fontSize={{ base: '13px', lg: '12px' }} fontWeight="600" color={{ base: 'white', lg: '#6B7D73' }}>
               or
             </Text>
             <Box flex="1" height="1px" bg="rgba(255, 255, 255, 0.35)" display={{ base: 'block', lg: 'none' }} />
@@ -409,9 +509,9 @@ const SignupForm = () => {
             borderColor={{ base: 'transparent', lg: '#E1E9DF' }}
             bg={{ base: 'rgba(255,255,255,0.12)', lg: 'white' }}
             color={{ base: 'white', lg: '#1C201D' }}
-            height={{ base: '52px', lg: '48px' }}
+            height={{ base: '52px', lg: '44px' }}
             borderRadius="12px"
-            fontSize={{ base: '16px', lg: '15px' }}
+            fontSize={{ base: '16px', lg: '14px' }}
             fontWeight="600"
             gap={3}
             _hover={{ bg: { base: 'rgba(255,255,255,0.16)', lg: '#F6FBF2' } }}
@@ -422,15 +522,15 @@ const SignupForm = () => {
           </Button>
         </VStack>
 
-        <Flex mt={{ base: 6, lg: 5 }} direction="column" gap={2}>
+        <Flex mt={{ base: 6, lg: 3 }} direction="column" gap={2}>
           <Text
-            fontSize="14px"
+            fontSize={{ base: '14px', lg: '13px' }}
             color={{ base: 'rgba(255, 255, 255, 0.9)', lg: '#6B7D73' }}
             textAlign="center"
           >
             Already have an account?{' '}
             <Link to="/login">
-              <Text as="span" fontWeight="600" color={{ base: 'white', lg: '#21421B' }}>
+              <Text as="span" fontWeight="600" className='hover:underline' color={{ base: 'white', lg: '#21421B' }}>
                 Log in
               </Text>
             </Link>
