@@ -1,6 +1,12 @@
 import { useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuthContext } from './AuthProvider';
+import {
+  cacheSession,
+  clearSessionCache,
+  getCachedSession,
+  hydrateSessionFromStorage,
+} from './sessionCache';
 
 /**
  * useAuth Hook
@@ -42,7 +48,8 @@ export const useAuth = () => {
       if (error) throw error;
 
       if (data.session) {
-        await refreshProfile(data.session, { force: true });
+        cacheSession(data.session);
+        await refreshProfile(data.session, { force: true, useStoredSession: false });
       }
 
       return {
@@ -71,7 +78,10 @@ export const useAuth = () => {
 
       if (error) throw error;
 
-      await refreshProfile(data.session, { force: true });
+      if (data.session) {
+        cacheSession(data.session);
+        await refreshProfile(data.session, { force: true, useStoredSession: false });
+      }
 
       return {
         success: true,
@@ -95,6 +105,7 @@ export const useAuth = () => {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
 
+      clearSessionCache();
       await refreshProfile(null, {
         suppressError: true,
         force: true,
@@ -110,18 +121,13 @@ export const useAuth = () => {
     }
   };
 
-  const getSession = async () => {
-    const {
-      data: { session: currentSession },
-    } = await supabase.auth.getSession();
-    return currentSession;
-  };
+  const resolveSession = () => session ?? getCachedSession() ?? hydrateSessionFromStorage();
+
+  const getSession = async () => resolveSession();
 
   const getCurrentUser = async () => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    return user;
+    const activeSession = resolveSession();
+    return supabaseUser ?? activeSession?.user ?? null;
   };
 
   return {

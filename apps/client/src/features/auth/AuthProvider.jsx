@@ -1,6 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import api from '../../lib/api';
+import {
+  cacheSession,
+  clearSessionCache,
+  hydrateSessionFromStorage,
+} from './sessionCache';
 
 const AuthContext = createContext(null);
 
@@ -128,17 +133,20 @@ export function AuthProvider({ children }) {
 
     const bootstrap = async () => {
       try {
-        const {
-          data: { session: currentSession },
-        } = await supabase.auth.getSession();
+        const currentSession = hydrateSessionFromStorage();
 
         if (!isMounted) return;
 
+        cacheSession(currentSession);
         setSession(currentSession);
         setSupabaseUser(currentSession?.user ?? null);
+        sessionRef.current = currentSession;
 
         if (currentSession) {
-          await refreshProfile(currentSession, { suppressError: true });
+          await refreshProfile(currentSession, {
+            suppressError: true,
+            useStoredSession: false,
+          });
         } else {
           setProfile(null);
           setStatus('unauthenticated');
@@ -159,11 +167,13 @@ export function AuthProvider({ children }) {
     } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
       if (!isMounted) return;
 
+      cacheSession(newSession ?? null);
       setSession(newSession);
       setSupabaseUser(newSession?.user ?? null);
+      sessionRef.current = newSession;
 
       if (newSession) {
-        await refreshProfile(newSession, { suppressError: true });
+        await refreshProfile(newSession, { suppressError: true, useStoredSession: false });
       } else {
         setProfile(null);
         setStatus('unauthenticated');
@@ -173,6 +183,7 @@ export function AuthProvider({ children }) {
     return () => {
       isMounted = false;
       subscription.unsubscribe();
+      clearSessionCache();
     };
   }, [refreshProfile]);
 
