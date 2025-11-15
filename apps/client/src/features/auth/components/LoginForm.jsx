@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Box,
   Button,
@@ -10,7 +10,7 @@ import {
   VStack,
 } from '@chakra-ui/react';
 import { LuEye, LuEyeOff } from 'react-icons/lu';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../useAuth';
 import LogoImage from '../../../assets/logo/logo_full.png';
 import BannerImage from '../../../assets/Login/Banner.jpg';
@@ -22,7 +22,8 @@ import GoogleIcon from '../../../assets/Login/google.png';
  */
 const LoginForm = () => {
   const navigate = useNavigate();
-  const { login, loading, error: authError } = useAuth();
+  const location = useLocation();
+  const { login, loading, error: authError, status } = useAuth();
 
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
@@ -30,6 +31,20 @@ const LoginForm = () => {
     password: '',
   });
   const [errors, setErrors] = useState({});
+
+  const redirectPath = location.state?.from?.pathname ?? '/home';
+
+  useEffect(() => {
+    if (status === 'authenticated') {
+      navigate(redirectPath, { replace: true });
+    }
+  }, [status, redirectPath, navigate]);
+
+  useEffect(() => {
+    if (authError) {
+      setErrors((prev) => ({ ...prev, submit: authError }));
+    }
+  }, [authError]);
 
   const handleChange = (field) => (event) => {
     const value = event.target.value;
@@ -77,10 +92,7 @@ const LoginForm = () => {
     // Call login API
     const result = await login(formData.email, formData.password);
 
-    if (result.success) {
-      // Success! Redirect to home page
-      navigate('/home');
-    } else {
+    if (!result.success) {
       // Show error from Supabase
       setErrors({ submit: result.error });
     }

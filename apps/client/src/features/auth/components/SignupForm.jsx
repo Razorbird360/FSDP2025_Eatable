@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Box,
   Button,
@@ -11,7 +11,7 @@ import {
   chakra,
 } from '@chakra-ui/react';
 import { LuEye, LuEyeOff } from 'react-icons/lu';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../useAuth';
 import api from '../../../lib/api';
 import LogoImage from '../../../assets/logo/logo_full.png';
@@ -24,7 +24,8 @@ import GoogleIcon from '../../../assets/Login/google.png';
  */
 const SignupForm = () => {
   const navigate = useNavigate();
-  const { signup, loading, error: authError } = useAuth();
+  const location = useLocation();
+  const { signup, loading, error: authError, status } = useAuth();
 
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
@@ -34,6 +35,20 @@ const SignupForm = () => {
     agreeToTerms: false,
   });
   const [errors, setErrors] = useState({});
+
+  const redirectPath = location.state?.from?.pathname ?? '/home';
+
+  useEffect(() => {
+    if (status === 'authenticated') {
+      navigate(redirectPath, { replace: true });
+    }
+  }, [status, redirectPath, navigate]);
+
+  useEffect(() => {
+    if (authError) {
+      setErrors((prev) => ({ ...prev, submit: authError }));
+    }
+  }, [authError]);
 
   const handleChange = (field) => (event) => {
     const value = field === 'agreeToTerms' ? event.target.checked : event.target.value;
@@ -122,11 +137,7 @@ const SignupForm = () => {
     // Call signup API
     const result = await signup(formData.email, formData.password, formData.username);
 
-    if (result.success) {
-      // Success! Redirect to home page
-      navigate('/home');
-    } else {
-      // Show error from Supabase
+    if (!result.success) {
       setErrors({ submit: result.error });
     }
   };
