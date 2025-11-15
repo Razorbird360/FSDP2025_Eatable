@@ -2,12 +2,38 @@ import { useEffect, useMemo, useState } from "react";
 import UpvoteIcon from "../assets/upvote.svg";
 import DownvoteIcon from "../assets/downvote.svg";
 import { useParams } from "react-router-dom";
+import api from "../../../lib/api";
+import { supabase } from "../../../lib/supabase";
 
 export default function StallGallery() {
-  // ===== Simulate logged-in user =====
-  // TODO: replace with your real logged-in user id
-  const currentUserId = "6704fc2c-d52f-4206-b777-47aff4bd6906";
   const { stallId } = useParams();
+
+  // ===== Auth: current user id from Supabase =====
+  const [currentUserId, setCurrentUserId] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadUser() {
+      const { data, error } = await supabase.auth.getSession();
+
+      if (cancelled) return;
+
+      const userId = data?.session?.user?.id ?? null;
+      if (userId) {
+        console.log("User ID:", userId);
+      } else {
+        console.log("No Supabase session found.");
+      }
+      setCurrentUserId(userId);
+    }
+
+    loadUser();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // ===== API data state =====
   const [items, setItems] = useState([]); // normalized items used everywhere
@@ -15,8 +41,7 @@ export default function StallGallery() {
   const [error, setError] = useState(null);
 
   // ===== Relations now use value: 1 (upvote) or 0 (downvote) =====
-  const initialRelations = [];
-  const [relations, setRelations] = useState(initialRelations);
+  const [relations, setRelations] = useState([]);
 
   // NEW: keep track of which images this user has reported
   const [reportedIds, setReportedIds] = useState([]);
@@ -39,22 +64,8 @@ export default function StallGallery() {
         setLoading(true);
         setError(null);
 
-        const res = await fetch(
-          `http://localhost:3000/api/stalls/${stallId}/gallery`
-        );
-
-        if (!res.ok) {
-          throw new Error(`Failed to load gallery (status ${res.status})`);
-        }
-
-        const data = await res.json();
-        // data is expected to be like:
-        // [
-        //   {
-        //     id, imageUrl, caption, validationStatus,
-        //     upvoteCount, downvoteCount, ...
-        //   }
-        // ]
+        const res = await api.get(`/stalls/${stallId}/gallery`);
+        const data = res.data;
 
         const normalized = data.map((u) => ({
           id: u.id,
@@ -62,15 +73,14 @@ export default function StallGallery() {
           upvoteCount: u.upvoteCount ?? 0,
           downvoteCount: u.downvoteCount ?? 0,
           caption: u.caption || u.menuItem?.name || "Photo",
-          // Treat approved as "verified"
           verified: u.validationStatus === "approved",
-          // keep the raw object if needed later
           raw: u,
         }));
 
         setItems(normalized);
       } catch (err) {
-        console.error(err);
+        console.error("   message :", err.message);
+        console.error("   response:", err.response?.status, err.response?.data);
         setError(err.message || "Unknown error");
       } finally {
         setLoading(false);
@@ -79,6 +89,8 @@ export default function StallGallery() {
 
     if (stallId) {
       fetchGallery();
+    } else {
+      console.log("⚠️ stallId is falsy, not fetching");
     }
   }, [stallId]);
 
@@ -86,21 +98,20 @@ export default function StallGallery() {
   useEffect(() => {
     async function fetchVotes() {
       try {
-        if (!currentUserId) return;
-
-        const res = await fetch(
-          `http://localhost:3000/api/media/getVotes/${currentUserId}`
-        );
-
-        if (!res.ok) {
-          throw new Error(`Failed to load votes (status ${res.status})`);
+        if (!currentUserId) {
+          // if not logged in, clear any previous relations
+          setRelations([]);
+          return;
         }
 
-        const data = await res.json();
+        const res = await api.get(`/media/getVotes`);
+        const data = res.data;
         // data.votes is expected to be:
         // [
         //   { uploadId, userId, vote: 1 | -1, ... }
         // ]
+
+        console.log("Fetched votes for user:", data);
 
         const normalizedRelations =
           (data.votes || []).map((v) => ({
@@ -140,7 +151,8 @@ export default function StallGallery() {
     return map;
   }, [relations]);
 
-  const getVoteValue = (id) => voteMap.get(`${currentUserId}::${id}`);
+  const getVoteValue = (id) =>
+    currentUserId ? voteMap.get(`${currentUserId}::${id}`) : undefined;
 
   // ===== Bento shape logic unchanged =====
   const weightedPool = useMemo(
@@ -152,7 +164,8 @@ export default function StallGallery() {
     const map = new Map();
     const hash = (id) => {
       let h = 0;
-      for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+      for (let i = 0; i < id.length; i++)
+        h = (h * 31 + id.charCodeAt(i)) >>> 0;
       return h % weightedPool.length;
     };
     displayOrder.forEach((id) => map.set(id, weightedPool[hash(id)]));
@@ -181,17 +194,19 @@ export default function StallGallery() {
 
   // ===== Voting Actions =====
   const handleUpvote = async (id) => {
+    if (!currentUserId) {
+      showNotice("Please log in to vote on photos.");
+      return;
+    }
+
     const val = getVoteValue(id);
     console.log("Upvote:", id, "current val:", val);
 
     // already upvoted -> remove upvote
     if (val === 1) {
       try {
-        const res = await fetch(
-          `http://localhost:3000/api/media/removeupvote/${id}/${currentUserId}`,
-          { method: "DELETE" }
-        );
-        if (!res.ok) {
+        const res = await api.delete(`/media/removeupvote/${id}`);
+        if (res.status < 200 || res.status >= 300) {
           throw new Error(`Server responded ${res.status}`);
         }
 
@@ -217,11 +232,8 @@ export default function StallGallery() {
 
     // new upvote
     try {
-      const res = await fetch(
-        `http://localhost:3000/api/media/upvote/${id}/${currentUserId}`,
-        { method: "POST" }
-      );
-      if (!res.ok) {
+      const res = await api.post(`/media/upvote/${id}`);
+      if (res.status < 200 || res.status >= 300) {
         throw new Error(`Server responded ${res.status}`);
       }
 
@@ -237,17 +249,19 @@ export default function StallGallery() {
   };
 
   const handleDownvote = async (id) => {
+    if (!currentUserId) {
+      showNotice("Please log in to vote on photos.");
+      return;
+    }
+
     const val = getVoteValue(id);
     console.log("Downvote:", id, "current val:", val);
 
     // already downvoted -> remove downvote
     if (val === 0) {
       try {
-        const res = await fetch(
-          `http://localhost:3000/api/media/removedownvote/${id}/${currentUserId}`,
-          { method: "DELETE" }
-        );
-        if (!res.ok) {
+        const res = await api.delete(`/media/removedownvote/${id}`);
+        if (res.status < 200 || res.status >= 300) {
           throw new Error(`Server responded ${res.status}`);
         }
 
@@ -273,12 +287,9 @@ export default function StallGallery() {
 
     // new downvote
     try {
-      const res = await fetch(
-        `http://localhost:3000/api/media/downvote/${id}/${currentUserId}`,
-        { method: "POST" }
-      );
+      const res = await api.post(`/media/downvote/${id}`);
       console.log(res);
-      if (!res.ok) {
+      if (res.status < 200 || res.status >= 300) {
         throw new Error(`Server responded ${res.status}`);
       }
 
@@ -445,7 +456,7 @@ export default function StallGallery() {
                   handleDownvote(id);
                 }}
                 className={`absolute bottom-3 right-3
-                  flex items-center gap-2 px-2 py-1
+                  flex items_CENTER gap-2 px-2 py-1
                   rounded-full text-white text-sm
                   backdrop-blur border border-white/10 shadow
                   transition-all duration-200 overflow-hidden

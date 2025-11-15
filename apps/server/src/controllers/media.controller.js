@@ -120,6 +120,7 @@ export const mediaController = {
     try {
       const { uploadId } = req.params;
 
+      console.log("Fetching upload with ID:", uploadId);
       const upload = await mediaService.getById(uploadId);
 
       if (!upload) {
@@ -239,7 +240,8 @@ export const mediaController = {
 
   async getVotes(req, res, next) {
     try {
-      const { userid } = req.params;
+      const userid  = req.user.id;
+      console.log("Getting votes for userId:", userid);
       const votes = await mediaService.getVotesByUserId(userid);
       res.json({
         userId: userid,
@@ -253,7 +255,9 @@ export const mediaController = {
 
   async upvote(req, res, next) {
     try {
-      const { uploadId, userid } = req.params;
+      const { uploadId} = req.params;
+      const userid = req.user.id;
+      console.log("Upvoting uploadId:", uploadId, "by userId:", userid);
       const result = await mediaService.upvote(uploadId, userid);
       res.json(result);
     } catch (error) {
@@ -263,7 +267,9 @@ export const mediaController = {
 
   async downvote(req, res, next) {
     try {
-      const { uploadId, userid } = req.params;
+      const { uploadId } = req.params;
+      const userid = req.user.id;
+      console.log("Downvoting uploadId:", uploadId, "by userId:", userid);
       const result = await mediaService.downvote(uploadId, userid);
       res.json(result);
     } catch (error) {
@@ -273,7 +279,9 @@ export const mediaController = {
 
   async removeUpvote(req, res, next) {
     try {
-      const { uploadId, userid } = req.params;
+      const { uploadId } = req.params;
+      const userid = req.user.id;
+      console.log("Removing upvote for uploadId:", uploadId, "by userId:", userid);
       const result = await mediaService.removeUpvote(uploadId, userid);
       res.json(result);
     } catch (error) {
@@ -283,7 +291,9 @@ export const mediaController = {
 
   async removeDownvote(req, res, next) {
     try {
-      const { uploadId, userid } = req.params;
+      const { uploadId } = req.params;
+      const userid = req.user.id;
+      console.log("Removing downvote for uploadId:", uploadId, "by userId:", userid);
       const result = await mediaService.removeDownvote(uploadId, userid);
       res.json(result);
     } catch (error) {

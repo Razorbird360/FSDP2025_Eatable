@@ -8,13 +8,13 @@ const router = Router();
 // Public routes - anyone can view uploads
 router.get('/menu-item/:menuItemId', mediaController.getByMenuItem);
 router.get('/user/:userId', authMiddleware, mediaController.getByUser);
-router.get('/:uploadId', mediaController.getById);
+//router.get('/:uploadId', mediaController.getById);
 
-router.get('/getVotes/:userid', mediaController.getVotes);
-router.post('/upvote/:uploadId/:userid', mediaController.upvote);
-router.post('/downvote/:uploadId/:userid', mediaController.downvote);
-router.delete('/removeupvote/:uploadId/:userid', mediaController.removeUpvote);
-router.delete('/removedownvote/:uploadId/:userid', mediaController.removeDownvote);
+//router.get('/getVotes/:userid', mediaController.getVotes);
+//router.post('/upvote/:uploadId/:userid', mediaController.upvote);
+//router.post('/downvote/:uploadId/:userid', mediaController.downvote);
+//router.delete('/removeupvote/:uploadId/:userid', mediaController.removeUpvote);
+//router.delete('/removedownvote/:uploadId/:userid', mediaController.removeDownvote);
 
 
 
@@ -27,5 +27,12 @@ router.post(
 );
 
 router.delete('/:uploadId', authMiddleware, mediaController.deleteUpload);
+
+
+router.get('/getVotes', authMiddleware, mediaController.getVotes);
+router.post('/upvote/:uploadId/', authMiddleware, mediaController.upvote);
+router.post('/downvote/:uploadId/', authMiddleware,mediaController.downvote);
+router.delete('/removeupvote/:uploadId/', authMiddleware, mediaController.removeUpvote);
+router.delete('/removedownvote/:uploadId/', authMiddleware, mediaController.removeDownvote);
 
 export default router;
