@@ -51,7 +51,7 @@ export const stallsController = {
 
   async getGallery(req, res, next) {
     try {
-      const gallery = await stallsService.getGallery(req.params.id);
+      const gallery = await stallsService.getApprovedMediaByStallId(req.params.id);
       res.json(gallery);
     } catch (error) {
       next(error);

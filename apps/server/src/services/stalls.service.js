@@ -58,12 +58,49 @@ export const stallsService = {
     });
   },
 
-  async getGallery(stallId) {
-    return await prisma.mediaUpload.findMany({
-      where: { stallId: stallId },
+  async getApprovedMediaByStallId(stallId) {
+    if (!stallId) {
+      throw new Error('stallId is required');
+    }
+
+    const uploads = await prisma.mediaUpload.findMany({
+      where: {
+        // all media whose menu item belongs to this stall
+        menuItem: {
+          stallId: stallId, // shorthand `stallId` is also fine
+          isActive: true,
+        },
+        validationStatus: 'approved',
+      },
       orderBy: {
-        uploadCount: 'desc',
+        upvoteCount: 'desc', // or createdAt, etc.
+      },
+      include: {
+        menuItem: {
+          select: {
+            id: true,
+            name: true,
+            stallId: true,
+          },
+        },
+        user: {
+          select: {
+            id: true,
+            displayName: true,
+            username: true,
+          },
+        },
+        _count: {
+          select: {
+            votes: true,
+            reports: true,
+          },
+        },
       },
     });
+
+    return uploads;
   }
+
+
 };

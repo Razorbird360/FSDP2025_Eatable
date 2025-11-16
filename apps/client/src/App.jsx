@@ -5,6 +5,7 @@ import { AuthProvider } from './features/auth/AuthProvider';
 
 function App() {
   return (
+    
     <ChakraProvider value={defaultSystem}>
       <BrowserRouter>
         <AuthProvider>

@@ -2,6 +2,7 @@ import sharp from 'sharp';
 import { mediaService } from '../services/media.service.js';
 import { menuService } from '../services/menu.service.js';
 import { storageService } from '../services/storage.service.js';
+import { report } from 'process';
 
 const BUCKET_NAME = 'food-images';
 const VALID_STATUSES = ['pending', 'approved', 'rejected'];
@@ -119,6 +120,7 @@ export const mediaController = {
     try {
       const { uploadId } = req.params;
 
+      console.log("Fetching upload with ID:", uploadId);
       const upload = await mediaService.getById(uploadId);
 
       if (!upload) {
@@ -219,4 +221,84 @@ export const mediaController = {
       next(error);
     }
   },
+
+
+  /* * Gets all APPROVED uploads for a stall */
+  async getByStall(req, res, next) {
+    try {
+      const { stallId } = req.params;
+      const uploads = await mediaService.getByStall(stallId);
+      res.json({
+        stallId,
+        count: uploads.length,
+        uploads,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async getVotes(req, res, next) {
+    try {
+      const userid  = req.user.id;
+      console.log("Getting votes for userId:", userid);
+      const votes = await mediaService.getVotesByUserId(userid);
+      res.json({
+        userId: userid,
+        count: votes.length,
+        votes,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async upvote(req, res, next) {
+    try {
+      const { uploadId} = req.params;
+      const userid = req.user.id;
+      console.log("Upvoting uploadId:", uploadId, "by userId:", userid);
+      const result = await mediaService.upvote(uploadId, userid);
+      res.json(result);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async downvote(req, res, next) {
+    try {
+      const { uploadId } = req.params;
+      const userid = req.user.id;
+      console.log("Downvoting uploadId:", uploadId, "by userId:", userid);
+      const result = await mediaService.downvote(uploadId, userid);
+      res.json(result);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async removeUpvote(req, res, next) {
+    try {
+      const { uploadId } = req.params;
+      const userid = req.user.id;
+      console.log("Removing upvote for uploadId:", uploadId, "by userId:", userid);
+      const result = await mediaService.removeUpvote(uploadId, userid);
+      res.json(result);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async removeDownvote(req, res, next) {
+    try {
+      const { uploadId } = req.params;
+      const userid = req.user.id;
+      console.log("Removing downvote for uploadId:", uploadId, "by userId:", userid);
+      const result = await mediaService.removeDownvote(uploadId, userid);
+      res.json(result);
+    } catch (error) {
+      next(error);
+    }
+  },
+
 };
