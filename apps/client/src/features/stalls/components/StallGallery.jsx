@@ -376,7 +376,7 @@ export default function StallGallery() {
   if (loading) {
     return (
       <section className="mt-12 mb-20 px-4 md:px-8">
-        <h2 className="text-center text-3xl font-bold text-emerald-900 mb-8">
+        <h2 className="text-left text-3xl font-bold text-emerald-900 mb-4 -mt-4">
           Customer Favourites
         </h2>
         <div className="text-center text-gray-600">Loading gallery…</div>
@@ -387,7 +387,7 @@ export default function StallGallery() {
   if (error) {
     return (
       <section className="mt-12 mb-20 px-4 md:px-8">
-        <h2 className="text-center text-3xl font-bold text-emerald-900 mb-8">
+        <h2 className="text-left text-3xl font-bold text-emerald-900 mb-4 -mt-4">
           Customer Favourites
         </h2>
         <div className="text-center text-red-600">
@@ -400,7 +400,7 @@ export default function StallGallery() {
   if (!items.length) {
     return (
       <section className="mt-12 mb-20 px-4 md:px-8">
-        <h2 className="text-center text-3xl font-bold text-emerald-900 mb-8">
+        <h2 className="text-left text-3xl font-bold text-emerald-900 mb-4 -mt-4">
           Customer Favourites
         </h2>
         <div className="text-center text-gray-600">
@@ -417,12 +417,12 @@ export default function StallGallery() {
 
   // ===== Render =====
   return (
-    <section className="mt-12 mb-20 px-4 md:px-8">
-      <h2 className="text-center text-3xl font-bold text-emerald-900 mb-8">
-        Customer Favourites
-      </h2>
+    <section className="mt-10 mb-20">
+        <h2 className="text-left text-3xl font-bold text-emerald-900 mb-4 -mt-4">
+          Customer Favourites
+        </h2>
 
-      <div className="bento-grid max-w-7xl mx-auto">
+      <div className="bento-grid w-full">
         {displayOrder.map((id) => {
           const it = itemById.get(id);
           if (!it) return null;
