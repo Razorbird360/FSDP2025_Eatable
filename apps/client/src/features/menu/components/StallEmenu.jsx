@@ -1,16 +1,19 @@
 import { useMemo, useState, useRef, useEffect } from "react";
+import { Link, useParams } from "react-router-dom";
 import foodStallIcon from "./Assets/FoodStall_Icon.png";
-import { Link } from "react-router-dom";
-import StallGallery from '../../stalls/components/StallGallery'
+import StallGallery from "../../stalls/components/StallGallery";
 import { useCart } from "../../orders/components/CartContext";
-import { STALL, MENU } from "./StallData";
-
-
+import api from "../../../lib/api"; // ⬅️ adjust path if needed
 
 const Icon = {
   MapPin: (props) => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" {...props}>
-      <path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M12 21s-6-4.35-6-9a6 6 0 1112 0c0 4.65-6 9-6 9z" />
+      <path
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M12 21s-6-4.35-6-9a6 6 0 1112 0c0 4.65-6 9-6 9z"
+      />
       <circle cx="12" cy="12" r="2" strokeWidth="2" />
     </svg>
   ),
@@ -35,10 +38,15 @@ const Icon = {
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" {...props}>
       <rect x="3" y="5" width="18" height="14" rx="2" strokeWidth="2" />
       <circle cx="8" cy="10" r="2" strokeWidth="2" />
-      <path d="M21 15l-4.5-4.5L9 18" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M21 15l-4.5-4.5L9 18"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   ),
-    TrendUp: (props) => (
+  TrendUp: (props) => (
     <svg
       viewBox="0 0 24 24"
       fill="none"
@@ -52,7 +60,6 @@ const Icon = {
       <polyline points="17 6 23 6 23 12" />
     </svg>
   ),
-
   Search: (props) => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" {...props}>
       <circle cx="11" cy="11" r="7" strokeWidth="2" />
@@ -71,12 +78,22 @@ const Icon = {
   ),
   Chevron: (props) => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" {...props}>
-      <path d="M9 18l6-6-6-6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M9 18l6-6-6-6"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   ),
   Caret: (props) => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" {...props}>
-      <path d="M6 9l6 6 6-6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M6 9l6 6 6-6"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   ),
   Close: (props) => (
@@ -171,7 +188,7 @@ function ItemDialog({ open, item, onClose, onAdd }) {
           <div className="mt-4 flex items-center gap-3">
             <div className="flex items-center gap-2">
               <button
-                onClick={() => setQty(q => Math.max(1, q - 1))}
+                onClick={() => setQty((q) => Math.max(1, q - 1))}
                 className="grid h-9 w-9 place-items-center rounded-full border bg-white hover:bg-gray-50"
                 aria-label="Decrease"
               >
@@ -179,7 +196,7 @@ function ItemDialog({ open, item, onClose, onAdd }) {
               </button>
               <span className="min-w-[2ch] text-center">{qty}</span>
               <button
-                onClick={() => setQty(q => q + 1)}
+                onClick={() => setQty((q) => q + 1)}
                 className="grid h-9 w-9 place-items-center rounded-full border bg-white hover:bg-gray-50"
                 aria-label="Increase"
               >
@@ -204,6 +221,13 @@ function ItemDialog({ open, item, onClose, onAdd }) {
 }
 
 export default function StallEmenu() {
+  const { stallId } = useParams();
+
+  const [stall, setStall] = useState(null);
+  const [menu, setMenu] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
   const [tab, setTab] = useState("menu");
   const [query, setQuery] = useState("");
   const [activeSection, setActiveSection] = useState("All");
@@ -218,10 +242,89 @@ export default function StallEmenu() {
   const { addToCart } = useCart();
   const [toast, setToast] = useState(null);
 
+  // Fetch stall from API
+// Fetch stall from API
+useEffect(() => {
+  let cancelled = false;
+
+  async function loadStall() {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await api.get(`/stalls/${stallId}`);
+      if (cancelled) return;
+
+      const data = res.data; // stall object
+
+      setStall(data);
+
+      // Map menuItems -> UI menu items
+      const mappedMenu =
+        (data.menuItems || [])
+          .filter((m) => m.isActive !== false)
+          .map((m) => {
+            // 👇 take the top upload for this menu item (Prisma already limited to 1)
+            const topUpload = m.mediaUploads?.[0];
+
+            return {
+              id: m.id,
+              name: m.name,
+              desc: m.description || "",
+              price: (m.priceCents || 0) / 100,
+              category: m.category || "Others",
+              // 👇 use imageUrl from the top upload, fallback to placeholder
+              img:
+                topUpload?.imageUrl ||
+                "https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=800",
+              // optional: show upvote count from the top upload
+              votes:
+                typeof topUpload?.upvoteCount === "number"
+                  ? topUpload.upvoteCount
+                  : undefined,
+            };
+          }) || [];
+
+      setMenu(mappedMenu);
+    } catch (err) {
+      if (!cancelled) {
+        console.error(err);
+        setError("Failed to load stall.");
+      }
+    } finally {
+      if (!cancelled) setLoading(false);
+    }
+  }
+
+  if (stallId) {
+    loadStall();
+  }
+
+  return () => {
+    cancelled = true;
+  };
+}, [stallId]);
+
+  // Build STALL-like meta so JSX doesn’t change much
+  const STALL_META = useMemo(() => {
+    if (!stall) return null;
+    return {
+      name: stall.name,
+      market: stall.location || "Hawker Centre",
+      blurb: stall.description || "",
+      address: stall.location || "",
+      distance: stall.cuisineType
+        ? `${stall.cuisineType} · Hawker stall`
+        : "Hawker stall",
+      waitTime: "Approx. 10–15 mins", // placeholder until you have real data
+      hours: "8:00 AM – 8:00 PM", // placeholder
+      days: "Daily", // placeholder
+    };
+  }, [stall]);
+
   const sections = useMemo(() => {
-    const list = Array.from(new Set(MENU.map(m => m.section)));
+    const list = Array.from(new Set(menu.map((m) => m.category)));
     return ["All", ...list];
-  }, []);
+  }, [menu]);
 
   useEffect(() => {
     function onDocClick(e) {
@@ -236,44 +339,70 @@ export default function StallEmenu() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return MENU.filter(m => {
+    return menu.filter((m) => {
       const matchQuery =
         !q ||
         m.name.toLowerCase().includes(q) ||
         m.desc.toLowerCase().includes(q) ||
         String(m.price).includes(q);
-      const matchSection = activeSection === "All" || m.section === activeSection;
+      const matchSection =
+        activeSection === "All" || m.category === activeSection;
       return matchQuery && matchSection;
     });
-  }, [query, activeSection]);
+  }, [query, activeSection, menu]);
 
   const grouped = useMemo(() => {
     const bucket = {};
     for (const item of filtered) {
-      bucket[item.section] ??= [];
-      bucket[item.section].push(item);
+      const key = item.category || "Others";
+      bucket[key] ??= [];
+      bucket[key].push(item);
     }
-    const order = sections.filter(s => s !== "All");
+    const order = sections.filter((s) => s !== "All");
     return order
-      .filter(s => bucket[s]?.length)
-      .map(s => ({ section: s, items: bucket[s] }));
+      .filter((s) => bucket[s]?.length)
+      .map((s) => ({ section: s, items: bucket[s] }));
   }, [filtered, sections]);
 
   const crumbs = [
     { label: "Home", to: "/" },
     { label: "Hawkers", to: "/stalls" },
-    { label: STALL.market },
+    { label: STALL_META?.market || "Stall" },
   ];
 
   const isMobile =
     typeof window !== "undefined" ? window.innerWidth < 768 : true;
   const blurbLimit = 100;
   const blurb =
-    showFullBlurb || !isMobile
-      ? STALL.blurb
-      : STALL.blurb.length > blurbLimit
-      ? STALL.blurb.slice(0, blurbLimit) + "…"
-      : STALL.blurb;
+    showFullBlurb || !STALL_META
+      ? STALL_META?.blurb || ""
+      : STALL_META.blurb.length > blurbLimit
+      ? STALL_META.blurb.slice(0, blurbLimit) + "…"
+      : STALL_META.blurb;
+
+  if (loading) {
+    return (
+      <div className="relative min-h-screen overflow-x-hidden">
+        <div className="fixed inset-0 -z-10 bg-[#F5F7F2]" />
+        <main className="relative z-10 mx-auto w-full max-w-[430px] px-3 py-5 sm:px-4 md:max-w-6xl">
+          <p className="text-sm text-gray-600">Loading stall…</p>
+        </main>
+      </div>
+    );
+  }
+
+  if (error || !STALL_META) {
+    return (
+      <div className="relative min-h-screen overflow-x-hidden">
+        <div className="fixed inset-0 -z-10 bg-[#F5F7F2]" />
+        <main className="relative z-10 mx-auto w-full max-w-[430px] px-3 py-5 sm:px-4 md:max-w-6xl">
+          <p className="text-sm text-red-600">
+            {error || "Stall not found."}
+          </p>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="relative min-h-screen overflow-x-hidden">
@@ -287,11 +416,16 @@ export default function StallEmenu() {
               return (
                 <li key={i} className="flex items-center gap-1.5">
                   {c.to ? (
-                    <Link to={c.to} className="text-gray-700 hover:text-[#21421B]">
+                    <Link
+                      to={c.to}
+                      className="text-gray-700 hover:text-[#21421B]"
+                    >
                       {c.label}
                     </Link>
                   ) : (
-                    <span className="font-medium text-gray-900">{c.label}</span>
+                    <span className="font-medium text-gray-900">
+                      {c.label}
+                    </span>
                   )}
                   {!isLast && (
                     <Icon.Chevron className="h-3.5 w-3.5 text-gray-400" />
@@ -310,16 +444,16 @@ export default function StallEmenu() {
           />
           <div className="flex-1">
             <h1 className="text-base font-semibold md:text-xl">
-              {STALL.name}{" "}
+              {STALL_META.name}{" "}
               <span className="font-normal text-gray-600">
-                ({STALL.market})
+                ({STALL_META.market})
               </span>
             </h1>
             <p className="mt-1 text-[11px] leading-snug text-gray-600 md:text-sm">
               {blurb}
-              {isMobile && STALL.blurb.length > blurbLimit && (
+              {isMobile && STALL_META.blurb.length > blurbLimit && (
                 <button
-                  onClick={() => setShowFullBlurb(v => !v)}
+                  onClick={() => setShowFullBlurb((v) => !v)}
                   className="ml-1 font-medium text-[#21421B] hover:underline"
                 >
                   {showFullBlurb ? "show less" : "more"}
@@ -331,23 +465,23 @@ export default function StallEmenu() {
               <div className="flex items-start gap-1.5 text-[12px]">
                 <Icon.MapPin className="mt-0.5 h-3.5 w-3.5" />
                 <div>
-                  <div className="font-medium">{STALL.address}</div>
+                  <div className="font-medium">{STALL_META.address}</div>
                   <div className="text-[11px] text-gray-600">
-                    {STALL.distance}
+                    {STALL_META.distance}
                   </div>
                 </div>
               </div>
 
-              {/* Estimated waiting time (hero) */}
               <div className="flex items-start gap-1.5 text-[12px]">
                 <Icon.Clock className="mt-0.5 h-3.5 w-3.5" />
                 <div>
                   <div className="font-medium">Estimated waiting time</div>
-                  <div className="text-[11px] text-gray-600">{STALL.waitTime}</div>
+                  <div className="text-[11px] text-gray-600">
+                    {STALL_META.waitTime}
+                  </div>
                 </div>
               </div>
             </div>
-
 
             <button className="mt-2 inline-flex items-center rounded-lg bg-[#21421B] px-2.5 py-1.5 text-[11px] font-medium text-white hover:bg-[#21421B]/90">
               View on map
@@ -356,7 +490,10 @@ export default function StallEmenu() {
         </section>
 
         <section className="mt-4">
-          <div className="flex items-center justify-between gap-1" ref={controlsRef}>
+          <div
+            className="flex items-center justify-between gap-1"
+            ref={controlsRef}
+          >
             <div className="inline-flex rounded-xl border bg-white p-0.5">
               <button
                 onClick={() => setTab("menu")}
@@ -397,7 +534,7 @@ export default function StallEmenu() {
               <div className="relative flex items-center gap-1.5">
                 <button
                   onClick={() => {
-                    setOpenFilter(v => !v);
+                    setOpenFilter((v) => !v);
                     setShowSearch(false);
                   }}
                   className="flex h-8 w-24 items-center justify-between rounded-xl border bg-white px-2 text-[11px] text-gray-700 hover:bg-gray-50 sm:h-10 sm:w-40 sm:px-3 sm:text-sm"
@@ -410,7 +547,7 @@ export default function StallEmenu() {
 
                 {openFilter && (
                   <div className="absolute right-9 top-9 z-20 w-36 rounded-xl border bg-white py-1 shadow-sm sm:right-12 sm:top-12 sm:w-40">
-                    {sections.map(s => (
+                    {sections.map((s) => (
                       <button
                         key={s}
                         onClick={() => {
@@ -454,7 +591,9 @@ export default function StallEmenu() {
                     <input
                       value={query}
                       onChange={(e) => setQuery(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
+                      onKeyDown={(e) =>
+                        e.key === "Enter" && e.preventDefault()
+                      }
                       placeholder="Search in menu"
                       className="h-full w-full rounded-xl border bg-white pl-8 pr-8 text-[11px] outline-none focus:border-gray-300 sm:text-sm"
                     />
@@ -493,7 +632,7 @@ export default function StallEmenu() {
                         {section}
                       </h2>
                       <ul className="-mt-1 space-y-2">
-                        {items.map(item => (
+                        {items.map((item) => (
                           <li
                             key={`${item.id}-${item.name}`}
                             className="flex cursor-pointer items-center gap-2.5 rounded-xl border bg-white p-2.5 md:p-4"
@@ -547,16 +686,6 @@ export default function StallEmenu() {
           )}
 
           {tab === "photos" && (
-            /*<div className="mt-3 grid grid-cols-3 sm:grid-cols-4 gap-2.5">
-              {filtered.map((m) => (
-                <img
-                  key={`${m.id}-${m.name}`}
-                  src={m.img}
-                  alt={m.name}
-                  className="aspect-square w-full rounded-lg border object-cover"
-                />
-              ))}
-            </div>*/
             <div className="mt-3">
               <StallGallery />
             </div>
@@ -564,19 +693,16 @@ export default function StallEmenu() {
 
           {tab === "about" && (
             <div className="mt-3 rounded-xl border bg-white p-4 text-sm text-gray-700">
-              <p>
-                We serve classic local breakfast sets with kopi or teh choose your bread spread
-                and add-ons. Freshly brewed all day
-              </p>
+              <p>{STALL_META.blurb}</p>
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 <div className="rounded-lg border p-3">
                   <div className="text-xs text-gray-500">Address</div>
-                  <div className="font-medium">{STALL.address}</div>
+                  <div className="font-medium">{STALL_META.address}</div>
                 </div>
                 <div className="rounded-lg border p-3">
                   <div className="text-xs text-gray-500">Opening hours</div>
                   <div className="font-medium">
-                    {STALL.hours} — {STALL.days}
+                    {STALL_META.hours} — {STALL_META.days}
                   </div>
                 </div>
               </div>
@@ -585,26 +711,25 @@ export default function StallEmenu() {
         </section>
       </main>
 
-    <ItemDialog
-      open={showItem}
-      item={selected}
-      onClose={() => setShowItem(false)}
-      onAdd={({ item, qty, notes }) => {
-        addToCart(
-          {
-            ...item,
-            stallName: STALL.name,
-            stallMarket: STALL.market,
-          },
-          qty,
-          notes
-        );
+      <ItemDialog
+        open={showItem}
+        item={selected}
+        onClose={() => setShowItem(false)}
+        onAdd={({ item, qty, notes }) => {
+          addToCart(
+            {
+              ...item,
+              stallName: STALL_META.name,
+              stallMarket: STALL_META.market,
+            },
+            qty,
+            notes
+          );
 
-        setToast({ message: `Added ${item.name} x${qty} to cart` });
-        setTimeout(() => setToast(null), 1800);
-      }}
-    />
-
+          setToast({ message: `Added ${item.name} x${qty} to cart` });
+          setTimeout(() => setToast(null), 1800);
+        }}
+      />
 
       {toast && (
         <div className="fixed bottom-4 left-1/2 z-50 -translate-x-1/2">
