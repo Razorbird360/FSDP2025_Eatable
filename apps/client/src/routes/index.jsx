@@ -7,6 +7,8 @@ import StallEmenu from "../features/menu/components/StallEmenu"
 import SignupPage from '../features/auth/SignupPage';
 import LoginPage from '../features/auth/LoginPage';
 
+import OrderSummaryPage from "../pages/OrderSummaryPage";
+
 import StallGallery from '../features/stalls/components/StallGallery';
 
 // Placeholder pages - to be replaced with actual feature pages
@@ -36,7 +38,8 @@ function AppRoutes() {
         <Route element={<ProtectedLayout />}>
           <Route path="/cart" element={<Cart />} />
           <Route path="/orders" element={<OrderHistory />} />
-          
+          <Route path="/orders/:orderId" element={<OrderSummaryPage />} />
+
           {/* TODO: Add more protected routes: profile, upload photo, etc */}
         </Route>
       </Route>
