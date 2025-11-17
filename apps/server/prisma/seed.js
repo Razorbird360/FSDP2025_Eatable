@@ -1,9 +1,100 @@
-import { PrismaClient } from '@prisma/client';
+import fs from 'fs/promises';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import pkg from '@prisma/client';
+
+const { PrismaClient } = pkg;
 
 const prisma = new PrismaClient();
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const hawkerDataPath = path.join(__dirname, '../data/hawker-centres.geojson');
+
+const slugifyName = (value) =>
+  value
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .replace(/-{2,}/g, '-') || 'hawker-centre';
+
+async function seedHawkerCentres() {
+  try {
+    const raw = await fs.readFile(hawkerDataPath, 'utf-8');
+    const geojson = JSON.parse(raw);
+    const features = Array.isArray(geojson.features) ? geojson.features : [];
+
+    const centresMap = new Map();
+
+    for (const feature of features) {
+      const props = feature?.properties ?? {};
+      const coords = feature?.geometry?.coordinates;
+      const [longitude, latitude] = Array.isArray(coords) ? coords : [];
+
+      if (typeof latitude !== 'number' || typeof longitude !== 'number') continue;
+
+      const name = String(props.NAME ?? '').trim();
+      if (!name) continue;
+
+      const slug = slugifyName(name);
+      if (centresMap.has(slug)) continue;
+
+      centresMap.set(slug, {
+        slug,
+        name,
+        address:
+          props.ADDRESSBUILDINGNAME && props.ADDRESSSTREETNAME
+            ? `${props.ADDRESSBUILDINGNAME}, ${props.ADDRESSSTREETNAME}`
+            : props.ADDRESSSTREETNAME ?? props.ADDRESSBUILDINGNAME ?? null,
+        postalCode: props.ADDRESSPOSTALCODE ?? null,
+        latitude,
+        longitude,
+      });
+    }
+
+    const centres = Array.from(centresMap.values());
+
+    for (const centre of centres) {
+      await prisma.hawkerCentre.upsert({
+        where: { slug: centre.slug },
+        update: centre,
+        create: centre,
+      });
+    }
+
+    console.log(`✅ Seeded ${centres.length} hawker centres`);
+    return centres.length;
+  } catch (error) {
+    console.error('Failed to seed hawker centres:', error.message);
+    return 0;
+  }
+}
+
+async function linkDemoStallToCentre() {
+  const hougangCentre = await prisma.hawkerCentre.findFirst({
+    where: { name: { contains: 'hougang', mode: 'insensitive' } },
+  });
+
+  if (!hougangCentre) {
+    console.warn('⚠️  Could not find Hougang hawker centre to link demo stall.');
+    return;
+  }
+
+  const result = await prisma.stall.updateMany({
+    where: { name: 'Hougang Hawker Delights' },
+    data: { hawkerCentreId: hougangCentre.id },
+  });
+
+  if (result.count > 0) {
+    console.log(`🔗 Linked ${result.count} stall(s) to ${hougangCentre.name}`);
+  }
+}
+
 async function main() {
   console.log('🌶  Starting hawker seed');
+
+  await seedHawkerCentres();
 
   // 1) Demo user (for uploads + stall owner)
   const demoUser = await prisma.user.upsert({
@@ -290,6 +381,9 @@ async function main() {
   }
 
   console.log(`✅ Created ${uploadCount} media uploads`);
+
+  await linkDemoStallToCentre();
+
   console.log('🎉 Hawker seed completed successfully!');
 }
 

@@ -41,10 +41,12 @@ model Stall {
   createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
   image_url   String?
+  hawkerCentreId String?     @map("hawker_centre_id") @db.Uuid
   menuItems   MenuItem[]
   orders      Order[]
   owner       User?          @relation(fields: [ownerId], references: [id])
   favorites   UserFavorite[]
+  hawkerCentre HawkerCentre? @relation(fields: [hawkerCentreId], references: [id])
 
   @@map("stalls")
 }
@@ -179,4 +181,20 @@ model user_cart {
   request    String?
   menu_items MenuItem? @relation(fields: [itemid], references: [id], onDelete: NoAction, onUpdate: NoAction)
   users      User?     @relation(fields: [userid], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model HawkerCentre {
+  id         String   @id @default(uuid()) @db.Uuid
+  name       String
+  slug       String   @unique
+  address    String?
+  postalCode String?  @map("postal_code")
+  latitude   Float
+  longitude  Float
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt      @map("updated_at") @db.Timestamptz(6)
+
+  stalls     Stall[]
+
+  @@map("hawker_centres")
 }
