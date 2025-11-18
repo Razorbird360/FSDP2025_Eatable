@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { Link } from 'react-router-dom';
 import arrowRight from "../assets/icons/arrow right.svg";
 import cameraIcon from "../assets/icons/camera.svg";
 import point from "../assets/icons/point.svg";
@@ -101,28 +102,30 @@ function HomePage() {
 
         <div className="mt-6 hidden md:block">
           <div className="flex flex-col gap-3.5 w-full max-w-[34rem]">
-            <Button
-              height="44px"
-              rounded="10px"
-              w="full"
-              px={6}
-              bg="#21421B"
-              color="white"
-              fontWeight="semibold"
-              fontSize="md"
-              justifyContent="space-between"
-              boxShadow="0 4px 12px rgba(33, 66, 27, 0.18)"
-              _hover={{ bg: "#1A3517" }}
-              _active={{ bg: "#142812" }}
-            >
-              Explore Stalls
-              <img
-                src={arrowRight}
-                alt=""
-                className="h-6 w-6 translate-y-[1px] hover:filter hover:invert hover:brightness-200 transition duration-150 ease-in-out"
-                aria-hidden="true"
-              />
-            </Button>
+            <Link to="/hawker-centres" className="w-full">
+              <Button
+                height="44px"
+                rounded="10px"
+                w="full"
+                px={6}
+                bg="#21421B"
+                color="white"
+                fontWeight="semibold"
+                fontSize="md"
+                justifyContent="space-between"
+                boxShadow="0 4px 12px rgba(33, 66, 27, 0.18)"
+                _hover={{ bg: '#1A3517' }}
+                _active={{ bg: '#142812' }}
+              >
+                Explore Stalls
+                <img
+                  src={arrowRight}
+                  alt=""
+                  className="h-6 w-6 translate-y-[1px] hover:filter hover:invert hover:brightness-200 transition duration-150 ease-in-out"
+                  aria-hidden="true"
+                />
+              </Button>
+            </Link>
 
             <Button
               height="44px"
@@ -195,28 +198,25 @@ function HomePage() {
           </div>
 
           <div className="flex flex-col gap-3 w-[90vw] max-w-[24rem] max-[430px]:w-[88vw] max-[430px]:max-w-[22rem] mt-6">
-            <Button
-              height="56px"
-              rounded="10px"
-              w="full"
-              px={6}
-              bg="#21421B"
-              color="white"
-              fontWeight="semibold"
-              fontSize="md"
-              justifyContent="space-between"
-              boxShadow="0 4px 12px rgba(33, 66, 27, 0.18)"
-              _hover={{ bg: "#1A3517" }}
-              _active={{ bg: "#142812" }}
-            >
-              Explore Stalls
-              <img
-                src={arrowRight}
-                alt=""
-                className="h-6 w-6 hover:filter hover:invert hover:brightness-200 transition duration-150 ease-in-out"
-                aria-hidden="true"
-              />
-            </Button>
+            <Link to="/hawker-centres" className="w-full">
+              <Button
+                height="56px"
+                rounded="10px"
+                w="full"
+                px={6}
+                bg="#21421B"
+                color="white"
+                fontWeight="semibold"
+                fontSize="md"
+                justifyContent="space-between"
+                boxShadow="0 4px 12px rgba(33, 66, 27, 0.18)"
+                _hover={{ bg: '#1A3517' }}
+                _active={{ bg: '#142812' }}
+              >
+                Explore Stalls
+                <img src={arrowRight} alt="" className="h-6 w-6 hover:filter hover:invert hover:brightness-200 transition duration-150 ease-in-out" aria-hidden="true" />
+              </Button>
+            </Link>
 
             <Button
               height="56px"
