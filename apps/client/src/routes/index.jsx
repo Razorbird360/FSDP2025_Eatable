@@ -10,6 +10,12 @@ import LoginPage from '../features/auth/LoginPage';
 
 import StallGallery from '../features/stalls/components/StallGallery';
 
+
+import Onboarding from "../features/photos/components/Onboarding";
+import PhotoUpload from "../features/photos/components/PhotoUpload";
+import UploadComplete from "../features/photos/components/UploadComplete";
+
+
 // Placeholder pages - to be replaced with actual feature pages
 const Stalls = () => <div className="p-8"><h1 className="text-3xl font-bold">Stalls</h1></div>;
 //const StallDetail = () => <div className="p-8"><h1 className="text-3xl font-bold">Stall Detail</h1></div>;
@@ -19,7 +25,6 @@ const NotFound = () => <div className="p-8"><h1 className="text-3xl font-bold">4
 
 function AppRoutes() {
   return (
-    
     <Routes>
       <Route element={<RootLayout />}>
         {/* Public routes */}
@@ -29,17 +34,18 @@ function AppRoutes() {
         <Route path="/hawker-centres" element={<HawkerCentresPage />} />
 
         <Route path="/about" element={<AboutPage />} />
-        <Route path="/stalls/:stallId" element={<StallEmenu />} /> 
-
-
-
+        <Route path="/stalls/:stallId" element={<StallEmenu />} />
         <Route path="/stalls/:stallId/gallery" element={<StallGallery />} />
+
         {/* Protected routes - requires authentication */}
         <Route element={<ProtectedLayout />}>
           <Route path="/cart" element={<Cart />} />
           <Route path="/orders" element={<OrderHistory />} />
-          
-          {/* TODO: Add more protected routes: profile, upload photo, etc */}
+
+          {/* upload routes */}
+          <Route path="/photo-upload/onboarding" element={<Onboarding />} />
+          <Route path="/photo-upload" element={<PhotoUpload />} />
+          <Route path="/upload-complete" element={<UploadComplete />} />
         </Route>
       </Route>
 

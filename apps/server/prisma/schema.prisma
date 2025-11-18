@@ -9,13 +9,15 @@ datasource db {
 }
 
 model User {
-  id           String            @id @default(uuid()) @db.Uuid
-  email        String            @unique
-  displayName  String            @map("display_name")
-  role         String            @default("user")
-  createdAt    DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt    DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
-  username     String            @unique
+  id             String   @id @default(uuid()) @db.Uuid
+  email          String   @unique
+  displayName    String   @map("display_name")
+  role           String   @default("user")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  username       String   @unique
+  skipOnboarding Boolean  @default(false) @map("skip_Onboarding")  
+
   reports      ContentReport[]
   votes        MediaUploadVote[]
   mediaUploads MediaUpload[]

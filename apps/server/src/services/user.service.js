@@ -43,4 +43,12 @@ export const userService = {
       where: { id },
     });
   },
+
+  setSkipOnboarding(id, skip) {
+    return prisma.user.update({
+      where: { id },
+      data: { skipOnboarding: skip },
+    });
+  }
+
 };

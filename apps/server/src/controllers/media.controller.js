@@ -2,6 +2,8 @@ import sharp from 'sharp';
 import { mediaService } from '../services/media.service.js';
 import { menuService } from '../services/menu.service.js';
 import { storageService } from '../services/storage.service.js';
+import { userService } from '../services/user.service.js';
+
 import { report } from 'process';
 
 const BUCKET_NAME = 'food-images';
@@ -154,7 +156,7 @@ export const mediaController = {
 
       if (upload.userId !== userId && user?.role !== 'admin') {
         return res.status(403).json({
-          error: 'Unauthorized. You can only delete your own uploads.'
+          error: 'Unauthorized. You can only delete your own uploads.',
         });
       }
 
@@ -171,7 +173,7 @@ export const mediaController = {
           !uuid_pattern.test(path_segments[1]) ||
           !path_segments[2].match(/^[a-f0-9-]+\.(jpg|jpeg)$/i)) {
         return res.status(400).json({
-          error: 'Invalid file path format. File may have been corrupted.'
+          error: 'Invalid file path format. File may have been corrupted.',
         });
       }
 
@@ -222,8 +224,7 @@ export const mediaController = {
     }
   },
 
-
-  /* * Gets all APPROVED uploads for a stall */
+  /* Gets all APPROVED uploads for a stall */
   async getByStall(req, res, next) {
     try {
       const { stallId } = req.params;
@@ -301,5 +302,54 @@ export const mediaController = {
     }
   },
 
+  // apps/server/src/controllers/media.controller.js
+
+  async getSkipOnboarding(req, res, next) {
+    try {
+      const userId = req.user?.id;
+      console.log("Getting skipOnboarding for userId:", userId);
+
+
+      if (!userId) {
+        return res.json({ skipOnboarding: false });
+      }
+
+      const user = await userService.findById(userId);
+
+      console.log("User skipOnboarding value:", user?.skipOnboarding);
+
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      return user.skipOnboarding === true ? res.json({ skipOnboarding: true }) : res.json({ skipOnboarding: false });
+
+      return res.json({ skipOnboarding: user.skipOnboarding === true });
+    } catch (error) {
+      next(error);
+    }
+},
+
+
+  // POST /api/media/skip-onboarding
+  async setSkipOnboarding(req, res, next) {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
+      const { skip } = req.body;
+
+      const result = await userService.setSkipOnboarding(userId, skip);
+
+      if (!result.ok) {
+        return res.status(500).json({ error: 'Failed to update skipOnboarding flag' });
+      }
+
+      return res.json({ ok: true });
+    } catch (error) {
+      next(error);
+    }
+  }
 
 };
