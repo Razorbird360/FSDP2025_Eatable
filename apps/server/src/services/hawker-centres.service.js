@@ -134,7 +134,76 @@ async function getRandomStallsBySlug(slug, limit = 3) {
   return formattedStalls;
 }
 
+async function getHawkerStallsById(hawkerId) {
+  // Implementation for fetching hawker stalls by hawkerId
+  try  {
+    const stalls = await prisma.stall.findMany({
+      where: { hawkerCentreId: hawkerId },
+      include: {
+        menuItems: {
+          where: { isActive: true },
+          include: {
+            mediaUploads: {
+              where: { validationStatus: 'approved' },
+              orderBy: { upvoteCount: 'desc' },
+              take: 1
+            }
+          }
+        },
+        _count: {
+          select: { menuItems: true }
+        }
+      }
+    });
+    return stalls;
+  } catch (error) {
+    console.error(`Error fetching stalls for hawkerId ${hawkerId}:`, error);
+    throw new Error('Failed to fetch stalls');
+  }
+}
+
+async function getHawkerDishesById(hawkerId) {
+  // Implementation for fetching hawker dishes by hawkerId
+  try  {
+    const dishes = await prisma.menuItem.findMany({
+      where: {
+        stall: { hawkerCentreId: hawkerId },
+        isActive: true
+      },
+      include: {
+        mediaUploads: {
+          where: { validationStatus: 'approved' },
+          orderBy: { upvoteCount: 'desc' },
+          take: 1
+        },
+      }
+    });
+    return dishes;
+  } catch (error) {
+    console.error(`Error fetching dishes for hawkerId ${hawkerId}:`, error);
+    throw new Error('Failed to fetch dishes');
+  } 
+}
+
+async function getHawkerInfoById(hawkerId) {
+  // Implementation for fetching hawker centre info by hawkerId
+  try {
+    const info = await prisma.hawkerCentre.findUnique({
+      where: { id: hawkerId }
+    });
+    return info;
+  } catch (error) {
+    console.error(`Error fetching info for hawkerId ${hawkerId}:`, error);
+    throw new Error('Failed to fetch hawker centre info');
+  }
+}
+
+
+
 export default {
   getNearbyHawkerCentres,
-  getRandomStallsBySlug
+  getRandomStallsBySlug,
+  getHawkerStallsById,
+  getHawkerDishesById,
+  getHawkerInfoById
 };

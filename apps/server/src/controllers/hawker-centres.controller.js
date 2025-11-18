@@ -47,7 +47,48 @@ async function getRandomStalls(req, res) {
   }
 }
 
+async function getHawkerStalls(req, res) {
+  
+  // Implementation for fetching hawker stalls by hawkerId
+  try  {
+    const { hawkerId } = req.params;
+    const stalls = await hawkerCentresService.getHawkerStallsById(hawkerId);
+    res.json(stalls);
+  } catch (error) {
+    console.error(`Error fetching stalls for hawkerId ${req.params.hawkerId}:`, error);
+    res.status(500).json({ error: 'Failed to fetch stalls' });
+  }
+
+}
+
+async function getHawkerDishes(req, res) {
+  // Implementation for fetching hawker dishes by hawkerId
+  try  {
+    const { hawkerId } = req.params;
+    const dishes = await hawkerCentresService.getHawkerDishesById(hawkerId);
+    res.json(dishes);
+  } catch (error) {
+    console.error(`Error fetching dishes for hawkerId ${req.params.hawkerId}:`, error);
+    res.status(500).json({ error: 'Failed to fetch dishes' });
+  }
+}
+
+async function getHawkerInfo(req, res) {
+  // Implementation for fetching hawker centre info by hawkerId
+  try {
+    const { hawkerId } = req.params;
+    const info = await hawkerCentresService.getHawkerInfoById(hawkerId);
+    res.json(info);
+  } catch (error) {
+    console.error(`Error fetching info for hawkerId ${req.params.hawkerId}:`, error);
+    res.status(500).json({ error: 'Failed to fetch hawker centre info' });
+  }
+}
+
 export default {
   getNearby,
-  getRandomStalls
+  getRandomStalls,
+  getHawkerStalls,
+  getHawkerDishes,
+  getHawkerInfo
 };
