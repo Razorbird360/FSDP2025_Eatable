@@ -131,6 +131,33 @@ export default function StallGallery() {
     fetchVotes();
   }, [currentUserId]);
 
+
+    // ===== Fetch user's existing reports from API =====
+  useEffect(() => {
+    async function fetchReports() {
+      try {
+        if (!currentUserId) {
+          // if not logged in, clear previous reported IDs
+          setReportedIds([]);
+          return;
+        }
+
+        const res = await api.get("/moderation/reports");
+        const data = res.data || [];
+
+        // data is: [{ id, uploadId, reporterId, reason, status, ... }, ...]
+        const ids = data.map((r) => r.uploadId);
+
+        setReportedIds(ids);
+      } catch (err) {
+        console.error("Failed to fetch reports:", err.response || err);
+        // don't block gallery if this fails
+      }
+    }
+
+    fetchReports();
+  }, [currentUserId]);
+
   // ===== Frozen display order: SORT BY UPVOTES ONLY =====
   const displayOrder = useMemo(() => {
     return [...items]
@@ -318,7 +345,7 @@ export default function StallGallery() {
     setReportModalOpen(true);
   };
 
-  const handleSubmitReport = (e) => {
+  const handleSubmitReport = async (e) => {
     e.preventDefault();
     if (!popupId) return;
 
@@ -327,20 +354,29 @@ export default function StallGallery() {
       return;
     }
 
-    setReportedIds((prev) =>
-      prev.includes(popupId) ? prev : [...prev, popupId]
-    );
-    setReportModalOpen(false);
+    try {
+      await api.post(`/moderation/report/${popupId}`, {
+        reason: reportReason,
+        details: reportDetails,
+      });
 
-    // In a real app, call your backend here with popupId, reportReason, reportDetails
-    showNotice("Thanks for reporting. We'll review this photo shortly.");
+      setReportedIds((prev) =>
+        prev.includes(popupId) ? prev : [...prev, popupId]
+      );
+      setReportModalOpen(false);
+      showNotice("Thanks for reporting. We'll review this photo shortly.");
+    } catch (err) {
+      console.error("Failed to submit report:", err.response || err);
+      showNotice("Failed to submit report: " + (err.response?.data?.error || err.message));
+    }
   };
+
 
   // ===== Loading / Error States =====
   if (loading) {
     return (
       <section className="mt-12 mb-20 px-4 md:px-8">
-        <h2 className="text-center text-3xl font-bold text-emerald-900 mb-8">
+        <h2 className="text-left text-3xl font-bold text-emerald-900 mb-4 -mt-4">
           Customer Favourites
         </h2>
         <div className="text-center text-gray-600">Loading gallery…</div>
@@ -351,7 +387,7 @@ export default function StallGallery() {
   if (error) {
     return (
       <section className="mt-12 mb-20 px-4 md:px-8">
-        <h2 className="text-center text-3xl font-bold text-emerald-900 mb-8">
+        <h2 className="text-left text-3xl font-bold text-emerald-900 mb-4 -mt-4">
           Customer Favourites
         </h2>
         <div className="text-center text-red-600">
@@ -364,7 +400,7 @@ export default function StallGallery() {
   if (!items.length) {
     return (
       <section className="mt-12 mb-20 px-4 md:px-8">
-        <h2 className="text-center text-3xl font-bold text-emerald-900 mb-8">
+        <h2 className="text-left text-3xl font-bold text-emerald-900 mb-4 -mt-4">
           Customer Favourites
         </h2>
         <div className="text-center text-gray-600">
@@ -381,12 +417,12 @@ export default function StallGallery() {
 
   // ===== Render =====
   return (
-    <section className="mt-12 mb-20 px-4 md:px-8">
-      <h2 className="text-center text-3xl font-bold text-emerald-900 mb-8">
-        Customer Favourites
-      </h2>
+    <section className="mt-10 mb-20">
+        <h2 className="text-left text-3xl font-bold text-emerald-900 mb-4 -mt-4">
+          Customer Favourites
+        </h2>
 
-      <div className="bento-grid max-w-7xl mx-auto">
+      <div className="bento-grid w-full">
         {displayOrder.map((id) => {
           const it = itemById.get(id);
           if (!it) return null;
@@ -555,7 +591,7 @@ export default function StallGallery() {
                         : "border-rose-400 text-rose-600 hover:bg-rose-50"
                     }`}
                 >
-                  {reportedIds.includes(popupId) ? "Reported" : "Report Post"}
+                  {reportedIds.includes(popupId) ? "✓ Reported" : "⚑ Report Post"}
                 </button>
               </div>
             </div>

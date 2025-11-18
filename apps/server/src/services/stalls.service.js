@@ -34,10 +34,26 @@ export const stallsService = {
         },
         menuItems: {
           where: { isActive: true },
+          include: {
+            // 1️⃣ Get TOP upload per menu item
+            mediaUploads: {
+              where: {
+                // optional: only approved uploads
+                validationStatus: 'approved',
+              },
+              orderBy: [
+                { upvoteCount: 'desc' },   // main sort: most upvotes
+                { voteScore: 'desc' },     // optional tie-breaker
+                { createdAt: 'asc' },      // oldest first (or 'desc' for newest)
+              ],
+              take: 1, // only the top one
+            },
+          },
         },
       },
     });
   },
+
 
   async create(data) {
     return await prisma.stall.create({
