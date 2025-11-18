@@ -9,42 +9,42 @@ datasource db {
 }
 
 model User {
-  id           String            @id @default(uuid()) @db.Uuid
-  email        String            @unique
-  displayName  String            @map("display_name")
-  role         String            @default("user")
-  createdAt    DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt    DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
-  username     String            @unique
-  reports      ContentReport[]
-  votes        MediaUploadVote[]
-  mediaUploads MediaUpload[]
-  orders       Order[]
-  ownedStalls  Stall[]
-  user_cart    user_cart[]
-  favorites    UserFavorite[]
+  id              String            @id @default(uuid()) @db.Uuid
+  email           String            @unique
+  displayName     String            @map("display_name")
+  role            String            @default("user")
+  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  username        String            @unique
+  skip_Onboarding Boolean           @default(false)
+  reports         ContentReport[]
+  votes           MediaUploadVote[]
+  mediaUploads    MediaUpload[]
+  orders          Order[]
+  ownedStalls     Stall[]
+  user_cart       user_cart[]
+  favorites       UserFavorite[]
 
   @@map("users")
 }
 
 model Stall {
-  id          String         @id @default(uuid()) @db.Uuid
-  ownerId     String?        @map("owner_id") @db.Uuid
-  name        String         @unique
-  description String?
-  location    String?
-  latitude    Float?
-  longitude   Float?
-  isVerified  Boolean        @default(false) @map("is_verified")
-  cuisineType String?        @map("cuisine_type")
-  tags        String[]       @default([])
-  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
-  image_url   String?
-  menuItems   MenuItem[]
-  orders      Order[]
-  owner       User?          @relation(fields: [ownerId], references: [id])
-  favorites   UserFavorite[]
+  id               String          @id @default(uuid()) @db.Uuid
+  ownerId          String?         @map("owner_id") @db.Uuid
+  name             String          @unique
+  description      String?
+  location         String?
+  cuisineType      String?         @map("cuisine_type")
+  tags             String[]        @default([])
+  createdAt        DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  image_url        String?
+  hawker_centre_id String?         @db.Uuid
+  menuItems        MenuItem[]
+  orders           Order[]
+  hawker_centres   hawker_centres? @relation(fields: [hawker_centre_id], references: [id], onUpdate: NoAction)
+  owner            User?           @relation(fields: [ownerId], references: [id])
+  favorites        UserFavorite[]
 
   @@map("stalls")
 }
@@ -171,12 +171,25 @@ model ContentReport {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model user_cart {
-  id         BigInt    @id @default(autoincrement())
   created_at DateTime  @default(now()) @db.Timestamptz(6)
   userid     String?   @db.Uuid
   itemid     String?   @db.Uuid
-  qty        BigInt?   @default(1)
+  qty        Int?
   request    String?
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   menu_items MenuItem? @relation(fields: [itemid], references: [id], onDelete: NoAction, onUpdate: NoAction)
   users      User?     @relation(fields: [userid], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model hawker_centres {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String
+  slug        String   @unique
+  address     String?
+  postal_code String?
+  latitude    Float
+  longitude   Float
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime @default(now()) @db.Timestamptz(6)
+  stalls      Stall[]
 }

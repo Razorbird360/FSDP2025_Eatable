@@ -9,7 +9,7 @@ import qrImg from "../../assets/logo/QrPlaceholder.png";
 import locationImg from "../../assets/logo/LocationIcon.png";
 import clockImg from "../../assets/logo/Clock.png";
 
-export default function MakePayment() {
+export default function OrderCompleted() {
   const navigate = useNavigate();
 
   return (

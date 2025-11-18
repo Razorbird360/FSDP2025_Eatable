@@ -7,8 +7,8 @@ import StallEmenu from "../features/menu/components/StallEmenu"
 import SignupPage from '../features/auth/SignupPage';
 import LoginPage from '../features/auth/LoginPage';
 
-import PaymentConfirmationPage from "../pages/payment/PaymentConfirmationPage";
-import MakePayment from "../pages/payment/MakePayment";
+import MakePayment from "../features/payment/MakePayment";
+import OrderCompleted from "../features/payment/OrderCompleted";
 
 import StallGallery from '../features/stalls/components/StallGallery';
 
@@ -36,8 +36,8 @@ function AppRoutes() {
         <Route path="/stalls/:stallId/gallery" element={<StallGallery />} />
 
         {/* Payment Pages */}
-        <Route path="/make-payment" element={<MakePayment />} />
-        <Route path="/payment-confirmation" element={<PaymentConfirmationPage />} />
+        <Route path="/ordercompleted/:orderid" element={<OrderCompleted />} />
+        <Route path="/makepayment/:orderid" element={<MakePayment />} />
 
         {/* Protected pages (requires login) */}
         <Route element={<ProtectedLayout />}>
