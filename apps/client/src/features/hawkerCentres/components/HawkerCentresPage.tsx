@@ -33,16 +33,17 @@ const HawkerCentresPage = () => {
           </div>
 
           {/* Hawker Centre Header */}
-          <div className="w-full p-4">
-            <div className="flex items-start justify-between">
+          <div className="w-full py-4">
+            {/* Mobile: Stack vertically, Desktop: Horizontal layout */}
+            <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3 lg:gap-0">
               {/* Left side - Name and stalls count */}
-              <div className="flex flex-col">
+              <div className="flex flex-col gap-0.5">
                 <h2 className="text-xl font-bold text-brand">Tiong Bahru Market</h2>
                 <span className="text-sm text-brand">19 stalls open</span>
               </div>
 
               {/* Right side - Distance and button */}
-              <div className="flex items-center gap-4">
+              <div className="flex items-center justify-between lg:justify-end gap-4">
                 {/* Distance */}
                 <div className="flex items-center gap-1.5">
                   <img src={locationIcon} alt="" className="w-4 h-4" />
@@ -50,7 +51,7 @@ const HawkerCentresPage = () => {
                 </div>
 
                 {/* View All Stalls Button */}
-                <button className="px-4 py-2 border-2 border-brand text-brand font-bold text-xs rounded-xl hover:bg-brand hover:text-white transition-colors">
+                <button className="px-4 py-2 border-2 border-brand text-brand font-bold text-xs rounded-xl hover:bg-brand hover:text-white transition-colors whitespace-nowrap">
                   View All Stalls
                 </button>
               </div>
@@ -58,31 +59,37 @@ const HawkerCentresPage = () => {
           </div>
 
           {/* Divider Line */}
-          <div className="w-full h-px bg-gray-300 mb-6"></div>
+          <div className="w-full h-px bg-gray-300 mb-4"></div>
 
-          {/* Stall Cards Grid */}
-          <div className="grid grid-cols-3 gap-6 px-4">
-            <StallCard
-              name="John's Famous Steak"
-              cuisineType="Western"
-              rating={201}
-              price="$7.50"
-              imageUrl="https://images.unsplash.com/photo-1546069901-ba9599a7e63c?q=80&w=800"
-            />
-            <StallCard
-              name="Xin Lu Traditional TeoChew Handmade Fishball Noodles"
-              cuisineType="Local"
-              rating={201}
-              price="$7.50"
-              imageUrl="https://images.unsplash.com/photo-1585036156171-384164a8c675?q=80&w=800"
-            />
-            <StallCard
-              name="Yuan Ji Chicken Rice"
-              cuisineType="Local"
-              rating={201}
-              price="$7.50"
-              imageUrl="https://images.unsplash.com/photo-1604908176997-1251886d2c87?q=80&w=800"
-            />
+          {/* Stall Cards - Mobile: 2-column horizontal scroll, Desktop: 3-column grid */}
+          <div className="lg:grid lg:grid-cols-3 lg:gap-6 lg:px-4 flex overflow-x-auto gap-3 px-4 snap-x snap-mandatory pb-4">
+            <div className="w-[45vw] lg:w-auto snap-start flex-shrink-0">
+              <StallCard
+                name="John's Famous Steak"
+                cuisineType="Western"
+                rating={201}
+                price="$7.50"
+                imageUrl="https://images.unsplash.com/photo-1546069901-ba9599a7e63c?q=80&w=800"
+              />
+            </div>
+            <div className="w-[45vw] lg:w-auto snap-start flex-shrink-0">
+              <StallCard
+                name="Xin Lu Traditional TeoChew Handmade Fishball Noodles"
+                cuisineType="Local"
+                rating={201}
+                price="$7.50"
+                imageUrl="https://images.unsplash.com/photo-1585036156171-384164a8c675?q=80&w=800"
+              />
+            </div>
+            <div className="w-[45vw] lg:w-auto snap-start flex-shrink-0">
+              <StallCard
+                name="Yuan Ji Chicken Rice"
+                cuisineType="Local"
+                rating={201}
+                price="$7.50"
+                imageUrl="https://images.unsplash.com/photo-1604908176997-1251886d2c87?q=80&w=800"
+              />
+            </div>
           </div>
         </div>
       </div>
