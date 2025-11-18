@@ -17,11 +17,11 @@ const HawkerCentresPage = () => {
       </div>
 
       <div className="w-full flex gap-4">
-        <div className="w-[20vw] sticky top-24">
+        <div className="w-[22vw] sticky top-24">
           <Filters />
         </div>
 
-        <div className="w-[76vw] min-h-[60vh] bg-orange-400"></div>
+        <div className="w-[75vw] min-h-[60vh] bg-orange-400"></div>
       </div>
     </section>
   );
