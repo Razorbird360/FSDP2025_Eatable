@@ -6,7 +6,7 @@ import AboutPage from '../pages/AboutPage';
 import StallEmenu from "../features/menu/components/StallEmenu"
 import SignupPage from '../features/auth/SignupPage';
 import LoginPage from '../features/auth/LoginPage';
-
+import ProfilePage from '../pages/ProfilePage';
 import OrderSummaryPage from "../pages/OrderSummaryPage";
 
 import StallGallery from '../features/stalls/components/StallGallery';
@@ -39,6 +39,7 @@ function AppRoutes() {
           <Route path="/cart" element={<Cart />} />
           <Route path="/orders" element={<OrderHistory />} />
           <Route path="/orders/:orderId" element={<OrderSummaryPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
 
           {/* TODO: Add more protected routes: profile, upload photo, etc */}
         </Route>
