@@ -3,6 +3,7 @@ import RootLayout from '../layouts/RootLayout';
 import ProtectedLayout from '../layouts/ProtectedLayout';
 import HomePage from '../pages/HomePage';
 import AboutPage from '../pages/AboutPage';
+import HawkerCentresPage from '../features/hawkerCentres/components/HawkerCentresPage';
 import StallEmenu from "../features/menu/components/StallEmenu"
 import SignupPage from '../features/auth/SignupPage';
 import LoginPage from '../features/auth/LoginPage';
@@ -30,6 +31,9 @@ function AppRoutes() {
 
         {/* Public Pages */}
         <Route path="/home" element={<HomePage />} />
+        <Route path="/stalls" element={<Stalls />} />
+        <Route path="/hawker-centres" element={<HawkerCentresPage />} />
+
         <Route path="/about" element={<AboutPage />} />
         <Route path="/stalls" element={<Stalls />} />
         <Route path="/stalls/:stallId" element={<StallEmenu />} />

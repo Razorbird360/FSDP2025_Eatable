@@ -9,13 +9,14 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
-    "prisma:seed": "node prisma/seed.js"
+    "prisma:seed": "node prisma/seed.js",
+    "prisma:seed:stalls": "node prisma/stalls-seed.js"
   },
   "prisma": {
     "seed": "node prisma/seed.js"
   },
   "dependencies": {
-    "@prisma/client": "^5.7.0",
+    "@prisma/client": "5.22.0",
     "@supabase/supabase-js": "^2.38.0",
     "axios": "^1.6.0",
     "cors": "^2.8.5",
@@ -28,6 +29,6 @@
   },
   "devDependencies": {
     "nodemon": "^3.0.2",
-    "prisma": "^5.7.0"
+    "prisma": "5.22.0"
   }
 }

@@ -29,22 +29,22 @@ model User {
 }
 
 model Stall {
-  id               String          @id @default(uuid()) @db.Uuid
-  ownerId          String?         @map("owner_id") @db.Uuid
-  name             String          @unique
-  description      String?
-  location         String?
-  cuisineType      String?         @map("cuisine_type")
-  tags             String[]        @default([])
-  createdAt        DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt        DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
-  image_url        String?
-  hawker_centre_id String?         @db.Uuid
-  menuItems        MenuItem[]
-  orders           Order[]
-  hawker_centres   hawker_centres? @relation(fields: [hawker_centre_id], references: [id], onUpdate: NoAction)
-  owner            User?           @relation(fields: [ownerId], references: [id])
-  favorites        UserFavorite[]
+  id             String         @id @default(uuid()) @db.Uuid
+  ownerId        String?        @map("owner_id") @db.Uuid
+  name           String         @unique
+  description    String?
+  location       String?
+  cuisineType    String?        @map("cuisine_type")
+  tags           String[]       @default([])
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+  image_url      String?
+  hawkerCentreId String?        @map("hawker_centre_id") @db.Uuid
+  menuItems      MenuItem[]
+  orders         Order[]
+  owner          User?          @relation(fields: [ownerId], references: [id])
+  favorites      UserFavorite[]
+  hawkerCentre   HawkerCentre?  @relation(fields: [hawkerCentreId], references: [id])
 
   @@map("stalls")
 }
@@ -181,15 +181,18 @@ model user_cart {
   users      User?     @relation(fields: [userid], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
-model hawker_centres {
-  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name        String
-  slug        String   @unique
-  address     String?
-  postal_code String?
-  latitude    Float
-  longitude   Float
-  created_at  DateTime @default(now()) @db.Timestamptz(6)
-  updated_at  DateTime @default(now()) @db.Timestamptz(6)
-  stalls      Stall[]
+model HawkerCentre {
+  id         String   @id @default(uuid()) @db.Uuid
+  name       String
+  slug       String   @unique
+  address    String?
+  postalCode String?  @map("postal_code")
+  latitude   Float
+  longitude  Float
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt      @map("updated_at") @db.Timestamptz(6)
+
+  stalls     Stall[]
+
+  @@map("hawker_centres")
 }

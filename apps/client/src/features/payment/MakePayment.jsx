@@ -32,13 +32,13 @@ export default function MakePayment() {
 
   return (
     <div className="w-full min-h-screen bg-[#F8FDF3]">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 bg-white">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 bg-white mt-10">
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
           <button onClick={() => navigate(-1)}>
             <span className="text-3xl">&#x2039;</span>
           </button>
-          <h1 className="text-2xl font-semibold">Payment Details</h1>
+          <h1 className="text-2xl font-semibold">Make Payment</h1>
         </div>
 
         <hr className="border-gray-300 mb-8" />
@@ -134,7 +134,11 @@ export default function MakePayment() {
 
           {/* RIGHT SIDE — ORDER SUMMARY */}
           <div className="order-1 lg:order-2">
-            <div className="border rounded-xl p-6 shadow-sm">
+            <div className="border rounded-xl p-6 shadow-sm 
+                h-[300px] overflow-y-auto 
+                sm:h-[350px] 
+                lg:h-[470px]">
+                
               {/* keep your existing order summary here */}
             </div>
 

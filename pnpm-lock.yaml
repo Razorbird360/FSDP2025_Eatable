@@ -92,7 +92,7 @@ importers:
   apps/server:
     dependencies:
       '@prisma/client':
-        specifier: ^5.7.0
+        specifier: 5.22.0
         version: 5.22.0(prisma@5.22.0)
       '@supabase/supabase-js':
         specifier: ^2.38.0
@@ -126,7 +126,7 @@ importers:
         specifier: ^3.0.2
         version: 3.1.10
       prisma:
-        specifier: ^5.7.0
+        specifier: 5.22.0
         version: 5.22.0
 
 packages:

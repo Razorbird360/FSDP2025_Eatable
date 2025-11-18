@@ -6,7 +6,6 @@ import netsQrLogo from "../../assets/payment/netsQrLogo.png";
 import successIcon from "../../assets/payment/greenTick.png";
 import failIcon from "../../assets/payment/redCross.png";
 import api from "../../lib/api"
-import axios from "axios";
 
 const NETS_TIMEOUT_SECONDS = 300;
 
