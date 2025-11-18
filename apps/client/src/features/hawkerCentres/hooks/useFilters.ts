@@ -10,11 +10,20 @@ export const useFilters = () => {
   const priceRanges = ['All', 'Under $5', '$5 - $10', '$10 - $15', 'Above $15'];
   const dietary = ['Halal', 'Vegetarian', 'Vegan', 'Gluten-Free', 'No Pork'];
 
+  const sortByOriginalOrder = (items: string[], originalArray: string[]): string[] => {
+    return [...items].sort((a, b) => {
+      const indexA = originalArray.indexOf(a);
+      const indexB = originalArray.indexOf(b);
+      return indexA - indexB;
+    });
+  };
+
   const toggleSelection = (
     item: string,
     selected: string[],
     setSelected: (items: string[]) => void,
-    hasAll: boolean = true
+    hasAll: boolean = true,
+    originalArray?: string[]
   ) => {
     if (item === 'All') {
       setSelected(['All']);
@@ -22,7 +31,16 @@ export const useFilters = () => {
       const newSelection = selected.includes(item)
         ? selected.filter((i) => i !== item)
         : [...selected.filter((i) => i !== 'All'), item];
-      setSelected(newSelection.length === 0 && hasAll ? ['All'] : newSelection);
+
+      const finalSelection = newSelection.length === 0 && hasAll ? ['All'] : newSelection;
+
+      // Sort by original array order if provided
+      if (originalArray && finalSelection[0] !== 'All') {
+        const sortedSelection = sortByOriginalOrder(finalSelection, originalArray);
+        setSelected(sortedSelection);
+      } else {
+        setSelected(finalSelection);
+      }
     }
   };
 

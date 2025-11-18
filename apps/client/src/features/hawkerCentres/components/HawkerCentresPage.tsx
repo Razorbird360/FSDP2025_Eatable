@@ -7,12 +7,12 @@ const HawkerCentresPage = () => {
   return (
     <section className="px-[4vw] py-8 w-90vw h-auto font-sans">
       <div className="w-full mb-4 py-2">
-        <h1 className="text-2xl font-bold text-brand mb-2">Browse Hawker Centres</h1>
-        <div className="flex items-center gap-3 text-xs text-gray-500">
+        <h1 className="text-3xl font-bold text-brand mb-2">Browse Hawker Centres</h1>
+        <div className="flex items-center gap-3 text-sm text-gray-500">
           <Link to="/home" className="hover:text-brand hover:underline hover:decoration-gray-400 cursor-pointer">
             Home
           </Link>
-          <img src={arrowRight} alt=">" className="w-2.5 h-2.5" />
+          <img src={arrowRight} alt=">" className="w-3 h-3" />
           <span className="text-brand">Hawkers</span>
         </div>
       </div>

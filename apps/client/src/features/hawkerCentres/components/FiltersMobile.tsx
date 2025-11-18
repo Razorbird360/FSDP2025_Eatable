@@ -38,11 +38,11 @@ const FiltersMobile = () => {
           isOpen ? '-bottom-20 opacity-0' : 'bottom-4 opacity-100'
         }`}
       >
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <img
             src={filterDownArrow}
             alt=""
-            className="w-5 h-5"
+            className="w-5 h-5 rotate-180"
           />
           <span>Filters</span>
         </div>
@@ -61,14 +61,18 @@ const FiltersMobile = () => {
         size="full"
       >
         <Portal>
-          <Drawer.Backdrop />
-          <Drawer.Positioner>
-            <Drawer.Content className="font-sans" roundedTop="2xl">
+          <Drawer.Backdrop className="backdrop-blur-sm transition-opacity duration-700" />
+          <Drawer.Positioner className="transition-all duration-700">
+            <Drawer.Content
+              className="font-sans transition-transform duration-700 ease-in-out"
+              roundedTop="2xl"
+              style={{ opacity: 1 }}
+            >
               {/* Header */}
               <Drawer.Header className="flex justify-between items-start border-b pb-4 pt-6">
                 <Drawer.Title className="text-3xl font-bold text-brand leading-none">Filters</Drawer.Title>
                 <Drawer.CloseTrigger asChild>
-                  <CloseButton size="lg" className="leading-none -mt-1" />
+                  <CloseButton size="lg" className="leading-none mt-1" />
                 </Drawer.CloseTrigger>
               </Drawer.Header>
 
@@ -93,7 +97,7 @@ const FiltersMobile = () => {
                       {cuisines.map((cuisine) => (
                         <button
                           key={cuisine}
-                          onClick={() => toggleSelection(cuisine, selectedCuisines, setSelectedCuisines)}
+                          onClick={() => toggleSelection(cuisine, selectedCuisines, setSelectedCuisines, true, cuisines)}
                           className={`px-5 py-2.5 rounded-full text-base transition-colors ${
                             selectedCuisines.includes(cuisine)
                               ? 'bg-brand text-white font-bold border-2 border-brand'
@@ -125,7 +129,7 @@ const FiltersMobile = () => {
                       {priceRanges.map((range) => (
                         <button
                           key={range}
-                          onClick={() => toggleSelection(range, selectedPriceRanges, setSelectedPriceRanges)}
+                          onClick={() => toggleSelection(range, selectedPriceRanges, setSelectedPriceRanges, true, priceRanges)}
                           className={`px-5 py-2.5 rounded-full text-base transition-colors ${
                             selectedPriceRanges.includes(range)
                               ? 'bg-brand text-white font-bold border-2 border-brand'
@@ -157,7 +161,7 @@ const FiltersMobile = () => {
                       {dietary.map((option) => (
                         <button
                           key={option}
-                          onClick={() => toggleSelection(option, selectedDietary, setSelectedDietary, false)}
+                          onClick={() => toggleSelection(option, selectedDietary, setSelectedDietary, false, dietary)}
                           className={`px-5 py-2.5 rounded-full text-base transition-colors ${
                             selectedDietary.includes(option)
                               ? 'bg-brand text-white font-bold border-2 border-brand'
@@ -229,6 +233,8 @@ const FiltersMobile = () => {
                 fontSize="base"
                 padding="6"
                 borderRadius="2xl"
+                borderColor="#21421B"
+                borderWidth="2px"
                 _hover={{ bg: '#2d5a24' }}
               >
                 Apply {activeCount > 0 && `(${activeCount})`}

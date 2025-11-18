@@ -31,7 +31,7 @@ const Filters = () => {
           {cuisines.map((cuisine) => (
             <button
               key={cuisine}
-              onClick={() => toggleSelection(cuisine, selectedCuisines, setSelectedCuisines)}
+              onClick={() => toggleSelection(cuisine, selectedCuisines, setSelectedCuisines, true, cuisines)}
               className={`px-3 py-1 rounded-full text-xs transition-colors ${
                 selectedCuisines.includes(cuisine)
                   ? 'bg-brand text-white font-bold border-2 border-brand'
@@ -51,7 +51,7 @@ const Filters = () => {
           {priceRanges.map((range) => (
             <button
               key={range}
-              onClick={() => toggleSelection(range, selectedPriceRanges, setSelectedPriceRanges)}
+              onClick={() => toggleSelection(range, selectedPriceRanges, setSelectedPriceRanges, true, priceRanges)}
               className={`px-3 py-1 rounded-full text-xs transition-colors ${
                 selectedPriceRanges.includes(range)
                   ? 'bg-brand text-white font-bold border-2 border-brand'
@@ -71,7 +71,7 @@ const Filters = () => {
           {dietary.map((option) => (
             <button
               key={option}
-              onClick={() => toggleSelection(option, selectedDietary, setSelectedDietary, false)}
+              onClick={() => toggleSelection(option, selectedDietary, setSelectedDietary, false, dietary)}
               className={`px-3 py-1 rounded-full text-xs transition-colors ${
                 selectedDietary.includes(option)
                   ? 'bg-brand text-white font-bold border-2 border-brand'
