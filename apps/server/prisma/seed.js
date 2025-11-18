@@ -138,6 +138,7 @@ async function main() {
     {
       name: 'Signature Chicken Rice',
       description: 'Tender steamed chicken with fragrant rice and homemade chilli.',
+      imageUrl: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?q=80&w=1200',
       priceCents: 450,
       category: 'Rice',
       prepTimeMins: 8,
@@ -145,6 +146,7 @@ async function main() {
     {
       name: 'Roasted Chicken Rice',
       description: 'Crispy roasted chicken with dark soy and garlic chilli.',
+      imageUrl: 'https://images.unsplash.com/photo-1525755662778-989d0524087e?q=80&w=1200',
       priceCents: 480,
       category: 'Rice',
       prepTimeMins: 9,
@@ -152,6 +154,7 @@ async function main() {
     {
       name: 'Char Kway Teow',
       description: 'Wok hei packed flat rice noodles with lup cheong and cockles.',
+      imageUrl: 'https://images.unsplash.com/photo-1484723091739-30a097e8f929?q=80&w=1200',
       priceCents: 550,
       category: 'Noodles',
       prepTimeMins: 7,
@@ -159,6 +162,7 @@ async function main() {
     {
       name: 'Hokkien Mee',
       description: 'Savoury prawn and squid noodles in rich seafood broth.',
+      imageUrl: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?q=80&w=1200',
       priceCents: 600,
       category: 'Noodles',
       prepTimeMins: 10,
@@ -166,6 +170,7 @@ async function main() {
     {
       name: 'Nasi Lemak',
       description: 'Coconut rice with fried chicken wing, ikan bilis, and sambal.',
+      imageUrl: 'https://images.unsplash.com/photo-1587139223878-684fbd4383a5?q=80&w=1200',
       priceCents: 520,
       category: 'Rice',
       prepTimeMins: 6,
@@ -173,6 +178,7 @@ async function main() {
     {
       name: 'Fried Carrot Cake (Black)',
       description: 'Sweet dark soy radish cake with egg and chai poh.',
+      imageUrl: 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?q=80&w=1200',
       priceCents: 480,
       category: 'Snacks',
       prepTimeMins: 6,
@@ -180,6 +186,7 @@ async function main() {
     {
       name: 'Fried Carrot Cake (White)',
       description: 'Crispy white radish cake with egg and spring onion.',
+      imageUrl: 'https://images.unsplash.com/photo-1525755662778-989d0524087e?q=80&w=1200&sat=-25',
       priceCents: 480,
       category: 'Snacks',
       prepTimeMins: 6,
@@ -187,6 +194,7 @@ async function main() {
     {
       name: 'Oyster Omelette',
       description: 'Crispy egg batter with fresh oysters and chilli dip.',
+      imageUrl: 'https://images.unsplash.com/photo-1604908176997-1251886d2c87?q=80&w=1200&sat=-10',
       priceCents: 650,
       category: 'Snacks',
       prepTimeMins: 9,
@@ -205,6 +213,7 @@ async function main() {
       },
       update: {
         description: item.description,
+        imageUrl: item.imageUrl,
         priceCents: item.priceCents,
         category: item.category,
         prepTimeMins: item.prepTimeMins,
@@ -214,6 +223,7 @@ async function main() {
         stallId: stall.id,
         name: item.name,
         description: item.description,
+        imageUrl: item.imageUrl,
         priceCents: item.priceCents,
         category: item.category,
         prepTimeMins: item.prepTimeMins,

@@ -111,10 +111,10 @@ const HawkerCentresPage = () => {
 
           {/* Load More Button */}
           {!loading && !error && hasMore && (
-            <div className="relative w-full px-4 lg:px-0 flex justify-center mt-16 mb-12">
+            <div className="relative w-full px-4 lg:px-0 flex justify-center mt-24 mb-12">
               <button
                 onClick={loadMore}
-                className="group relative flex items-center gap-4 px-6 py-3 text-brand font-bold text-xs rounded-full border border-brand/30 bg-white shadow-sm transition-all duration-300 hover:bg-brand hover:text-white animate-bounce"
+                className="group relative flex items-center gap-4 px-6 py-3 text-brand font-bold text-xs rounded-full bg-white shadow-sm transition-all duration-300 hover:bg-brand hover:text-white animate-bounce"
               >
                 <span>Load More Hawker Centres</span>
                 <div className="relative w-3 h-3">
