@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import arrowRight from '../../../assets/hawker/arrow-right.svg';
 import arrowRightWhite from '../../../assets/hawker/arrow-right-white.svg';
 import locationIcon from '../../../assets/hawker/location.svg';
@@ -8,10 +8,11 @@ import FiltersMobile from './FiltersMobile';
 import StallCard from './StallCard';
 import { useHawkerCentres } from '../hooks/useHawkerCentres';
 
+
 const HawkerCentresPage = () => {
   const [displayLimit, setDisplayLimit] = useState(6);
   const { hawkerCentres, loading, error } = useHawkerCentres(30); // Fetch more than we need
-
+  const navigate = useNavigate();
   const displayedCentres = hawkerCentres.slice(0, displayLimit);
   const centresWithStalls = displayedCentres.filter(
     (centre) => Array.isArray(centre.stalls) && centre.stalls.length > 0
@@ -97,7 +98,11 @@ const HawkerCentresPage = () => {
               {/* Stall Cards - Mobile: 2-column horizontal scroll, Desktop: 3-column grid */}
               <div className="lg:grid lg:grid-cols-3 lg:gap-6 flex overflow-x-auto gap-3 px-4 lg:px-0 snap-x snap-mandatory pb-4">
                 {centre.stalls.map((stall) => (
-                  <div key={stall.id} className="w-[45vw] lg:w-auto snap-start flex-shrink-0">
+                  <div
+                    key={stall.id}
+                    className="w-[45vw] lg:w-auto snap-start flex-shrink-0 cursor-pointer"
+                    onClick={() => navigate(`/stalls/${stall.id}`)}
+                  >
                     <StallCard
                       name={stall.name}
                       cuisineType={stall.cuisineType}
