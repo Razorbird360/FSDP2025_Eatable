@@ -18,8 +18,10 @@ export const orderService = {
             include: {
                 user: true,
                 stall: true,
+
             },
         });
+        console.log("Fetched order by ID:", orderId, order);
         return order;
     },
 
@@ -136,8 +138,12 @@ export const orderService = {
                 menuItem: true,
             },
         });
-        const result = [stall, items];
-        console.log ("Order items for orderId", orderId, result);
+        const info = await prisma.order.findUnique({
+            where: { id: orderId }
+        });
+
+        
+        const result = [stall, items, info];
         return result;
     },
 

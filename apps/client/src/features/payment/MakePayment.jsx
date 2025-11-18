@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 
 import NetsLogo from "../../assets/payment/netsQRLogo.png";
 import NetsQrPopup from "./NetsQrPopup";
+import OrderCompletedModal from "./OrderCompleted"; // ⭐ NEW IMPORT
 import api from "../../lib/api";
 
 // Helper: map raw orderItem -> UI-friendly item
@@ -51,8 +52,14 @@ export default function MakePayment() {
   const [loadingOrder, setLoadingOrder] = useState(true);
   const [orderError, setOrderError] = useState(null);
 
+    const [orderInfo, setOrderInfo] = useState(null);
+
   const [serviceFee, setServiceFee] = useState(0);
   const [loadingFee, setLoadingFee] = useState(true);
+
+  // ⭐ NEW STATE
+  const [showOrderSuccess, setShowOrderSuccess] = useState(false);
+  const [shouldShowSuccessAfterClose, setShouldShowSuccessAfterClose] = useState(false);
 
   const isCard = paymentMethod === "card";
   const isNets = paymentMethod === "netsqr";
@@ -61,21 +68,21 @@ export default function MakePayment() {
   // Fetch order + items
   // ───────────────────────────────
   useEffect(() => {
-  async function fetchServiceFee() {
-    try {
-      const res = await api.get("/orders/serviceFees");
-      // assuming backend returns { serviceFee: 2.0 }
-      setServiceFee(res.data.serviceFeesCents/100 || 0);
-    } catch (err) {
-      console.error("Failed to fetch service fee:", err);
-      setServiceFee(0); // fallback to 0 or default
-    } finally {
-      setLoadingFee(false);
+    async function fetchServiceFee() {
+      try {
+        const res = await api.get("/orders/serviceFees");
+        // assuming backend returns { serviceFee: 2.0 }
+        setServiceFee(res.data.serviceFeesCents / 100 || 0);
+      } catch (err) {
+        console.error("Failed to fetch service fee:", err);
+        setServiceFee(0); // fallback to 0 or default
+      } finally {
+        setLoadingFee(false);
+      }
     }
-  }
 
-  fetchServiceFee();
-}, []);
+    fetchServiceFee();
+  }, []);
 
   useEffect(() => {
     async function fetchOrder() {
@@ -87,14 +94,23 @@ export default function MakePayment() {
         const data = res.data;
         console.log("Fetched order data:", data);
 
-        // Expecting: [ { stall: {...} }, [ orderItems... ] ]
+        // Now expecting: [ { stall: {...} }, [ orderItems... ], infoObj ]
         const stallWrapper = Array.isArray(data) ? data[0] : null;
         const stallObj = stallWrapper?.stall ?? null;
         const itemsArr =
           Array.isArray(data) && Array.isArray(data[1]) ? data[1] : [];
+        const infoObj = Array.isArray(data) ? data[2] : null;
+
+        // ⭐ NEW: if already PAID, redirect to home immediately
+        if (infoObj?.status === "PAID") {
+          console.log("Order already PAID, redirecting to home.");
+          navigate("/home");
+          return; // stop further state updates
+        }
 
         setStall(stallObj);
         setItems(itemsArr.map(mapOrderItem));
+        setOrderInfo(infoObj || null);
       } catch (err) {
         console.error("Failed to load order:", err);
         setOrderError("Failed to load order details");
@@ -106,16 +122,13 @@ export default function MakePayment() {
     if (orderId) {
       fetchOrder();
     }
-  }, [orderId]);
+  }, [orderId, navigate]); // ⭐ include navigate in deps
 
   // Derived values
   const stallName =
     stall?.name || (items.length ? "Your selected stall" : "No stall found");
 
-  const subtotal = items.reduce(
-    (sum, item) => sum + item.price,
-    0
-  );
+  const subtotal = items.reduce((sum, item) => sum + item.price, 0);
   const voucherApplied = 0.0; // placeholder
   const total = subtotal + serviceFee - voucherApplied;
 
@@ -333,14 +346,16 @@ export default function MakePayment() {
                       <span className="text-gray-700">Subtotal</span>
                       <span>$ {subtotal.toFixed(2)}</span>
                     </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-800 font-medium">
-                          Service Fees
-                        </span>
-                        <span>
-                          {loadingFee ? "Loading..." : `$ ${serviceFee.toFixed(2)}`}
-                        </span>
-                      </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-800 font-medium">
+                        Service Fees
+                      </span>
+                      <span>
+                        {loadingFee
+                          ? "Loading..."
+                          : `$ ${serviceFee.toFixed(2)}`}
+                      </span>
+                    </div>
 
                     <div className="flex justify-between">
                       <span className="text-gray-700">Applied Voucher</span>
@@ -383,15 +398,30 @@ export default function MakePayment() {
         isOpen={showNetsModal}
         amount={total.toFixed(2)}   // 🔹 now uses real total
         orderId={orderId}
-        onClose={() => setShowNetsModal(false)}
+        onClose={() => {
+          setShowNetsModal(false);
+          // ⭐ AFTER SUCCESS POPUP IS CLOSED, SHOW ORDER SUCCESS POPUP
+          if (shouldShowSuccessAfterClose) {
+            setShowOrderSuccess(true);
+            setShouldShowSuccessAfterClose(false);
+          }
+        }}
         onSuccess={(data) => {
           console.log("NETS success:", data);
           // navigate(`/order-success/${orderId}`);
+          // ⭐ MARK THAT AFTER USER CLOSES THE NETS POPUP,
+          //    WE SHOULD SHOW THE ORDER SUCCESS POPUP
+          setShouldShowSuccessAfterClose(true);
         }}
         onFail={(data) => {
           console.log("NETS failed:", data);
         }}
       />
+
+      {/* ORDER SUCCESS POPUP (AFTER CLOSING NETS SUCCESS POPUP) */}
+      {showOrderSuccess && (
+        <OrderCompletedModal orderId={orderId} onClose={() => setShowOrderSuccess(false)} />
+      )}
     </div>
   );
 }

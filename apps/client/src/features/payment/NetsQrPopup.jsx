@@ -321,7 +321,7 @@ class NetsQrPopup extends Component {
             }}
             onClick={this.handleClosePopup}
           >
-            Close
+            Continue
           </button>
         </div>
       );

@@ -90,7 +90,6 @@ router.post("/query/:orderId", async (req, res) => {
       Number(result?.txn_status) === 1;
 
     if (isSuccess) {
-      console.log("💰 Payment confirmed. Updating order:", orderId);
 
       try {
         const updated = await orderService.orderPaymentSuccess(orderId);

@@ -1,198 +1,356 @@
 import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
 import logo_full from "../../assets/logo/logo_full.png";
 
-const foodImg =
+const fallbackFoodImg =
   "https://app.yakun.com/media/catalog/product/cache/f77d76b011e98ab379caeb79cadeeecd/f/r/french-toast-with-kaya.jpg";
 
-// ⭐ ADD YOUR IMAGE URLS HERE ⭐
 import qrImg from "../../assets/logo/QrPlaceholder.png";
 import locationImg from "../../assets/logo/LocationIcon.png";
 import clockImg from "../../assets/logo/Clock.png";
+import api from "../../lib/api";
 
-export default function OrderCompleted() {
+// helper to map raw order item -> UI item
+function mapOrderItem(raw) {
+  const mi = raw.menuItem || {};
+
+  const qty = Number(raw.quantity ?? 1);
+
+  const priceCents =
+    typeof raw.unitCents === "number"
+      ? raw.unitCents
+      : typeof mi.priceCents === "number"
+      ? mi.priceCents
+      : 0;
+
+  const price = priceCents / 100;
+
+  const topUpload = Array.isArray(mi.mediaUploads) ? mi.mediaUploads[0] : null;
+
+  return {
+    id: raw.id,
+    name: mi.name || "Unnamed item",
+    qty,
+    notes: raw.request || "",
+    price,
+    img:
+      topUpload?.imageUrl ||
+      topUpload?.image_url ||
+      mi.imageUrl ||
+      mi.image_url ||
+      null,
+  };
+}
+
+export default function OrderCompletedModal({ onClose, orderId }) {
   const navigate = useNavigate();
 
+  const [stall, setStall] = useState(null);
+  const [items, setItems] = useState([]);
+  const [loadingOrder, setLoadingOrder] = useState(true);
+  const [orderError, setOrderError] = useState(null);
+  const [orderMeta, setOrderMeta] = useState(null);
+  const [orderInfo, setOrderInfo] = useState(null);
+
+  const handleClose = () => {
+    if (onClose) onClose();
+    else navigate(-1);
+  };
+
+  useEffect(() => {
+    async function fetchOrder() {
+      if (!orderId) return;
+      try {
+        setLoadingOrder(true);
+        setOrderError(null);
+
+        const res = await api.get(`/orders/getOrder/${orderId}`);
+        const data = res.data;
+
+        // data = [stallWrapper, itemsArr, infoObj]
+        const stallWrapper = Array.isArray(data) ? data[0] : null;
+        const stallObj = stallWrapper?.stall ?? null;
+        const itemsArr =
+          Array.isArray(data) && Array.isArray(data[1]) ? data[1] : [];
+        const infoObj = Array.isArray(data) ? data[2] : null;
+
+        console.log("Fetched order details:", { stallObj, itemsArr, infoObj });
+
+        setStall(stallObj);
+        setItems(itemsArr.map(mapOrderItem));
+        setOrderMeta(stallWrapper || null);
+        setOrderInfo(infoObj || null);
+      } catch (err) {
+        console.error(err);
+        setOrderError("Failed to load order details.");
+      } finally {
+        setLoadingOrder(false);
+      }
+    }
+
+    fetchOrder();
+  }, [orderId]);
+
+  const stallName =
+    stall?.name || (items.length ? "Your selected stall" : "No stall found");
+
+  /** ORDER PLACED / CREATED TIME (from backend) */
+  const placedAtRaw =
+    orderInfo?.createdAt ||
+    orderInfo?.created_at ||
+    orderMeta?.placedAt ||
+    orderMeta?.createdAt ||
+    orderMeta?.created_at;
+
+  let placedAtText = "—";
+  if (placedAtRaw) {
+    const d = new Date(placedAtRaw);
+    if (!isNaN(d.getTime())) {
+      placedAtText = d.toLocaleString("en-SG", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      });
+    }
+  }
+
+  /** ESTIMATED PICK-UP TIME (from infoObj.estimatedReadyTime) */
+  const estimatedRaw =
+    orderInfo?.estimatedReadyTime || orderInfo?.estimated_ready_time;
+  let estimatedPickupText = "Awaiting stall confirmation";
+
+  if (estimatedRaw) {
+    const d = new Date(estimatedRaw);
+    if (!isNaN(d.getTime())) {
+      const timeStr = d.toLocaleTimeString("en-SG", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      });
+      estimatedPickupText = `Around ${timeStr}`;
+    }
+  }
+
+  /** PRICES / TOTALS */
+  const subtotal = items.reduce((sum, item) => sum + item.price * item.qty, 0);
+  const voucherApplied = 0.0; // keep static for now (or wire to backend later)
+
+  let serviceFee = 0;
+  let total = subtotal;
+
+  if (orderInfo?.totalCents != null) {
+    // Use backend total as the source of truth
+    total = orderInfo.totalCents / 100;
+
+    // Derive service fee from backend total - subtotal (+ voucher)
+    const derived = total - subtotal + voucherApplied;
+    serviceFee = derived > 0 ? derived : 0;
+  } else {
+    // fallback to previous hardcoded logic if backend total missing
+    serviceFee = 2.0;
+    total = subtotal + serviceFee - voucherApplied;
+  }
+
+  /** ORDER NUMBER (shortened for UI) */
+  const orderNumberRaw = orderId || orderInfo?.id || "—";
+  const displayOrderNumber =
+    orderNumberRaw && orderNumberRaw.length > 24
+      ? `${orderNumberRaw.slice(0, 8)}-${orderNumberRaw.slice(-4)}`
+      : orderNumberRaw;
+
+  /** ORDER STATUS (from backend) */
+  const rawStatus = orderInfo?.status || "—";
+  const displayStatus =
+    typeof rawStatus === "string"
+      ? rawStatus.charAt(0).toUpperCase() + rawStatus.slice(1).toLowerCase()
+      : rawStatus;
+
   return (
-    <div className="p-8 bg-[#f8fdf3] min-h-screen">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      onClick={handleClose}
+    >
+      <div
+        className="relative bg-white shadow-[0px_4px_4px_rgba(0,0,0,0.25)] rounded-xl w-[1182px] h-[829px] max-w-full overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
 
-      {/* BACK + TITLE + LOGO */}
-      <div className="flex items-center gap-3 mb-6">
-        <button onClick={() => navigate(-1)} className="text-2xl">
-          <span>&#8592;</span>
-        </button>
+        <div className="w-[899px] h-10 left-[108px] top-[42px] absolute flex items-center text-neutral-900 text-3xl font-medium leading-8">
+          Order Confirmation
+        </div>
 
-        <h1 className="text-2xl font-semibold">Order Confirmation</h1>
+        <img
+          className="w-24 h-24 left-[1003px] top-[12px] absolute object-contain"
+          src={logo_full}
+          alt="Eatable Logo"
+        />
 
-        <div className="ml-auto w-40 h-10 flex items-center justify-center">
+        <div className="w-[1056px] h-px left-[46px] top-[90.5px] absolute bg-black" />
+
+        {/* MAIN TITLE */}
+        <div className="w-[471px] h-10 left-[355px] top-[122px] absolute flex items-center justify-center text-neutral-900 text-3xl font-medium leading-8">
+          Your food order has been placed!
+        </div>
+
+        {/* ORDER META LEFT SIDE */}
+        <div className="w-80 h-10 left-[125px] top-[206px] absolute flex items-center text-black text-lg font-medium leading-8">
+          Order Number:&nbsp;{displayOrderNumber || "—"}
+        </div>
+        <div className="w-80 h-10 left-[125px] top-[236px] absolute flex items-center text-black text-lg font-medium leading-8">
+          Order Status:&nbsp; {displayStatus}
+        </div>
+        <div className="w-[320px] h-10 left-[125px] top-[266px] absolute flex items-center text-black text-sm font-normal leading-5">
+          Placed on:&nbsp;{placedAtText}
+        </div>
+
+        {/* Stall name & address */}
+        <div className="w-60 h-10 left-[169px] top-[304px] absolute flex items-center">
+          <span className="block w-full text-neutral-900 text-xl font-semibold leading-8 truncate">
+            {stallName}
+          </span>
+        </div>
+        <div className="w-72 h-10 left-[169px] top-[328px] absolute flex items-center text-stone-400 text-base font-medium leading-8">
+          {stall?.location || "Pick-up location will be shown here"}
+        </div>
+
+        {/* LOCATION ICON */}
+        <img
+          src={locationImg}
+          alt="Location"
+          className="w-7 h-7 left-[134px] top-[332px] absolute object-contain"
+        />
+
+        {/* Estimated pickup label + time */}
+        <div className="w-60 h-10 left-[169px] top-[383px] absolute flex items-center text-neutral-900 text-xl font-semibold leading-8">
+          Estimated Pick-Up Time
+        </div>
+        <div className="w-72 h-10 left-[169px] top-[408px] absolute flex items-center text-stone-400 text-base font-medium leading-8">
+          {estimatedPickupText}
+        </div>
+
+        {/* CLOCK ICON */}
+        <img
+          src={clockImg}
+          alt="Clock"
+          className="w-7 h-7 left-[134px] top-[412px] absolute object-contain"
+        />
+
+        {/* Pick Up QR label + image */}
+        <div className="w-28 h-10 left-[220px] top-[485px] absolute flex items-center justify-center text-neutral-900 text-xl font-semibold underline leading-8">
+          Pick Up QR
+        </div>
+        <div className="w-[196px] h-[196px] left-[178px] top-[503px] absolute">
           <img
-            src={logo_full}
-            alt="Eatable Logo"
-            className="h-full object-contain"
+            src={qrImg}
+            alt="Pick up QR"
+            className="w-full h-full object-contain"
           />
         </div>
-      </div>
 
-      <p className="text-center text-xl font-medium my-4">
-        Your food order has been placed!
-      </p>
+        {/* Return button */}
+        <button
+          className="w-60 h-10 left-[159px] top-[708px] absolute bg-lime-900 rounded-[10px] text-center text-white text-lg leading-8 shadow-sm hover:bg-green-900"
+          onClick={() => {
+            navigate("/home");
+            if (onClose) onClose();
+          }}
+        >
+          Return to Homepage
+        </button>
 
-      <hr className="my-4" />
-
-      {/* MAIN LAYOUT */}
-      <div className="flex gap-10">
-
-        {/* LEFT SIDE */}
-        <div className="flex flex-col w-[45%] pl-16 pr-4">
-
-          {/* ORDER META INFO */}
-          <div className="text-sm space-y-1 mb-8">
-            <p><strong>Order Number:</strong> Fcn8sjcxiz7-84932</p>
-            <p><strong>Order Time:</strong> 2025-11-07 20:17:06</p>
+        {/* RIGHT SIDE: ORDER DETAILS CARD */}
+        <div className="w-[478px] h-[571px] left-[596px] top-[196px] absolute bg-white rounded-[10px] shadow-[0px_4px_4px_rgba(0,0,0,0.25)] border border-zinc-400 overflow-hidden">
+          {/* Header */}
+          <div className="w-full px-4 pt-5 pb-3 flex flex-col items-center">
+            <div className="text-neutral-900 text-2xl font-medium leading-8">
+              Order Details
+            </div>
+            <div className="text-neutral-900 text-xl font-medium leading-8 text-center mt-1">
+              {stallName}
+            </div>
           </div>
 
-          {/* LOCATION */}
-          <div className="flex items-start gap-3 mb-6">
+          {/* Top divider */}
+          <div className="w-full h-px bg-zinc-400" />
 
-            {/* LOCATION ICON (replace placeholder) */}
-                <img
-                 src={locationImg}
-                 alt="Location Icon"
-                 className="w-10 h-10 object-contain"
-            />
-
-            <div>
-              <p className="font-medium">Tiong Bahru Market</p>
-              <p className="text-gray-500 text-sm">
-                30 Seng Poh Rd, Singapore 168898
+          {/* Items list area */}
+          <div className="px-4 py-4 space-y-3 max-h-[230px] overflow-y-auto">
+            {items.length === 0 ? (
+              <p className="text-sm text-gray-500 text-center">
+                No items found for this order.
               </p>
-            </div>
-          </div>
-
-          {/* PICKUP TIME */}
-          <div className="flex items-start gap-3 mb-10">
-
-            {/* CLOCK ICON (replace placeholder) */}
-                        <img
-            src={clockImg}
-            alt="Clock Icon"
-            className="w-10 h-10 object-contain"
-            />
-
-            <div>
-              <p className="font-medium">Estimated Pick-Up Time</p>
-              <p className="text-gray-500 text-sm">
-                10:00 - 10:10 (30 - 40mins)
-              </p>
-            </div>
-          </div>
-
-          {/* QR CODE */}
-          <div className="text-center mb-6">
-            <p className="font-medium underline cursor-pointer mb-3">
-              Pick Up QR
-            </p>
-
-            {/* QR IMAGE (replace placeholder) */}
-                        <img
-            src={qrImg}
-            alt="QR Code"
-            className="w-90 h-48 rounded mx-auto object-contain"
-            />
-          </div>
-
-          {/* RETURN BUTTON */}
-          <div className="flex justify-center mt-6">
-            <button
-              className="bg-green-800 text-white px-6 py-2 rounded-lg 
-                       hover:bg-green-900 w-56 text-center"
-              onClick={() => navigate("/home")}
-            >
-              Return to Homepage
-            </button>
-          </div>
-
-        </div>
-
-        {/* RIGHT SIDE ORDER CARD */}
-        <div className="w-[45%] border rounded-xl shadow-sm bg-white">
-
-          <div className="border-b p-4">
-            <h2 className="text-xl font-semibold">Order Details</h2>
-            <p className="text-sm text-gray-600">
-              John’s Famous Steak – Tiong Bahru Market
-            </p>
-          </div>
-
-          {/* ORDER ITEMS */}
-          <div className="divide-y">
-
-            {/* ITEM 1 */}
-            <div className="flex justify-between items-center p-4">
-              <div className="flex gap-3 items-center">
-                <img
-                  src={foodImg}
-                  alt="Eggs Benedict"
-                  className="w-14 h-14 rounded-md object-cover"
-                />
-                <div>
-                  <p className="font-medium text-sm">Eggs Benedict</p>
-                  <p className="text-xs text-gray-500">x1</p>
+            ) : (
+              items.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between"
+                >
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={item.img || fallbackFoodImg}
+                      alt={item.name}
+                      className="w-16 h-16 rounded-[5px] object-cover"
+                    />
+                    <div>
+                      <div className="text-black text-base font-medium leading-5">
+                        {item.name}
+                      </div>
+                      <div className="text-black text-base leading-5">
+                        x{item.qty}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-black text-base font-medium leading-5">
+                    ${" "}
+                    {(item.price * item.qty).toFixed(2)}
+                  </div>
                 </div>
-              </div>
-              <p>$16.90</p>
-            </div>
-
-            {/* ITEM 2 */}
-            <div className="flex justify-between items-center p-4">
-              <div className="flex gap-3 items-center">
-                <img
-                  src={foodImg}
-                  alt="French Toast"
-                  className="w-14 h-14 rounded-md object-cover"
-                />
-                <div>
-                  <p className="font-medium text-sm">French Toast</p>
-                  <p className="text-xs text-gray-500">x1</p>
-                </div>
-              </div>
-              <p>$9.50</p>
-            </div>
-
-            {/* ITEM 3 */}
-            <div className="flex justify-between items-center p-4">
-              <div className="flex gap-3 items-center">
-                <img
-                  src={foodImg}
-                  alt="Big Breakfast"
-                  className="w-14 h-14 rounded-md object-cover"
-                />
-                <div>
-                  <p className="font-medium text-sm">Big Breakfast</p>
-                  <p className="text-xs text-gray-500">x1</p>
-                </div>
-              </div>
-              <p>$10.50</p>
-            </div>
+              ))
+            )}
           </div>
 
-          {/* TOTALS */}
-          <div className="border-t p-4 text-sm space-y-2">
+          {/* Divider above totals */}
+          <div className="w-full h-px bg-zinc-400 mt-2" />
+
+          {/* Totals block */}
+          <div className="px-8 pt-3 pb-2 text-neutral-900 text-base font-medium leading-8 space-y-1.5">
             <div className="flex justify-between">
-              <p>Subtotal</p><p>$ 36.90</p>
+              <span>Subtotal</span>
+              <span>$ {subtotal.toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
-              <p>Service Fees</p><p>$ 2.00</p>
+              <span>Service Fees</span>
+              <span>$ {serviceFee.toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
-              <p>Applied Voucher</p><p>- $ 10.00</p>
+              <span>Applied Voucher</span>
+              <span>- $ {voucherApplied.toFixed(2)}</span>
             </div>
+          </div>
 
-            <div className="border-t pt-2 flex justify-between font-semibold">
-              <p>Total</p><p>$ 28.90</p>
-            </div>
+          {/* Divider above TOTAL line */}
+          <div className="w-full h-px bg-zinc-400" />
+
+          <div className="px-8 py-3 flex justify-between text-neutral-900 text-base font-medium leading-8">
+            <span>Total</span>
+            <span>$ {total.toFixed(2)}</span>
           </div>
         </div>
 
+        {/* Error / loading overlay text */}
+        {loadingOrder && (
+          <div className="absolute left-1/2 -translate-x-1/2 top-[170px] text-sm text-gray-500">
+            Loading order details…
+          </div>
+        )}
+        {orderError && (
+          <div className="absolute left-1/2 -translate-x-1/2 top-[170px] text-sm text-red-500">
+            {orderError}
+          </div>
+        )}
       </div>
     </div>
   );
