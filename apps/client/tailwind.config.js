@@ -1,6 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  content: ['./index.html', './src/**/*.{js,jsx}'],
+  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
       colors: {
@@ -12,6 +12,9 @@ export default {
           700: '#b91c1c',
         },
         brand: '#21421B',
+      },
+      fontFamily: {
+        sans: ['Sansation', 'sans-serif'],
       },
     },
   },
