@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Input, Box } from '@chakra-ui/react';
 import { useCart } from '../features/orders/components/CartContext';
@@ -70,6 +70,9 @@ export default function Navbar() {
   const { pathname } = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const profileMenuRef = useRef(null);
+
   const { count, openCart } = useCart();
   const { status, profile, logout, loading: authLoading } = useAuth();
 
@@ -98,6 +101,20 @@ export default function Navbar() {
   };
 
   const mobileMenuNavItems = status === 'authenticated' ? mobileNavItems : navIcons;
+
+  // close profile dropdown when clicking outside
+  useEffect(() => {
+    if (!isProfileMenuOpen) return;
+
+    const handleClickOutside = (event) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target)) {
+        setIsProfileMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isProfileMenuOpen]);
 
   return (
     <header className="fixed inset-x-0 top-0 z-40 border-b border-[#E7EEE7] bg-white shadow-sm">
@@ -155,21 +172,38 @@ export default function Navbar() {
                 <IconAction icon={cartIcon} label="Cart" badge={count} onClick={openCart} />
               </>
             )}
+
             {status === 'authenticated' ? (
-              <button
-                type="button"
-                onClick={handleLogout}
-                disabled={authLoading}
-                className="flex items-center gap-2 rounded-2xl border border-[#E7EEE7] bg-white px-3 py-1.5 text-left transition-colors hover:border-[#21421B]"
-              >
-                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#21421B] text-sm font-semibold text-white">
-                  {profileInitial}
-                </span>
-                <span className="hidden flex-col text-xs text-[#6d7f68] lg:flex">
-                  <span className="text-sm font-semibold text-[#1C201D]">{profileIdentifier}</span>
-                  <span>{authLoading ? 'Signing out...' : 'Log out'}</span>
-                </span>
-              </button>
+              <div className="relative" ref={profileMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setIsProfileMenuOpen((prev) => !prev)}
+                  disabled={authLoading}
+                  className="flex items-center gap-2 rounded-2xl border border-[#E7EEE7] bg-white px-3 py-1.5 text-left transition-colors hover:border-[#21421B]"
+                >
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#21421B] text-sm font-semibold text-white">
+                    {profileInitial}
+                  </span>
+                  <span className="text-sm font-semibold text-[#1C201D]">
+                    {profileIdentifier}
+                  </span>
+                </button>
+
+                {isProfileMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-40 rounded-2xl border border-[#E7EEE7] bg-white py-1 shadow-[0_10px_25px_rgba(0,0,0,0.08)]">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        await handleLogout();
+                        setIsProfileMenuOpen(false);
+                      }}
+                      className="block w-full px-4 py-2 text-left text-sm text-[#1C201D] hover:bg-[#F8FDF3] rounded-2xl"
+                    >
+                      {authLoading ? 'Signing out...' : 'Log out'}
+                    </button>
+                  </div>
+                )}
+              </div>
             ) : (
               <Link
                 to="/login"
@@ -332,7 +366,9 @@ export default function Navbar() {
                 </span>
                 <div>
                   <p className="text-sm font-semibold text-[#1C201D]">{profileIdentifier}</p>
-                  <p className="text-xs text-[#6d7f68]">{authLoading ? 'Signing out...' : 'Tap to sign out'}</p>
+                  <p className="text-xs text-[#6d7f68]">
+                    {authLoading ? 'Signing out...' : 'Tap to sign out'}
+                  </p>
                 </div>
               </button>
             ) : (
@@ -341,7 +377,11 @@ export default function Navbar() {
                 onClick={closeMobileMenu}
                 className="flex items-center gap-3 rounded-2xl border border-[#21421B] px-4 py-3 text-left text-[#21421B]"
               >
-                <img src={profilePlaceholder} alt="Profile" className="h-10 w-10 rounded-full object-cover" />
+                <img
+                  src={profilePlaceholder}
+                  alt="Profile"
+                  className="h-10 w-10 rounded-full object-cover"
+                />
                 <div>
                   <p className="text-sm font-semibold">Log in or Sign up</p>
                   <p className="text-xs text-[#6d7f68]">Access saved stalls & orders</p>
