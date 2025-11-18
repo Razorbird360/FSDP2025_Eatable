@@ -118,7 +118,7 @@ const Filters = () => {
         borderRadius="xl"
         color="gray.700"
         fontWeight="bold"
-        fontSize="xs"
+        fontSize="sm"
         padding="2"
         _hover={{ bg: '#21421B', color: 'white', borderColor: '#21421B' }}
       >
