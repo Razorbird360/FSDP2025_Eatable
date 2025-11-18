@@ -9,22 +9,25 @@ datasource db {
 }
 
 model User {
-  id             String   @id @default(uuid()) @db.Uuid
-  email          String   @unique
-  displayName    String   @map("display_name")
-  role           String   @default("user")
-  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
-  username       String   @unique
-  skipOnboarding Boolean  @default(false) @map("skip_Onboarding")  
-
-  reports      ContentReport[]
-  votes        MediaUploadVote[]
-  mediaUploads MediaUpload[]
-  orders       Order[]
-  ownedStalls  Stall[]
-  user_cart    user_cart[]
-  favorites    UserFavorite[]
+  id             String            @id @default(uuid()) @db.Uuid
+  email          String            @unique
+  displayName    String            @map("display_name")
+  role           String            @default("user")
+  createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  username       String            @unique
+  skipOnboarding Boolean           @default(false) @map("skip_Onboarding")
+  first_name     String?
+  last_name      String?
+  location       String?
+  description    String?
+  reports        ContentReport[]
+  votes          MediaUploadVote[]
+  mediaUploads   MediaUpload[]
+  orders         Order[]
+  ownedStalls    Stall[]
+  user_cart      user_cart[]
+  favorites      UserFavorite[]
 
   @@map("users")
 }
@@ -43,9 +46,9 @@ model Stall {
   hawkerCentreId String?        @map("hawker_centre_id") @db.Uuid
   menuItems      MenuItem[]
   orders         Order[]
+  hawkerCentre   HawkerCentre?  @relation(fields: [hawkerCentreId], references: [id], onUpdate: NoAction)
   owner          User?          @relation(fields: [ownerId], references: [id])
   favorites      UserFavorite[]
-  hawkerCentre   HawkerCentre?  @relation(fields: [hawkerCentreId], references: [id])
 
   @@map("stalls")
 }
@@ -134,6 +137,7 @@ model OrderItem {
   unitCents  Int      @map("unit_cents")
   createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  request    String?  @default("")
   menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
   order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
@@ -183,7 +187,7 @@ model user_cart {
 }
 
 model HawkerCentre {
-  id         String   @id @default(uuid()) @db.Uuid
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name       String
   slug       String   @unique
   address    String?
@@ -191,8 +195,7 @@ model HawkerCentre {
   latitude   Float
   longitude  Float
   createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt  DateTime @updatedAt      @map("updated_at") @db.Timestamptz(6)
-
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   stalls     Stall[]
 
   @@map("hawker_centres")

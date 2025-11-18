@@ -1,4 +1,7 @@
 import { useCart } from "./CartContext";
+import { useNavigate } from "react-router-dom";
+import api from "../../../lib/api";
+
 
 /* back arrow */
 function BackIcon(props) {
@@ -29,8 +32,10 @@ function ClockIcon(props) {
   );
 }
 
+
 export default function CartSidebar() {
-  const { items, total, isOpen, closeCart, updateQty, removeItem } = useCart();
+  const navigate = useNavigate();
+  const { items, total, isOpen, closeCart, updateQty, removeItem, refreshCart } = useCart();
 
   const hasItems = items.length > 0;
   const first = hasItems ? items[0] : null;
@@ -39,6 +44,19 @@ export default function CartSidebar() {
   const stallDescription = first?.stallDescription;
   const stallLocation = first?.stallLocation;
   const stallCuisine = first?.stallCuisine;
+  const stallId = first?.stallId;
+
+  async function Checkout() {
+    console.log("Proceeding to checkout...");
+    const res = await api.post('/orders/newOrder')
+    if (res.status === 200) {
+      navigate(`/makepayment/${res.data.orderId}`);
+    } else {
+      console.error("Failed to create order:", res);
+    }
+    await refreshCart(); // sidebar will show empty if backend cleared it
+    closeCart();
+  }
 
   return (
     <div
@@ -79,34 +97,29 @@ export default function CartSidebar() {
 
           {hasItems && (
             <div className="mt-5 space-y-1">
-              {/* Stall name */}
-              <p className="text-sm font-semibold text-gray-900">
-                {stallTitle}
-              </p>
-
-              {/* Stall description */}
-              {stallDescription && (
-                <p className="text-xs text-gray-600">
-                  {stallDescription}
+              <button
+                onClick={() => navigate(`/stalls/${stallId}`)}
+                className="text-left w-full"
+              >
+                <p className="text-sm font-semibold text-gray-900 hover:underline">
+                  {stallTitle}
                 </p>
-              )}
 
-              {/* Location + cuisine */}
-              {(stallLocation || stallCuisine) && (
+                {stallDescription && (
+                  <p className="text-xs text-gray-600">{stallDescription}</p>
+                )}
+
+                {(stallLocation || stallCuisine) && (
+                  <p className="text-xs text-gray-500">
+                    {stallLocation && <span>{stallLocation}</span>}
+                    {stallLocation && stallCuisine && <span> · </span>}
+                    {stallCuisine && <span>{stallCuisine}</span>}
+                  </p>
+                )}
                 <p className="text-xs text-gray-500">
-                  {stallLocation && <span>{stallLocation}</span>}
-                  {stallLocation && stallCuisine && <span> · </span>}
-                  {stallCuisine && <span>{stallCuisine}</span>}
-                </p>
-              )}
-
-              <div className="flex items-center gap-1.5 text-xs text-gray-600 pt-1">
-                <ClockIcon className="w-3.5 h-3.5" />
-                <span>
-                  <span className="font-semibold">Estimated waiting time:</span>{" "}
-                  30 mins
-                </span>
-              </div>
+                    (click to continue shopping at this stall)
+                  </p>
+              </button>
             </div>
           )}
         </header>
@@ -205,6 +218,8 @@ export default function CartSidebar() {
           <button
             type="button"
             className="w-full rounded-xl bg-[#21421B] py-3 text-sm font-semibold text-white hover:bg-[#21421B]/90"
+            disabled={!hasItems}
+            onClick={Checkout}
           >
             Proceed to checkout
           </button>

@@ -243,6 +243,16 @@ export function CartProvider({ children }) {
     [items]
   );
 
+  const refreshCart = useCallback(async () => {
+    try {
+      const res = await api.get("/cart/get");
+      const rows = Array.isArray(res.data) ? res.data : res.data.items ?? [];
+      setItems(rows.map(mapCartRow));
+    } catch (err) {
+      console.error("Failed to refresh cart:", err);
+    }
+  }, []);
+
   const value = {
     items, // each item has cartId + menu item id
     addToCart,
@@ -255,6 +265,7 @@ export function CartProvider({ children }) {
     openCart,
     closeCart,
     toggleCart,
+    refreshCart
   };
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
