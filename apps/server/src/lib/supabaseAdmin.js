@@ -15,10 +15,11 @@ if (!supabaseUrl || !supabaseServiceKey) {
   throw new Error('Missing Supabase environment variables');
 }
 
-// Admin client with service key - can bypass RLS (not like we using it anwyays)
 export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
   auth: {
     autoRefreshToken: false,
     persistSession: false,
   },
 });
+
+export default supabaseAdmin;
