@@ -1,39 +1,23 @@
-import { useState } from 'react';
 import { Button } from '@chakra-ui/react';
 import { Slider } from '@chakra-ui/react';
+import { useFilters } from '../hooks/useFilters';
 
 const Filters = () => {
-  const [selectedCuisines, setSelectedCuisines] = useState<string[]>(['All']);
-  const [selectedPriceRanges, setSelectedPriceRanges] = useState<string[]>(['All']);
-  const [selectedDietary, setSelectedDietary] = useState<string[]>([]);
-  const [prepTime, setPrepTime] = useState([30]);
-
-  const cuisines = ['All', 'Chinese', 'Malay', 'Indian', 'Western', 'Japanese', 'Vegetarian'];
-  const priceRanges = ['All', 'Under $5', '$5 - $10', '$10 - $15', 'Above $15'];
-  const dietary = ['Halal', 'Vegetarian', 'Vegan', 'Gluten-Free', 'No Pork'];
-
-  const toggleSelection = (
-    item: string,
-    selected: string[],
-    setSelected: (items: string[]) => void,
-    hasAll: boolean = true
-  ) => {
-    if (item === 'All') {
-      setSelected(['All']);
-    } else {
-      const newSelection = selected.includes(item)
-        ? selected.filter((i) => i !== item)
-        : [...selected.filter((i) => i !== 'All'), item];
-      setSelected(newSelection.length === 0 && hasAll ? ['All'] : newSelection);
-    }
-  };
-
-  const clearAllFilters = () => {
-    setSelectedCuisines(['All']);
-    setSelectedPriceRanges(['All']);
-    setSelectedDietary([]);
-    setPrepTime([30]);
-  };
+  const {
+    cuisines,
+    priceRanges,
+    dietary,
+    selectedCuisines,
+    setSelectedCuisines,
+    selectedPriceRanges,
+    setSelectedPriceRanges,
+    selectedDietary,
+    setSelectedDietary,
+    prepTime,
+    setPrepTime,
+    toggleSelection,
+    clearAllFilters,
+  } = useFilters();
 
   return (
     <div className="bg-white rounded-lg p-4 shadow-lg font-sans border border-black border-opacity-20">

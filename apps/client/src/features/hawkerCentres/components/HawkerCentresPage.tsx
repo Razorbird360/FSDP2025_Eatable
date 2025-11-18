@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import arrowRight from '../../../assets/hawker/arrow-right.svg';
 import Filters from './Filters';
+import FiltersMobile from './FiltersMobile';
 
 const HawkerCentresPage = () => {
   return (
@@ -17,11 +18,20 @@ const HawkerCentresPage = () => {
       </div>
 
       <div className="w-full flex gap-4">
-        <div className="w-[22vw] sticky top-24">
+        {/* Desktop Filters - Hidden on mobile/tablet */}
+        <div className="hidden lg:block w-[22vw] sticky top-24">
           <Filters />
         </div>
 
-        <div className="w-[75vw] min-h-[60vh] bg-orange-400"></div>
+        {/* Content Area */}
+        <div className="w-full lg:w-[75vw] min-h-[60vh] bg-orange-400 pb-20 lg:pb-0">
+          {/* Mobile Filters - Shown only on mobile/tablet */}
+          <div className="lg:hidden">
+            <FiltersMobile />
+          </div>
+
+          {/* Hawker Centre Cards will go here */}
+        </div>
       </div>
     </section>
   );
