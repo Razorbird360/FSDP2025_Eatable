@@ -1,17 +1,123 @@
 import { useNavigate, useParams } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 import NetsLogo from "../../assets/payment/netsQRLogo.png";
 import NetsQrPopup from "./NetsQrPopup";
+import api from "../../lib/api";
+
+// Helper: map raw orderItem -> UI-friendly item
+function mapOrderItem(raw) {
+  const mi = raw.menuItem || {};
+
+  const qty = Number(raw.quantity ?? 1);
+
+  const priceCents =
+    typeof raw.unitCents === "number"
+      ? raw.unitCents
+      : typeof mi.priceCents === "number"
+      ? mi.priceCents
+      : 0;
+
+  const price = priceCents / 100;
+
+  // If you ever include mediaUploads on menuItem, this will work too
+  const topUpload = Array.isArray(mi.mediaUploads) ? mi.mediaUploads[0] : null;
+
+  return {
+    id: raw.id,
+    name: mi.name || "Unnamed item",
+    qty,
+    notes: raw.request || "",
+    price,
+    img:
+      topUpload?.imageUrl ||
+      topUpload?.image_url ||
+      mi.imageUrl ||
+      mi.image_url ||
+      null,
+  };
+}
 
 export default function MakePayment() {
-  const orderId = useParams().orderid;
+  const { orderid } = useParams();
+  const orderId = orderid;
   const navigate = useNavigate();
+
   const [paymentMethod, setPaymentMethod] = useState("card"); // "card" | "netsqr"
   const [showNetsModal, setShowNetsModal] = useState(false);
 
+  const [stall, setStall] = useState(null);
+  const [items, setItems] = useState([]);
+  const [loadingOrder, setLoadingOrder] = useState(true);
+  const [orderError, setOrderError] = useState(null);
+
+  const [serviceFee, setServiceFee] = useState(0);
+  const [loadingFee, setLoadingFee] = useState(true);
+
   const isCard = paymentMethod === "card";
   const isNets = paymentMethod === "netsqr";
+
+  // ───────────────────────────────
+  // Fetch order + items
+  // ───────────────────────────────
+  useEffect(() => {
+  async function fetchServiceFee() {
+    try {
+      const res = await api.get("/orders/serviceFees");
+      // assuming backend returns { serviceFee: 2.0 }
+      setServiceFee(res.data.serviceFeesCents/100 || 0);
+    } catch (err) {
+      console.error("Failed to fetch service fee:", err);
+      setServiceFee(0); // fallback to 0 or default
+    } finally {
+      setLoadingFee(false);
+    }
+  }
+
+  fetchServiceFee();
+}, []);
+
+  useEffect(() => {
+    async function fetchOrder() {
+      try {
+        setLoadingOrder(true);
+        setOrderError(null);
+
+        const res = await api.get(`/orders/getOrder/${orderId}`);
+        const data = res.data;
+        console.log("Fetched order data:", data);
+
+        // Expecting: [ { stall: {...} }, [ orderItems... ] ]
+        const stallWrapper = Array.isArray(data) ? data[0] : null;
+        const stallObj = stallWrapper?.stall ?? null;
+        const itemsArr =
+          Array.isArray(data) && Array.isArray(data[1]) ? data[1] : [];
+
+        setStall(stallObj);
+        setItems(itemsArr.map(mapOrderItem));
+      } catch (err) {
+        console.error("Failed to load order:", err);
+        setOrderError("Failed to load order details");
+      } finally {
+        setLoadingOrder(false);
+      }
+    }
+
+    if (orderId) {
+      fetchOrder();
+    }
+  }, [orderId]);
+
+  // Derived values
+  const stallName =
+    stall?.name || (items.length ? "Your selected stall" : "No stall found");
+
+  const subtotal = items.reduce(
+    (sum, item) => sum + item.price,
+    0
+  );
+  const voucherApplied = 0.0; // placeholder
+  const total = subtotal + serviceFee - voucherApplied;
 
   const handleSelectCard = () => {
     setPaymentMethod("card");
@@ -24,7 +130,8 @@ export default function MakePayment() {
 
   const handleNext = () => {
     if (paymentMethod === "card") {
-      navigate("/make-payment");
+      // you might redirect to another page later, for now this is a no-op or refresh
+      navigate(`/makepayment/${orderId}`);
     } else if (paymentMethod === "netsqr") {
       setShowNetsModal(true);
     }
@@ -134,12 +241,118 @@ export default function MakePayment() {
 
           {/* RIGHT SIDE — ORDER SUMMARY */}
           <div className="order-1 lg:order-2">
-            <div className="border rounded-xl p-6 shadow-sm 
+            <div
+              className="border rounded-xl p-6 shadow-sm 
                 h-[300px] overflow-y-auto 
                 sm:h-[350px] 
-                lg:h-[470px]">
-                
-              {/* keep your existing order summary here */}
+                lg:h-[470px]"
+            >
+              {/* --- Stall info + items go here --- */}
+
+              {loadingOrder && (
+                <p className="text-gray-500 text-sm">Loading order…</p>
+              )}
+
+              {orderError && (
+                <p className="text-red-500 text-sm">{orderError}</p>
+              )}
+
+              {!loadingOrder && !orderError && (
+                <>
+                  {/* Stall info section */}
+                  <div className="mb-4">
+                    <h2 className="text-lg font-semibold">
+                      {stallName}
+                    </h2>
+                    {stall && (
+                      <>
+                        {stall.description && (
+                          <p className="text-sm text-gray-700 mt-1">
+                            {stall.description}
+                          </p>
+                        )}
+                        <p className="text-xs text-gray-500 mt-1">
+                          {stall.location}
+                        </p>
+                        {stall.cuisineType && (
+                          <span className="inline-block mt-2 text-xs px-2 py-1 rounded-full bg-green-50 text-green-800 border border-green-200">
+                            {stall.cuisineType}
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </div>
+
+                  <hr className="border-gray-200 my-3" />
+
+                  {/* Order items section */}
+                  {items.length === 0 ? (
+                    <p className="text-gray-500 text-sm">
+                      No items found for this order.
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      {items.map((item) => (
+                        <div
+                          key={item.id}
+                          className="flex items-center bg-white border border-[#E4E4E4] rounded-xl px-3 py-2"
+                        >
+                          {item.img && (
+                            <img
+                              src={item.img}
+                              alt={item.name}
+                              className="w-14 h-14 rounded-lg object-cover mr-3"
+                            />
+                          )}
+
+                          <div className="flex-1">
+                            <p className="font-semibold text-[14px]">
+                              {item.name}
+                            </p>
+                            <p className="text-xs text-gray-500 mt-0.5">
+                              Qty: {item.qty}
+                            </p>
+                            {item.notes && (
+                              <p className="text-xs text-gray-500 mt-0.5">
+                                * {item.notes}
+                              </p>
+                            )}
+                          </div>
+
+                          <p className="text-[14px] font-semibold ml-3 whitespace-nowrap">
+                            $ {item.price.toFixed(2)}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Totals */}
+                  <div className="mt-6 border-t pt-4 text-sm space-y-1">
+                    <div className="flex justify-between">
+                      <span className="text-gray-700">Subtotal</span>
+                      <span>$ {subtotal.toFixed(2)}</span>
+                    </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-800 font-medium">
+                          Service Fees
+                        </span>
+                        <span>
+                          {loadingFee ? "Loading..." : `$ ${serviceFee.toFixed(2)}`}
+                        </span>
+                      </div>
+
+                    <div className="flex justify-between">
+                      <span className="text-gray-700">Applied Voucher</span>
+                      <span>- $ {voucherApplied.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between pt-2 border-t mt-2 text-base font-semibold">
+                      <span>Total</span>
+                      <span>$ {total.toFixed(2)}</span>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Desktop / large screens: button under summary */}
@@ -168,7 +381,7 @@ export default function MakePayment() {
       {/* NETS QR POPUP MODAL */}
       <NetsQrPopup
         isOpen={showNetsModal}
-        amount="3"
+        amount={total.toFixed(2)}   // 🔹 now uses real total
         orderId={orderId}
         onClose={() => setShowNetsModal(false)}
         onSuccess={(data) => {

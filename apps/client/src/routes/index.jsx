@@ -54,7 +54,7 @@ function AppRoutes() {
         <Route element={<ProtectedLayout />}>
           <Route path="/cart" element={<Cart />} />
           <Route path="/orders" element={<OrderHistory />} />
-          <Route path="/orders/:orderId" element={<OrderSummaryPage />} />
+          <Route path="/orderSummary" element={<OrderSummaryPage />} />
           <Route path="/profile" element={<ProfilePage />} />
 
           {/* TODO: Add more protected routes: profile, upload photo, etc */}

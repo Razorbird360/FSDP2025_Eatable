@@ -1,7 +1,17 @@
 import prisma from '../lib/prisma.js';
 import { cartService } from './cart.service.js';
 
+
 export const orderService = {
+    async getServiceFees(req, res, next) {
+        const config = await prisma.system_configuration.findUnique({
+            where: { id: 1 },
+        });
+        const serviceFeesCents = config ? config.servicefeecents : 0;
+        console.log('Fetched service fees cents:', serviceFeesCents);
+        return res.status(200).json({ serviceFeesCents });
+    },
+
     async getOrderById(orderId) {
         const order = await prisma.order.findUnique({
             where: { id: orderId },
@@ -43,6 +53,7 @@ export const orderService = {
         throw error;
     }
 
+
     // 3) Calculate total in cents
     const totalCents = cart.reduce((sum, item) => {
         const menuItem = item.menu_items;
@@ -63,6 +74,13 @@ export const orderService = {
         throw new Error("totalCents is NaN – fix cart mapping.");
     }
 
+    const SERVICE_FEES_QUERY = await prisma.system_configuration.findUnique({
+        where: { id: 1 },
+    });
+    const SERVICE_FEES_CENTS = SERVICE_FEES_QUERY ? SERVICE_FEES_QUERY.servicefeecents : 0;
+
+    console.log('Service fees cents:', SERVICE_FEES_CENTS);
+
     // 4) Run everything in a single transaction
     const order = await prisma.$transaction(async (tx) => {
         // 4a) Create the order
@@ -70,7 +88,7 @@ export const orderService = {
         data: {
             userId,
             stallId,
-            totalCents,
+            totalCents: totalCents + SERVICE_FEES_CENTS,
             status: "pending",
             netsTxnId: process.env.TEST_TXN_ID || null,
         },
@@ -108,13 +126,19 @@ export const orderService = {
     },
 
     async getOrderItems(orderId) {
+        const stall = await prisma.order.findUnique({
+            where: { id: orderId },
+            select: { stall: true }
+        });
         const items = await prisma.orderItem.findMany({
             where: { orderId },
             include: {
                 menuItem: true,
             },
         });
-        return items;
+        const result = [stall, items];
+        console.log ("Order items for orderId", orderId, result);
+        return result;
     },
 
 };

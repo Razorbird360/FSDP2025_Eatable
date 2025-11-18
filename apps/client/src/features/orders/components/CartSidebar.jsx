@@ -46,15 +46,9 @@ export default function CartSidebar() {
   const stallCuisine = first?.stallCuisine;
   const stallId = first?.stallId;
 
-  async function Checkout() {
-    console.log("Proceeding to checkout...");
-    const res = await api.post('/orders/newOrder')
-    if (res.status === 200) {
-      navigate(`/makepayment/${res.data.orderId}`);
-    } else {
-      console.error("Failed to create order:", res);
-    }
-    await refreshCart(); // sidebar will show empty if backend cleared it
+
+  async function orderSummary() {
+    navigate(`/orderSummary`);
     closeCart();
   }
 
@@ -219,7 +213,7 @@ export default function CartSidebar() {
             type="button"
             className="w-full rounded-xl bg-[#21421B] py-3 text-sm font-semibold text-white hover:bg-[#21421B]/90"
             disabled={!hasItems}
-            onClick={Checkout}
+            onClick={orderSummary}
           >
             Proceed to checkout
           </button>

@@ -18,4 +18,14 @@ export const orderController = {
         next(err); // let your global error handler deal with it
     }
   },
+
+    async getOrderById(req, res, next) {
+        try {
+            const orderId = req.params.orderId;
+            const order = await orderService.getOrderItems(orderId);
+            return res.status(200).json(order);
+        } catch (err) {
+            next(err); // let your global error handler deal with it
+        }
+    }
 };

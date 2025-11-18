@@ -5,3 +5,4 @@ export default function OrderSummaryPage() {
   const { orderId } = useParams();
   return <OrderSummary orderId={orderId} />;
 }
+
