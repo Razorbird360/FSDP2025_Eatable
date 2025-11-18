@@ -7,6 +7,16 @@ settings:
 importers:
 
   .:
+    dependencies:
+      axios:
+        specifier: ^1.13.1
+        version: 1.13.1
+      event-source-polyfill:
+        specifier: ^1.0.31
+        version: 1.0.31
+      eventsource:
+        specifier: ^4.0.0
+        version: 4.0.0
     devDependencies:
       prettier:
         specifier: ^3.1.0
@@ -96,6 +106,9 @@ importers:
       dotenv:
         specifier: ^16.3.0
         version: 16.6.1
+      eventsource:
+        specifier: ^4.0.0
+        version: 4.0.0
       express:
         specifier: ^4.18.2
         version: 4.21.2
@@ -1546,6 +1559,17 @@ packages:
   etag@1.8.1:
     resolution: {integrity: sha512-aIL5Fx7mawVa300al2BnEE4iNvo1qETxLrPI/o05L7z6go7fCw1J6EQmbK4FmJ2AS7kgVF/KEZWufBfdClMcPg==}
     engines: {node: '>= 0.6'}
+
+  event-source-polyfill@1.0.31:
+    resolution: {integrity: sha512-4IJSItgS/41IxN5UVAVuAyczwZF7ZIEsM1XAoUzIHA6A+xzusEZUutdXz2Nr+MQPLxfTiCvqE79/C8HT8fKFvA==}
+
+  eventsource-parser@3.0.6:
+    resolution: {integrity: sha512-Vo1ab+QXPzZ4tCa8SwIHJFaSzy4R6SHf7BY79rFBDf0idraZWAkYrDjDj8uWaSm3S2TK+hJ7/t1CEmZ7jXw+pg==}
+    engines: {node: '>=18.0.0'}
+
+  eventsource@4.0.0:
+    resolution: {integrity: sha512-fvIkb9qZzdMxgZrEQDyll+9oJsyaVvY92I2Re+qK0qEJ+w5s0X3dtz+M0VAPOjP1gtU3iqWyjQ0G3nvd5CLZ2g==}
+    engines: {node: '>=20.0.0'}
 
   express@4.21.2:
     resolution: {integrity: sha512-28HqgMZAmih1Czt9ny7qr6ek2qddF4FclbMzwhCREB6OFfH+rXAnuNCwo1/wFvrtbgsQDb4kSbX9de9lFbrXnA==}
@@ -4661,6 +4685,14 @@ snapshots:
   esutils@2.0.3: {}
 
   etag@1.8.1: {}
+
+  event-source-polyfill@1.0.31: {}
+
+  eventsource-parser@3.0.6: {}
+
+  eventsource@4.0.0:
+    dependencies:
+      eventsource-parser: 3.0.6
 
   express@4.21.2:
     dependencies:
