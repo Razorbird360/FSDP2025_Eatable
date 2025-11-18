@@ -171,7 +171,10 @@ export default function OrderCompletedModal({ onClose, orderId }) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-      onClick={handleClose}
+      onClick={() => {
+  navigate("/home");
+  if (onClose) onClose();
+}}
     >
       <div
         className="relative bg-white shadow-[0px_4px_4px_rgba(0,0,0,0.25)] rounded-xl w-[1182px] h-[829px] max-w-full overflow-hidden"
