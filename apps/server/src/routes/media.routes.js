@@ -35,4 +35,7 @@ router.post('/downvote/:uploadId/', authMiddleware,mediaController.downvote);
 router.delete('/removeupvote/:uploadId/', authMiddleware, mediaController.removeUpvote);
 router.delete('/removedownvote/:uploadId/', authMiddleware, mediaController.removeDownvote);
 
+router.get('/skip-onboarding',authMiddleware, mediaController.getSkipOnboarding);
+router.post('/skip-onboarding', authMiddleware, mediaController.setSkipOnboarding);
+
 export default router;
