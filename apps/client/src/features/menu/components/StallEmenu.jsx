@@ -721,11 +721,12 @@ useEffect(() => {
               ...item,
               stallName: STALL_META.name,
               stallMarket: STALL_META.market,
+              stallId: stall.id,
             },
             qty,
             notes
           );
-
+          console.log("Added to cart:", stall.id);
           setToast({ message: `Added ${item.name} x${qty} to cart` });
           setTimeout(() => setToast(null), 1800);
         }}
