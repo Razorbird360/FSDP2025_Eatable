@@ -1,19 +1,27 @@
 import { Card, Image } from '@chakra-ui/react';
 import ratingIcon from '../../../assets/hawker/rating.svg';
+import placeholderImage from '../../../assets/hawker/hawker-default.jpg';
 
 interface StallCardProps {
   name: string;
-  cuisineType: string;
-  rating: number;
-  price: string;
-  imageUrl: string;
+  cuisineType: string | null;
+  imageUrl: string | null;
 }
 
-const StallCard = ({ name, cuisineType, rating, price, imageUrl }: StallCardProps) => {
+const StallCard = ({ name, cuisineType, imageUrl }: StallCardProps) => {
+  // Hardcoded values as per requirements
+  const rating = 201;
+  const price = '$7.50';
+
+  // Use placeholder image if imageUrl is null
+  const displayImage = imageUrl || placeholderImage;
+
+  // Fallback to "Local" if cuisineType is null
+  const displayCuisine = cuisineType || 'Local';
   return (
     <Card.Root className="overflow-hidden font-sans rounded-xl shadow-md border border-gray-200 h-full flex flex-col">
       <Image
-        src={imageUrl}
+        src={displayImage}
         alt={name}
         className="w-full h-32 lg:h-56 object-cover flex-shrink-0"
       />
@@ -22,7 +30,7 @@ const StallCard = ({ name, cuisineType, rating, price, imageUrl }: StallCardProp
           <h3 className="text-sm lg:text-lg font-normal text-gray-900 leading-tight line-clamp-2">{name}</h3>
         </div>
 
-        <p className="text-xs lg:text-sm text-gray-600 mb-2 lg:mb-4">{cuisineType}</p>
+        <p className="text-xs lg:text-sm text-gray-600 mb-2 lg:mb-4">{displayCuisine}</p>
 
         <div className="flex items-center justify-between mt-auto">
           <div className="flex items-center gap-1 lg:gap-1.5">
