@@ -1,15 +1,18 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
 import pkg from '@prisma/client';
 
 const { PrismaClient } = pkg;
 
-const prisma = new PrismaClient();
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const hawkerDataPath = path.join(__dirname, '../data/hawker-centres.geojson');
+const envPath = path.join(__dirname, '../.env');
+dotenv.config({ path: envPath });
+
+const prisma = new PrismaClient();
 
 const slugifyName = (value) =>
   value
@@ -116,18 +119,12 @@ async function main() {
     update: {
       description: 'Neighbourhood favourite spot for classic Singapore hawker food.',
       location: 'Blk 123 Hougang Ave 1, #01-23',
-      latitude: 1.3721,
-      longitude: 103.8921,
-      isVerified: true,
       ownerId: demoUser.id,
     },
     create: {
       name: 'Hougang Hawker Delights',
       description: 'Neighbourhood favourite spot for classic Singapore hawker food.',
       location: 'Blk 123 Hougang Ave 1, #01-23',
-      latitude: 1.3721,
-      longitude: 103.8921,
-      isVerified: true,
       ownerId: demoUser.id,
       tags: ['hawker', 'local', 'singapore'],
       cuisineType: 'Singaporean',

@@ -28,25 +28,22 @@ model User {
 }
 
 model Stall {
-  id          String         @id @default(uuid()) @db.Uuid
-  ownerId     String?        @map("owner_id") @db.Uuid
-  name        String         @unique
-  description String?
-  location    String?
-  latitude    Float?
-  longitude   Float?
-  isVerified  Boolean        @default(false) @map("is_verified")
-  cuisineType String?        @map("cuisine_type")
-  tags        String[]       @default([])
-  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
-  image_url   String?
-  hawkerCentreId String?     @map("hawker_centre_id") @db.Uuid
-  menuItems   MenuItem[]
-  orders      Order[]
-  owner       User?          @relation(fields: [ownerId], references: [id])
-  favorites   UserFavorite[]
-  hawkerCentre HawkerCentre? @relation(fields: [hawkerCentreId], references: [id])
+  id             String         @id @default(uuid()) @db.Uuid
+  ownerId        String?        @map("owner_id") @db.Uuid
+  name           String         @unique
+  description    String?
+  location       String?
+  cuisineType    String?        @map("cuisine_type")
+  tags           String[]       @default([])
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+  image_url      String?
+  hawkerCentreId String?        @map("hawker_centre_id") @db.Uuid
+  menuItems      MenuItem[]
+  orders         Order[]
+  owner          User?          @relation(fields: [ownerId], references: [id])
+  favorites      UserFavorite[]
+  hawkerCentre   HawkerCentre?  @relation(fields: [hawkerCentreId], references: [id])
 
   @@map("stalls")
 }
