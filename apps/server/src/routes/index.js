@@ -23,8 +23,8 @@ router.use('/media', mediaRoutes);
 router.use('/moderation', moderationRoutes);
 router.use('/hawker-centres', hawkerCentresRoutes);
 router.use('/cart', cartRoutes);
-router.use('/orders', ordersRoutes);
-router.use('/order', orderRoutes);
+router.use('/orders', orderRoutes);
+router.use('/order', ordersRoutes);
 router.use('/nets-qr', netsRoutes);
 
 export default router;
