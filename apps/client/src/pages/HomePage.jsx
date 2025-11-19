@@ -133,7 +133,7 @@ function HomePage() {
                 <img
                   src={arrowRight}
                   alt=""
-                  className="h-6 w-6 translate-y-[1px] hover:filter hover:invert hover:brightness-200 transition duration-150 ease-in-out"
+                  className="h-6 w-6 translate-y-[1px]"
                   aria-hidden="true"
                 />
               </Button>
@@ -159,7 +159,7 @@ function HomePage() {
               <img
                 src={cameraIcon}
                 alt=""
-                className="h-6 w-6 hover:filter hover:invert hover:brightness-200 transition duration-150 ease-in-out"
+                className="h-6 w-6"
                 aria-hidden="true"
               />
               Upload a dish photo

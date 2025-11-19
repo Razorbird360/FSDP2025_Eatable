@@ -1,7 +1,7 @@
 import { useNavigate, useParams } from "react-router-dom";
 import { useState, useEffect } from "react";
 
-import NetsLogo from "../../assets/payment/netsQRLogo.png";
+import NetsLogo from "../../assets/payment/netsQrLogo.png";
 import NetsQrPopup from "./NetsQrPopup";
 import OrderCompletedModal from "./OrderCompleted"; // ⭐ NEW IMPORT
 import api from "../../lib/api";

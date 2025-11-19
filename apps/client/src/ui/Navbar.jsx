@@ -17,7 +17,7 @@ const logoFull = new URL('../assets/logo/logo_full.png', import.meta.url).href;
 const profilePlaceholder = new URL('../assets/navbar/profile_placeholder.jpg', import.meta.url).href;
 
 const navIcons = [
-  { label: 'Home', icon: homeIcon, href: '/' },
+  { label: 'Home', icon: homeIcon, href: '/home' },
   { label: 'Hawkers', icon: foodIcon, href: '/stalls' },
   { label: 'Community', icon: communityIcon, href: '/community' },
   { label: 'About', icon: infoIcon, href: '/about' },
@@ -88,12 +88,7 @@ export default function Navbar() {
     }
   };
 
-  const isActive = (href) => {
-    if (href === '/') {
-      return pathname === '/';
-    }
-    return pathname.startsWith(href);
-  };
+  const isActive = (href) => pathname.startsWith(href);
 
   const closeMobileMenu = () => {
     setIsMobileMenuOpen(false);
