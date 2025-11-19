@@ -37,21 +37,33 @@ export default function VerificationModal({ isOpen, onClose, onSuccess }) {
   const [uploading, setUploading] = useState(false);
   const [cameraError, setCameraError] = useState(null);
   const [cvReady, setCvReady] = useState(false);
+  const [cvRequested, setCvRequested] = useState(false);
   const [detection, setDetection] = useState(DEFAULT_FEEDBACK);
 
   useEffect(() => {
-    let active = true;
+    if (!isOpen || cvReady || cvRequested) {
+      return undefined;
+    }
+
+    let cancelled = false;
+    setCvRequested(true);
     loadOpenCv()
       .then(() => {
-        if (active) setCvReady(true);
+        if (!cancelled) {
+          setCvReady(true);
+        }
       })
       .catch((err) => {
         console.error('Failed to load OpenCV:', err);
+        if (!cancelled) {
+          setCvRequested(false);
+        }
       });
+
     return () => {
-      active = false;
+      cancelled = true;
     };
-  }, []);
+  }, [isOpen, cvReady, cvRequested]);
 
   useEffect(() => {
     if (!isOpen) return undefined;
