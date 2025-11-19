@@ -11,6 +11,8 @@ router.get('/serviceFees', orderService.getServiceFees);
 router.post('/newOrder', authMiddleware, orderController.createOrderFromUserCart);
 router.get('/getOrder/:orderId', authMiddleware, orderController.getOrderById);
 
+router.get('/my', authMiddleware, orderController.getMyOrders);
+
 
 
 export default router;
