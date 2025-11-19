@@ -25,7 +25,7 @@ export const useAuth = () => {
   const [loading, setLoading] = useState(false);
   const [actionError, setActionError] = useState(null);
 
-  const signup = async (email, password, username) => {
+  const signup = async (email, password, username, role = 'user') => {
     setLoading(true);
     setActionError(null);
 
@@ -41,6 +41,7 @@ export const useAuth = () => {
           data: {
             display_name: displayName,
             username: normalizedUsername,
+            role: role, // Store role in user metadata
           },
         },
       });

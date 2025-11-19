@@ -76,14 +76,14 @@ export const authController = {
         });
       }
 
-      const { username, displayName } = req.validatedBody;
+      const { username, displayName, role = 'user' } = req.validatedBody;
 
       const user = await userService.createUser({
         id: req.user.id,
         email: req.user.email,
         username,
         displayName,
-        role: 'user',
+        role: role, // Use the role from request (either 'user' or 'hawker')
       });
 
       res.status(201).json({

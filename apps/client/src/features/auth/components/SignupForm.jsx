@@ -9,6 +9,7 @@ import {
   Text,
   VStack,
   chakra,
+  SegmentGroup,
 } from '@chakra-ui/react';
 import { LuEye, LuEyeOff } from 'react-icons/lu';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -33,6 +34,7 @@ const SignupForm = () => {
     email: '',
     password: '',
     agreeToTerms: false,
+    accountType: 'customer', // 'customer' or 'hawker'
   });
   const [errors, setErrors] = useState({});
   const [pendingEmail, setPendingEmail] = useState(null);
@@ -135,8 +137,9 @@ const SignupForm = () => {
       return;
     }
 
-    // Call signup API
-    const result = await signup(formData.email, formData.password, formData.username);
+    // Call signup API - pass accountType to determine role
+    const role = formData.accountType === 'hawker' ? 'hawker' : 'user';
+    const result = await signup(formData.email, formData.password, formData.username, role);
 
     if (!result.success) {
       setErrors({ submit: result.error });
@@ -276,11 +279,63 @@ const SignupForm = () => {
         <Text
           fontSize={{ base: '15px', lg: '13px' }}
           color={{ base: 'rgba(255, 255, 255, 0.9)', lg: '#6B7D73' }}
-          mb={{ base: 8, lg: 5 }}
+          mb={{ base: 6, lg: 4 }}
           lineHeight="1.6"
         >
           Be the first to know about newly onboarded stalls and keep your hawker favourites in sync.
         </Text>
+
+        {/* Account Type Selector */}
+        <Box mb={{ base: 6, lg: 4 }}>
+          <Text
+            fontSize={{ base: '13px', lg: '12px' }}
+            fontWeight="500"
+            color={{ base: 'rgba(255,255,255,0.85)', lg: '#6B7D73' }}
+            mb={2}
+          >
+            I am signing up as:
+          </Text>
+          <SegmentGroup.Root
+            value={formData.accountType}
+            onValueChange={(details) => setFormData((prev) => ({ ...prev, accountType: details.value }))}
+            size={{ base: 'md', lg: 'sm' }}
+          >
+            <SegmentGroup.Indicator
+              bg="#21421B"
+              borderRadius="8px"
+            />
+            <SegmentGroup.Item
+              value="customer"
+              px={{ base: 6, lg: 5 }}
+              py={{ base: 2.5, lg: 2 }}
+              fontSize={{ base: '15px', lg: '14px' }}
+              fontWeight="600"
+              color={{ base: 'rgba(255,255,255,0.9)', lg: '#6B7D73' }}
+              _checked={{
+                color: 'white',
+              }}
+              cursor="pointer"
+            >
+              <SegmentGroup.ItemText>Customer</SegmentGroup.ItemText>
+              <SegmentGroup.ItemHiddenInput />
+            </SegmentGroup.Item>
+            <SegmentGroup.Item
+              value="hawker"
+              px={{ base: 6, lg: 5 }}
+              py={{ base: 2.5, lg: 2 }}
+              fontSize={{ base: '15px', lg: '14px' }}
+              fontWeight="600"
+              color={{ base: 'rgba(255,255,255,0.9)', lg: '#6B7D73' }}
+              _checked={{
+                color: 'white',
+              }}
+              cursor="pointer"
+            >
+              <SegmentGroup.ItemText>Hawker</SegmentGroup.ItemText>
+              <SegmentGroup.ItemHiddenInput />
+            </SegmentGroup.Item>
+          </SegmentGroup.Root>
+        </Box>
 
         <VStack as="form" onSubmit={handleSubmit} spacing={{ base: 5, lg: 3 }} align="stretch">
           <Box>

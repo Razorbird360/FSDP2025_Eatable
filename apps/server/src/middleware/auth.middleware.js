@@ -23,6 +23,12 @@ export const syncUserSchema = Joi.object({
       'string.min': 'Display name must be at least 2 characters long',
       'string.max': 'Display name cannot exceed 50 characters',
     }),
+  role: Joi.string()
+    .valid('user', 'hawker', 'admin')
+    .default('user')
+    .messages({
+      'any.only': 'Role must be either user, hawker, or admin',
+    }),
 });
 
 // Validation middleware

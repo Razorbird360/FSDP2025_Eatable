@@ -44,10 +44,12 @@ export function AuthProvider({ children }) {
         activeSession.user?.user_metadata?.display_name ??
         activeSession.user?.user_metadata?.username ??
         username;
+      const role = activeSession.user?.user_metadata?.role ?? 'user';
 
       await api.post('/auth/sync-user', {
         username,
         displayName,
+        role,
       });
     } catch (syncError) {
       console.error('User sync failed:', syncError);
