@@ -160,6 +160,25 @@ export default function VerificationModal({ isOpen, onClose, onSuccess }) {
             ) : (
               <video ref={videoRef} autoPlay playsInline muted className="h-full w-full object-cover" />
             )}
+            {imagePreview && (
+              <Button
+                size="sm"
+                rounded="full"
+                position="absolute"
+                top="3"
+                right="3"
+                bg="rgba(0,0,0,0.65)"
+                color="white"
+                _hover={{ bg: 'rgba(0,0,0,0.8)' }}
+                onClick={() => {
+                  setImagePreview(null);
+                  setImageFile(null);
+                  setAnalysis(null);
+                }}
+              >
+                Retake
+              </Button>
+            )}
             {!imagePreview && (
               <Box
                 position="absolute"
