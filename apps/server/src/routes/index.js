@@ -6,8 +6,7 @@ import moderationRoutes from './moderation.routes.js';
 import profileRoutes from "./profile.routes.js";
 import hawkerCentresRoutes from './hawker-centres.routes.js';
 import cartRoutes from './cart.routes.js';
-import netsRoutes from '../services/payment.service.js';
-import orderRoutes from './order.routes.js';
+import ordersRoutes from './orders.routes.js';
 
 const router = Router();
 
@@ -22,6 +21,7 @@ router.use('/media', mediaRoutes);
 router.use('/moderation', moderationRoutes);
 router.use('/hawker-centres', hawkerCentresRoutes);
 router.use('/cart', cartRoutes);
+router.use('/orders', ordersRoutes);
 
 router.use('/orders', orderRoutes);
 

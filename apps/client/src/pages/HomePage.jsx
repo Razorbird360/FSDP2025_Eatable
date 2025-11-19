@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import arrowRight from "../assets/icons/arrow right.svg";
 import cameraIcon from "../assets/icons/camera.svg";
 import point from "../assets/icons/point.svg";
@@ -10,8 +10,8 @@ import HeroAdvertisement from "../ui/HeroAdvertisement";
 import { Button } from "@chakra-ui/react";
 import logo_full from "../assets/logo/logo_full.png";
 import profilePlaceholder from "../assets/navbar/profile_placeholder.jpg";
-import { useNavigate } from "react-router-dom";
 import api from "../lib/api";
+import { toaster } from "../components/ui/toaster";
 
 const CUISINE_TYPES = ["malay", "indian", "western", "chinese", "desserts", "local"];
 
@@ -38,6 +38,18 @@ const NEARBY_ITEMS = [
 
 function HomePage() {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    if (location.state?.photoUploaded) {
+      toaster.create({
+        title: "Photo submitted",
+        description: "Thanks for sharing your dish with the community!",
+        type: "success",
+      });
+      navigate(location.pathname, { replace: true, state: null });
+    }
+  }, [location, navigate]);
 
   useEffect(() => {
     const html = document.documentElement;

@@ -19,7 +19,8 @@ import StallGallery from '../features/stalls/components/StallGallery';
 
 import Onboarding from "../features/photos/components/Onboarding";
 import PhotoUpload from "../features/photos/components/PhotoUpload";
-import UploadComplete from "../features/photos/components/UploadComplete";
+import UploadDetails from "../features/photos/components/UploadDetails";
+import PhotoUploadLayout from "../features/photos/layouts/PhotoUploadLayout";
 
 
 // Placeholder pages - to be replaced with actual feature pages
@@ -62,9 +63,11 @@ function AppRoutes() {
           {/* TODO: Add more protected routes: profile, upload photo, etc */}
 
           {/* upload routes */}
-          <Route path="/photo-upload/onboarding" element={<Onboarding />} />
-          <Route path="/photo-upload" element={<PhotoUpload />} />
-          <Route path="/upload-complete" element={<UploadComplete />} />
+          <Route element={<PhotoUploadLayout />}>
+            <Route path="/photo-upload/onboarding" element={<Onboarding />} />
+            <Route path="/photo-upload" element={<PhotoUpload />} />
+            <Route path="/upload-details" element={<UploadDetails />} />
+          </Route>
         </Route>
 
       </Route>

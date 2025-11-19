@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom';
 import Navbar from '../ui/Navbar';
 import CartSidebar from '../features/orders/components/CartSidebar';
+import { Toaster } from '../components/ui/toaster';
 
 function RootLayout() {
   return (
@@ -12,6 +13,7 @@ function RootLayout() {
       </main>
 
       <CartSidebar />
+      <Toaster />
     </div>
   );
 }
