@@ -82,14 +82,14 @@ export default function OnboardingStep1({ onNext, onBack }) {
             Keep shadows from blocking the main part of your dish
           </p>
 
-          <div className="mt-6 mb-8 flex gap-2">
+          <div className="mt-6 mb-16 md:mb-8 flex gap-2">
             <span className="h-2 w-2 rounded-full bg-[#21421B]" />
             <span className="h-2 w-2 rounded-full bg-[#D4D4D4]" />
             <span className="h-2 w-2 rounded-full bg-[#D4D4D4]" />
             <span className="h-2 w-2 rounded-full bg-[#D4D4D4]" />
           </div>
 
-          <div className="flex w-full justify-end">
+          <div className="flex w-full justify-end mb-8 md:mb-0">
             <button
               type="button"
               onClick={onNext}

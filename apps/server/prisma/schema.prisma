@@ -77,6 +77,7 @@ model MediaUpload {
   menuItemId        String            @map("menu_item_id") @db.Uuid
   userId            String            @map("user_id") @db.Uuid
   imageUrl          String            @map("image_url")
+  aspectRatio       String?           @map("aspect_ratio")
   caption           String?
   validationStatus  String            @default("pending") @map("validation_status")
   rejectionReason   String?           @map("rejection_reason")

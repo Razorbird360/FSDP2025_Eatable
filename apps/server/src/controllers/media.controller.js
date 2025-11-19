@@ -50,6 +50,8 @@ export const mediaController = {
         });
       }
 
+      const aspectType = is_square ? 'square' : 'rectangle';
+
       // 5. Compress image
       const compressed_buffer = await storageService.compressImage(req.file.buffer);
 
@@ -74,6 +76,7 @@ export const mediaController = {
         userId: req.user.id,
         imageUrl: image_url,
         caption: caption || null,
+        aspectRatio: aspectType,
       });
 
       // 9. Return success

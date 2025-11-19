@@ -32,13 +32,14 @@ export const mediaService = {
    * @param {string} data.caption - Optional caption
    * @returns {Promise<Object>} Created MediaUpload record
    */
-  async create({ menuItemId, userId, imageUrl, caption = null }) {
+  async create({ menuItemId, userId, imageUrl, caption = null, aspectRatio = null }) {
     return await prisma.mediaUpload.create({
       data: {
         menuItemId,
         userId,
         imageUrl,
         caption,
+        aspectRatio,
         validationStatus: 'pending',
       },
       include: {

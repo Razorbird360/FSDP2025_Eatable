@@ -1,7 +1,118 @@
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 export default function PhotoUpload() {
   const navigate = useNavigate();
+  const videoRef = useRef(null);
+  const fileInputRef = useRef(null);
+
+  const [stream, setStream] = useState(null);
+  const [cameraError, setCameraError] = useState(null);
+  const [isRequestingCamera, setIsRequestingCamera] = useState(false);
+  const [availableCameras, setAvailableCameras] = useState([]);
+  const [selectedCameraId, setSelectedCameraId] = useState("");
+  const [capturedPhoto, setCapturedPhoto] = useState(null);
+  const [aspectRatio, setAspectRatio] = useState("square"); // "square" or "rectangle"
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function initCameras() {
+      if (!navigator?.mediaDevices?.getUserMedia) {
+        setCameraError("Camera access is not supported in this browser.");
+        return;
+      }
+
+      setIsRequestingCamera(true);
+      setCameraError(null);
+
+      try {
+        const constraints = {
+          video: selectedCameraId
+            ? { deviceId: { exact: selectedCameraId } }
+            : { facingMode: { ideal: "environment" } },
+        };
+
+        const mediaStream = await navigator.mediaDevices.getUserMedia(
+          constraints
+        );
+
+        if (!mounted) {
+          mediaStream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+
+        if (stream) {
+          stream.getTracks().forEach((track) => track.stop());
+        }
+
+        setStream(mediaStream);
+
+        if (videoRef.current) {
+          videoRef.current.srcObject = mediaStream;
+          await videoRef.current.play().catch(() => {});
+        }
+
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoInputs = devices.filter(
+          (device) => device.kind === "videoinput"
+        );
+        setAvailableCameras(videoInputs);
+        if (!selectedCameraId && videoInputs.length > 0) {
+          setSelectedCameraId(videoInputs[0].deviceId);
+        }
+      } catch (error) {
+        setCameraError(
+          error?.message || "Unable to access the camera. Please try again."
+        );
+      } finally {
+        if (mounted) {
+          setIsRequestingCamera(false);
+        }
+      }
+    }
+
+    initCameras();
+
+    return () => {
+      mounted = false;
+      if (stream) {
+        stream.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, [selectedCameraId]);
+
+  const handleTakePhoto = () => {
+    if (!videoRef.current) return;
+
+    const video = videoRef.current;
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth || 1280;
+    canvas.height = video.videoHeight || 720;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
+    setCapturedPhoto(dataUrl);
+  };
+
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setCapturedPhoto(reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const stopPreview = () => {
+    setCapturedPhoto(null);
+  };
 
   return (
     <main className="flex flex-col bg-[#F6FBF2] pt-6 pb-10 min-h-[calc(100vh-4rem)]">
@@ -50,53 +161,151 @@ export default function PhotoUpload() {
         {/* content area centred */}
         <div className="relative mx-auto mt-6 max-w-6xl">
           {/* left side – camera box */}
-          <section className="mx-auto flex w-full flex-col items-center lg:max-w-[720px]">
-            <div className="mb-10 flex w-full items-center justify-center rounded-3xl border border-[#E5E7EB] bg-[#F4F4F4] aspect-[4/2.6]">
-              <div className="flex flex-col items-center gap-3 text-center text-gray-600">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#E7EEE7]">
-                  <svg viewBox="0 0 24 24" className="h-8 w-8" aria-hidden="true">
-                    <rect
-                      x="4"
-                      y="7"
-                      width="16"
-                      height="12"
-                      rx="2"
-                      stroke="#21421B"
-                      strokeWidth="1.6"
-                      fill="none"
-                    />
-                    <path
-                      d="M9 7.5L10.2 5.5H13.8L15 7.5"
-                      stroke="#21421B"
-                      strokeWidth="1.6"
-                      fill="none"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                    <circle
-                      cx="12"
-                      cy="13"
-                      r="3"
-                      stroke="#21421B"
-                      strokeWidth="1.6"
-                      fill="none"
-                    />
-                  </svg>
-                </div>
+          <section className="mx-auto flex w-full flex-row items-start gap-3 lg:max-w-[780px]">
+            {/* Aspect Ratio Selection Buttons - Vertical stack to the left */}
+            <div className="flex flex-col gap-3">
+              <button
+                type="button"
+                onClick={() => setAspectRatio("square")}
+                className={`flex h-12 w-12 items-center justify-center rounded-xl border-2 transition ${
+                  aspectRatio === "square"
+                    ? "border-brand bg-brand"
+                    : "border-gray-300 bg-white"
+                }`}
+                aria-label="Square aspect ratio"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  className={`h-6 w-6 ${aspectRatio === "square" ? "text-white" : "text-gray-600"}`}
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <rect x="5" y="5" width="14" height="14" rx="2" />
+                </svg>
+              </button>
 
-                <div className="text-sm font-medium text-[#111827]">
-                  Ready to capture?
-                </div>
-                <p className="text-xs text-gray-500">
-                  Take a photo or upload an existing one
-                </p>
-              </div>
+              <button
+                type="button"
+                onClick={() => setAspectRatio("rectangle")}
+                className={`flex h-12 w-12 items-center justify-center rounded-xl border-2 transition ${
+                  aspectRatio === "rectangle"
+                    ? "border-brand bg-brand"
+                    : "border-gray-300 bg-white"
+                }`}
+                aria-label="Rectangle aspect ratio"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  className={`h-6 w-6 ${aspectRatio === "rectangle" ? "text-white" : "text-gray-600"}`}
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <rect x="7" y="3" width="10" height="18" rx="2" />
+                </svg>
+              </button>
             </div>
+
+            {/* Main content area */}
+            <div className="flex-1 flex flex-col">
+              <div
+                className={`mb-6 w-full rounded-3xl border border-[#E5E7EB] bg-[#F6FBF2] p-1 ${
+                  aspectRatio === "square" ? "aspect-square" : "aspect-[2.6/4]"
+                }`}
+              >
+              {capturedPhoto ? (
+                <div className="relative h-full w-full">
+                  <img
+                    src={capturedPhoto}
+                    alt="Captured preview"
+                    className="h-full w-full rounded-2xl object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={stopPreview}
+                    className="absolute right-3 top-3 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-[#111827] shadow-sm hover:bg-white"
+                  >
+                    Retake
+                  </button>
+                </div>
+              ) : !stream && !isRequestingCamera ? (
+                <div className="flex h-full flex-col items-center justify-center gap-3 rounded-2xl bg-[#F4F4F4]">
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-16 w-16 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                  >
+                    <rect x="4" y="7" width="16" height="12" rx="2" />
+                    <path d="M9 7.5L10.2 5.5H13.8L15 7.5" strokeLinecap="round" strokeLinejoin="round" />
+                    <circle cx="12" cy="13" r="3" />
+                  </svg>
+                  <div className="text-center">
+                    <p className="text-sm font-medium text-gray-700">Ready to capture?</p>
+                    <p className="mt-1 text-xs text-gray-500">Take a photo or upload an existing one</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="relative h-full w-full">
+                  {cameraError ? (
+                    <div className="flex h-full flex-col items-center justify-center gap-2 rounded-2xl bg-[#F4F4F4] text-center text-sm text-red-600">
+                      <p>{cameraError}</p>
+                      <p className="text-xs text-gray-500">
+                        Please allow camera access or try another browser.
+                      </p>
+                    </div>
+                  ) : (
+                    <video
+                      ref={videoRef}
+                      playsInline
+                      autoPlay
+                      muted
+                      className="h-full w-full rounded-2xl object-cover"
+                    />
+                  )}
+
+                  {isRequestingCamera && !cameraError && (
+                    <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/40">
+                      <div className="flex flex-col items-center gap-2 text-white">
+                        <span className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                        <p className="text-xs uppercase tracking-wide">
+                          Accessing camera…
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {availableCameras.length > 1 && (
+              <div className="mb-6 flex w-full flex-col gap-2 text-sm text-[#111827]">
+                <label htmlFor="camera-select" className="font-medium">
+                  Camera source
+                </label>
+                <select
+                  id="camera-select"
+                  className="rounded-xl border border-[#D1D5DB] bg-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#21421B]"
+                  value={selectedCameraId}
+                  onChange={(event) => setSelectedCameraId(event.target.value)}
+                >
+                  {availableCameras.map((device) => (
+                    <option key={device.deviceId} value={device.deviceId}>
+                      {device.label || `Camera ${device.deviceId.slice(-4)}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div className="flex w-full flex-col gap-3 md:flex-row">
               <button
                 type="button"
-                className="flex-1 inline-flex flex-col justify-center rounded-xl bg-[#21421B] px-6 py-4 text-left text-white shadow-[0_8px_18px_rgba(0,0,0,0.25)] hover:bg-[#1A3517] transition"
+                onClick={handleTakePhoto}
+                disabled={Boolean(cameraError) || isRequestingCamera}
+                className="flex-1 inline-flex flex-col justify-center rounded-xl bg-[#21421B] px-6 py-4 text-left text-white shadow-[0_8px_18px_rgba(0,0,0,0.25)] hover:bg-[#1A3517] transition disabled:cursor-not-allowed disabled:bg-gray-400 disabled:shadow-none"
               >
                 <span className="flex items-center gap-2 text-sm font-medium">
                   <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
@@ -130,12 +339,15 @@ export default function PhotoUpload() {
                   Take Photo
                 </span>
                 <span className="mt-1 text-xs text-[#D1FAE5]">
-                  Use your camera
+                  {cameraError
+                    ? "Camera unavailable"
+                    : "Use your camera"}
                 </span>
               </button>
 
               <button
                 type="button"
+                onClick={handleUploadClick}
                 className="flex-1 inline-flex flex-col justify-center rounded-xl border border-[#D1D5DB] bg-white px-6 py-4 text-left text-[#111827] shadow-sm hover:bg-[#F9FAFB] transition"
               >
                 <span className="flex items-center gap-2 text-sm font-medium">
@@ -160,6 +372,14 @@ export default function PhotoUpload() {
                   From your device
                 </span>
               </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleFileChange}
+              />
+            </div>
             </div>
           </section>
 
@@ -167,10 +387,11 @@ export default function PhotoUpload() {
           <aside
             className="
               mt-8
+              lg:mt-0
               lg:absolute
               lg:right-0
-              lg:translate-x-[70px]
-              lg:top-[13.5%] lg:-translate-y-1/2
+              lg:translate-x-[100px]
+              lg:top-0
               lg:w-[260px]
               flex-shrink-0
             "

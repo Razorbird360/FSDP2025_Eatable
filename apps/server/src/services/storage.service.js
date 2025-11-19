@@ -5,9 +5,10 @@ import { randomUUID } from 'crypto';
 const square_size = 1200;  
 const rectangle_width = 1280;
 const rectangle_height = 720;
-const jpeg_quality = 80;
+const default_jpeg_quality = 80;
 const aspect_tolerance = 0.05; // allow camera variance
 const rectangle_ratio = 16 / 9;
+export const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 
 /**
  * Generic Supabase Storage service
@@ -61,10 +62,20 @@ export const storageService = {
       throw new Error('Unsupported aspect ratio. Only 1:1 or 16:9 images are allowed.');
     }
 
-    return await sharp(imageBuffer)
-      .resize(resize_options)
-      .jpeg({ quality: jpeg_quality })
-      .toBuffer();
+    const qualities = [default_jpeg_quality, 70, 60, 50, 40, 30, 25, 20];
+
+    for (const quality of qualities) {
+      const output = await sharp(imageBuffer)
+        .resize(resize_options)
+        .jpeg({ quality })
+        .toBuffer();
+
+      if (output.length <= MAX_IMAGE_BYTES) {
+        return output;
+      }
+    }
+
+    throw new Error('Unable to compress image below size limit. Please try another image.');
   },
 
   /**
