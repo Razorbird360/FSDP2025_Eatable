@@ -108,7 +108,16 @@ export default function VerificationModal({ isOpen, onClose, onSuccess }) {
         body: formData,
       });
       if (!response.ok) {
-        throw new Error('Verification failed');
+        let message = 'Verification failed';
+        try {
+          const errorBody = await response.json();
+          if (typeof errorBody?.detail === 'string') {
+            message = errorBody.detail;
+          }
+        } catch {
+          // ignore JSON parsing errors
+        }
+        throw new Error(message);
       }
       const result = await response.json();
       setAnalysis(result);
@@ -167,9 +176,11 @@ export default function VerificationModal({ isOpen, onClose, onSuccess }) {
                 position="absolute"
                 top="3"
                 right="3"
-                bg="rgba(0,0,0,0.65)"
-                color="white"
-                _hover={{ bg: 'rgba(0,0,0,0.8)' }}
+                px={4}
+                bg="#ffffff"
+                color="#21421B"
+                fontWeight="semibold"
+                _hover={{ bg: '#F6FBF2' }}
                 onClick={() => {
                   setImagePreview(null);
                   setImageFile(null);
@@ -209,7 +220,13 @@ export default function VerificationModal({ isOpen, onClose, onSuccess }) {
 
           <Box bg="#F6FBF2" rounded="xl" p={3} border="1px solid #E3F0D9">
             <Text fontSize="sm" fontWeight="semibold" color="#21421B">
-              {analysis?.ready ? 'ID validated successfully' : 'Awaiting verification'}
+              {analysis
+                ? analysis.ready
+                  ? 'ID validated successfully'
+                  : 'Please adjust your ID'
+                : imagePreview || imageFile
+                  ? 'Image ready to submit'
+                  : 'Capture or upload your ID to begin'}
             </Text>
             {analysis?.feedback?.map((line) => (
               <Text key={line} fontSize="xs" color="#3a3a3a">
