@@ -66,6 +66,8 @@ export default function OrderCompletedModal({ onClose, orderId }) {
 
         const res = await api.get(`/orders/getOrder/${orderId}`);
         const data = res.data;
+        
+        console.log("Raw order data received:", data);
 
         // data = [stallWrapper, itemsArr, infoObj]
         const stallWrapper = Array.isArray(data) ? data[0] : null;
@@ -135,7 +137,7 @@ export default function OrderCompletedModal({ onClose, orderId }) {
   }
 
   /** PRICES / TOTALS */
-  const subtotal = items.reduce((sum, item) => sum + item.price * item.qty, 0);
+  const subtotal = items.reduce((sum, item) => sum + item.price);
   const voucherApplied = 0.0; // keep static for now (or wire to backend later)
 
   let serviceFee = 0;

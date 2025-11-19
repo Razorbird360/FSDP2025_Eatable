@@ -236,6 +236,8 @@ export default function StallEmenu() {
   const [showFullBlurb, setShowFullBlurb] = useState(false);
   const controlsRef = useRef(null);
 
+  const [stallPfp, setStallPfp] = useState(null); 
+
   const [selected, setSelected] = useState(null);
   const [showItem, setShowItem] = useState(false);
 
@@ -255,8 +257,10 @@ useEffect(() => {
       if (cancelled) return;
 
       const data = res.data; // stall object
+      setStallPfp(data.image_url || null);
 
       setStall(data);
+      console.log("Fetched stall data:", data);
 
       // Map menuItems -> UI menu items
       const mappedMenu =
@@ -265,6 +269,8 @@ useEffect(() => {
           .map((m) => {
             // 👇 take the top upload for this menu item (Prisma already limited to 1)
             const topUpload = m.mediaUploads?.[0];
+
+      
 
             return {
               id: m.id,
@@ -438,7 +444,7 @@ useEffect(() => {
 
         <section className="flex gap-3 rounded-2xl border bg-white p-3 md:gap-4 md:p-6">
           <img
-            src={foodStallIcon}
+            src={stallPfp || foodStallIcon}
             alt="stall"
             className="h-20 w-20 rounded-xl border object-cover md:h-40 md:w-40"
           />

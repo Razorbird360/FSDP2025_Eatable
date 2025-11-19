@@ -560,8 +560,8 @@ export default function StallGallery() {
                 </div>
               </div>
 
-              <div className="flex flex-col items-start md:flex-row md:items-center md:gap-6 gap-2">
-                <div className="font-medium text-gray-700 flex items-center gap-4">
+              <div className="flex flex-col items-start md:flex-row md:items-center md:gap-6 gap-1">
+                <div className="font-medium text-gray-700 flex items-center gap-10">
                   <span className="flex items-center gap-1">
                     {/* FIX: no invert so they show clearly on white background */}
                     <img
@@ -584,7 +584,7 @@ export default function StallGallery() {
                 {/* Open report form popup */}
                 <button
                   onClick={openReportModal}
-                  className={`text-[11px] md:text-xs px-2.5 py-1 rounded-full border whitespace-nowrap
+                  className={`text-[11px] md:text-xs mx-5 px-2.5 py-1 rounded-full border whitespace-nowrap
                     ${
                       reportedIds.includes(popupId)
                         ? "border-rose-300 bg-rose-50 text-rose-500 cursor-default"

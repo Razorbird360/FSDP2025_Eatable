@@ -135,7 +135,11 @@ export const orderService = {
         const items = await prisma.orderItem.findMany({
             where: { orderId },
             include: {
-                menuItem: true,
+                menuItem: {
+                    include: {
+                        mediaUploads: true,
+                    },
+                }
             },
         });
         const info = await prisma.order.findUnique({

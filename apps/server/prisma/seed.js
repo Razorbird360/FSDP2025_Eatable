@@ -1,402 +1,2212 @@
-import fs from 'fs/promises';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import dotenv from 'dotenv';
-import pkg from '@prisma/client';
-
-const { PrismaClient } = pkg;
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const hawkerDataPath = path.join(__dirname, '../data/hawker-centres.geojson');
-const envPath = path.join(__dirname, '../.env');
-dotenv.config({ path: envPath });
+// prisma/seed.ts (or wherever your seed file lives)
+import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-const slugifyName = (value) =>
-  value
-    .toLowerCase()
-    .normalize('NFKD')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .replace(/-{2,}/g, '-') || 'hawker-centre';
-
-async function seedHawkerCentres() {
-  try {
-    const raw = await fs.readFile(hawkerDataPath, 'utf-8');
-    const geojson = JSON.parse(raw);
-    const features = Array.isArray(geojson.features) ? geojson.features : [];
-
-    const centresMap = new Map();
-
-    for (const feature of features) {
-      const props = feature?.properties ?? {};
-      const coords = feature?.geometry?.coordinates;
-      const [longitude, latitude] = Array.isArray(coords) ? coords : [];
-
-      if (typeof latitude !== 'number' || typeof longitude !== 'number') continue;
-
-      const name = String(props.NAME ?? '').trim();
-      if (!name) continue;
-
-      const slug = slugifyName(name);
-      if (centresMap.has(slug)) continue;
-
-      centresMap.set(slug, {
-        slug,
-        name,
-        address:
-          props.ADDRESSBUILDINGNAME && props.ADDRESSSTREETNAME
-            ? `${props.ADDRESSBUILDINGNAME}, ${props.ADDRESSSTREETNAME}`
-            : props.ADDRESSSTREETNAME ?? props.ADDRESSBUILDINGNAME ?? null,
-        postalCode: props.ADDRESSPOSTALCODE ?? null,
-        latitude,
-        longitude,
-      });
-    }
-
-    const centres = Array.from(centresMap.values());
-
-    for (const centre of centres) {
-      await prisma.hawkerCentre.upsert({
-        where: { slug: centre.slug },
-        update: centre,
-        create: centre,
-      });
-    }
-
-    console.log(`✅ Seeded ${centres.length} hawker centres`);
-    return centres.length;
-  } catch (error) {
-    console.error('Failed to seed hawker centres:', error.message);
-    return 0;
-  }
-}
-
-async function linkDemoStallToCentre() {
-  const hougangCentre = await prisma.hawkerCentre.findFirst({
-    where: { name: { contains: 'hougang', mode: 'insensitive' } },
-  });
-
-  if (!hougangCentre) {
-    console.warn('⚠️  Could not find Hougang hawker centre to link demo stall.');
-    return;
-  }
-
-  const result = await prisma.stall.updateMany({
-    where: { name: 'Hougang Hawker Delights' },
-    data: { hawkerCentreId: hougangCentre.id },
-  });
-
-  if (result.count > 0) {
-    console.log(`🔗 Linked ${result.count} stall(s) to ${hougangCentre.name}`);
-  }
-}
-
 async function main() {
-  console.log('🌶  Starting hawker seed');
+  // --- Optional: clean tables in FK-safe order if you're reseeding ---
 
-  await seedHawkerCentres();
+  await prisma.mediaUploadVote.deleteMany();
+  await prisma.contentReport.deleteMany();
+  await prisma.mediaUpload.deleteMany();
+  await prisma.orderItem.deleteMany();
+  await prisma.order.deleteMany();
+  await prisma.userFavorite.deleteMany();
+  await prisma.user_cart.deleteMany();
+  await prisma.menuItem.deleteMany();
+  await prisma.stall.deleteMany();
+  await prisma.hawkerCentre.deleteMany();
+  await prisma.user.deleteMany();
+  await prisma.system_configuration.deleteMany();
 
-  // 1) Demo user (for uploads + stall owner)
-  const demoUser = await prisma.user.upsert({
-    where: { email: 'foodie@example.com' },
-    update: {
-      displayName: 'Foodie Fan',
-      username: 'foodiefan',
-    },
-    create: {
-      email: 'foodie@example.com',
-      displayName: 'Foodie Fan',
-      username: 'foodiefan',
-    },
-  });
+  // --- Seed some users for uploads ---
 
-  // 2) Single hawker stall
-  const stall = await prisma.stall.upsert({
-    where: { name: 'Hougang Hawker Delights' },
-    update: {
-      description: 'Neighbourhood favourite spot for classic Singapore hawker food.',
-      location: 'Blk 123 Hougang Ave 1, #01-23',
-      ownerId: demoUser.id,
-    },
-    create: {
-      name: 'Hougang Hawker Delights',
-      description: 'Neighbourhood favourite spot for classic Singapore hawker food.',
-      location: 'Blk 123 Hougang Ave 1, #01-23',
-      ownerId: demoUser.id,
-      tags: ['hawker', 'local', 'singapore'],
-      cuisineType: 'Singaporean',
-    },
-  });
-
-  console.log('✅ Stall ensured:', stall.name);
-
-  // 3) 8 menu items
-  const menuItemSeeds = [
+  const seedUsers = [
     {
-      name: 'Signature Chicken Rice',
-      description: 'Tender steamed chicken with fragrant rice and homemade chilli.',
-      imageUrl: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?q=80&w=1200',
-      priceCents: 450,
-      category: 'Rice',
-      prepTimeMins: 8,
+      email: "foodie1@example.com",
+      displayName: "Hungry Marcus",
+      username: "hungry_marcus",
+      role: "user",
+      description: "Always hunting for the best hawker food.",
+      skipOnboarding: true,
     },
     {
-      name: 'Roasted Chicken Rice',
-      description: 'Crispy roasted chicken with dark soy and garlic chilli.',
-      imageUrl: 'https://images.unsplash.com/photo-1525755662778-989d0524087e?q=80&w=1200',
-      priceCents: 480,
-      category: 'Rice',
-      prepTimeMins: 9,
+      email: "foodie2@example.com",
+      displayName: "Hawker Explorer",
+      username: "hawker_explorer",
+      role: "user",
+      description: "Exploring every hawker centre in Singapore.",
+      skipOnboarding: true,
     },
     {
-      name: 'Char Kway Teow',
-      description: 'Wok hei packed flat rice noodles with lup cheong and cockles.',
-      imageUrl: 'https://images.unsplash.com/photo-1484723091739-30a097e8f929?q=80&w=1200',
-      priceCents: 550,
-      category: 'Noodles',
-      prepTimeMins: 7,
-    },
-    {
-      name: 'Hokkien Mee',
-      description: 'Savoury prawn and squid noodles in rich seafood broth.',
-      imageUrl: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?q=80&w=1200',
-      priceCents: 600,
-      category: 'Noodles',
-      prepTimeMins: 10,
-    },
-    {
-      name: 'Nasi Lemak',
-      description: 'Coconut rice with fried chicken wing, ikan bilis, and sambal.',
-      imageUrl: 'https://images.unsplash.com/photo-1587139223878-684fbd4383a5?q=80&w=1200',
-      priceCents: 520,
-      category: 'Rice',
-      prepTimeMins: 6,
-    },
-    {
-      name: 'Fried Carrot Cake (Black)',
-      description: 'Sweet dark soy radish cake with egg and chai poh.',
-      imageUrl: 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?q=80&w=1200',
-      priceCents: 480,
-      category: 'Snacks',
-      prepTimeMins: 6,
-    },
-    {
-      name: 'Fried Carrot Cake (White)',
-      description: 'Crispy white radish cake with egg and spring onion.',
-      imageUrl: 'https://images.unsplash.com/photo-1525755662778-989d0524087e?q=80&w=1200&sat=-25',
-      priceCents: 480,
-      category: 'Snacks',
-      prepTimeMins: 6,
-    },
-    {
-      name: 'Oyster Omelette',
-      description: 'Crispy egg batter with fresh oysters and chilli dip.',
-      imageUrl: 'https://images.unsplash.com/photo-1604908176997-1251886d2c87?q=80&w=1200&sat=-10',
-      priceCents: 650,
-      category: 'Snacks',
-      prepTimeMins: 9,
+      email: "foodie3@example.com",
+      displayName: "Supper Squad",
+      username: "supper_squad",
+      role: "user",
+      description: "Supper is the most important meal of the day.",
+      skipOnboarding: true,
     },
   ];
 
-  const menuItems = [];
-
-  for (const item of menuItemSeeds) {
-    const menuItem = await prisma.menuItem.upsert({
-      where: {
-        stallId_name: {
-          stallId: stall.id,
-          name: item.name,
-        },
-      },
-      update: {
-        description: item.description,
-        imageUrl: item.imageUrl,
-        priceCents: item.priceCents,
-        category: item.category,
-        prepTimeMins: item.prepTimeMins,
-        isActive: true,
-      },
-      create: {
-        stallId: stall.id,
-        name: item.name,
-        description: item.description,
-        imageUrl: item.imageUrl,
-        priceCents: item.priceCents,
-        category: item.category,
-        prepTimeMins: item.prepTimeMins,
-        isActive: true,
-      },
+  const users = [];
+  for (const u of seedUsers) {
+    const created = await prisma.user.upsert({
+      where: { email: u.email },
+      update: {},
+      create: u,
     });
-
-    menuItems.push(menuItem);
+    users.push(created);
   }
 
-  console.log(`✅ Ensured ${menuItems.length} menu items`);
+  // --- Hawker centres data ---
 
-  // 4) Clear existing uploads for these menu items (so repeated seeds don't spam)
-  await prisma.mediaUpload.deleteMany({
-    where: {
-      menuItemId: { in: menuItems.map((m) => m.id) },
+  const hawkerCentresData = [
+    {
+      name: "Maxwell Food Centre",
+      slug: "maxwell-food-centre",
+      address: "1 Kadayanallur St, Singapore",
+      postalCode: "069184",
+      latitude: 1.2803,
+      longitude: 103.8445,
     },
-  });
+    {
+      name: "Tiong Bahru Market",
+      slug: "tiong-bahru-market",
+      address: "30 Seng Poh Rd, Singapore",
+      postalCode: "168898",
+      latitude: 1.2839,
+      longitude: 103.8332,
+    },
+  ];
 
-  // 5) 2–3 uploads per menu item
-  const uploadsByName = {
-    'Signature Chicken Rice': [
+  const stallsByCentre = {
+    "maxwell-food-centre": [
       {
-        imageUrl:
-          'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?q=80&w=1200',
-        caption: 'Close-up of steamed chicken with chilli and ginger sauce.',
+        name: "Tian Tian Hainanese Chicken Rice",
+        description:
+          "Famous Hainanese chicken rice with fragrant rice and chilli.",
+        location: "Stall 01-10",
+        cuisineType: "Chinese",
+        tags: ["chicken rice", "rice", "chilli"],
+        image_url:
+          "https://cache-wak-wak-hawker-com.s3-ap-southeast-1.amazonaws.com/data/images/stall/70/870/block/HPEmAfesLHnuUZk0.jpg?v=1612194201",
       },
       {
-        imageUrl:
-          'https://images.unsplash.com/photo-1568605114967-8130f3a36994?q=80&w=1200',
-        caption: 'Full plate with rice, cucumber, and soup on the side.',
+        name: "Zhen Zhen Porridge",
+        description: "Comforting Teochew porridge with generous ingredients.",
+        location: "Stall 01-54",
+        cuisineType: "Chinese",
+        tags: ["porridge", "breakfast", "teochew"],
+        image_url:
+          "https://sethlui.com/wp-content/uploads/2017/07/Hong-Heng-Fried-Sotong-Prawn-Mee-1.jpg",
       },
       {
-        imageUrl:
-          'https://images.unsplash.com/photo-1604908176997-1251886d2c87?q=80&w=1200',
-        caption: 'Takeaway box version of the signature chicken rice.',
-      },
-    ],
-    'Roasted Chicken Rice': [
-      {
-        imageUrl:
-          'https://images.unsplash.com/photo-1525755662778-989d0524087e?q=80&w=1200',
-        caption: 'Roasted chicken with glossy skin and dark soy drizzle.',
+        name: "Maxwell Fuzhou Oyster Cake",
+        description: "Crispy oyster cake with minced meat and peanuts.",
+        location: "Stall 01-31",
+        cuisineType: "Chinese",
+        tags: ["snack", "oyster", "fritters"],
+        image_url:
+          "https://axwwgrkdco.cloudimg.io/v7/__gmpics3__/3d24ce46531e4f4d8eb6bde98bea447c.jpeg?w=300&h=300&org_if_sml=1",
       },
       {
-        imageUrl:
-          'https://images.unsplash.com/photo-1511690743698-d9d85f2fbf38?q=80&w=1200',
-        caption: 'Close-up of roasted chicken thigh and fragrant rice.',
-      },
-    ],
-    'Char Kway Teow': [
-      {
-        imageUrl:
-          'https://images.unsplash.com/photo-1604908176997-1251886d2c87?q=80&w=1200',
-        caption: 'Smoky char kway teow with cockles and beansprouts.',
+        name: "Jia Ji Mei Shi",
+        description:
+          "Chee cheong fun, yam cake and traditional breakfast items.",
+        location: "Stall 01-28",
+        cuisineType: "Chinese",
+        tags: ["chee cheong fun", "yam cake", "breakfast"],
+        image_url: "https://i.ytimg.com/vi/mk4gXZP2fnw/maxresdefault.jpg",
       },
       {
-        imageUrl:
-          'https://images.unsplash.com/photo-1484723091739-30a097e8f929?q=80&w=1200',
-        caption: 'Flat noodles glistening with wok hei and dark soy.',
-      },
-      {
-        imageUrl:
-          'https://images.unsplash.com/photo-1550547660-d9450f859349?q=80&w=1200',
-        caption: 'Zoomed shot showing lup cheong slices and egg.',
-      },
-    ],
-    'Hokkien Mee': [
-      {
-        imageUrl:
-          'https://images.unsplash.com/photo-1585036156171-384164a8c675?q=80&w=1200',
-        caption: 'Hokkien mee with sambal and lime on the side.',
-      },
-      {
-        imageUrl:
-          'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?q=80&w=1200',
-        caption: 'Brothy noodles topped with prawns and squid.',
+        name: "Maxwell Favourites Drinks",
+        description: "Iced kopi, teh, lime juice and local drinks.",
+        location: "Stall 01-70",
+        cuisineType: "Drinks",
+        tags: ["kopi", "teh", "lime juice"],
+        image_url:
+          "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTsOPTGAi5HXngTPbb2YtnZAHmsCw9eptQgZw&s",
       },
     ],
-    'Nasi Lemak': [
+    "tiong-bahru-market": [
       {
-        imageUrl:
-          'https://images.unsplash.com/photo-1587139223878-684fbd4383a5?q=80&w=1200',
-        caption: 'Nasi lemak with fried chicken wing and sunny side up.',
+        name: "Tiong Bahru Hainanese Boneless Chicken Rice",
+        description: "Juicy boneless chicken rice with old-school vibes.",
+        location: "Stall 02-82",
+        cuisineType: "Chinese",
+        tags: ["chicken rice", "boneless", "rice"],
+        image_url:
+          "https://sethlui.com/wp-content/uploads/2021/11/Tiong-Bahru-Hainanese-Chicken-Rice-12..jpg",
       },
       {
-        imageUrl:
-          'https://images.unsplash.com/photo-1525755662778-989d0524087e?q=80&w=1200',
-        caption: 'Overhead shot showing ikan bilis, peanuts, and sambal.',
+        name: "Hong Heng Fried Sotong Prawn Mee",
+        description: "Famous hokkien mee fried with prawn and sotong.",
+        location: "Stall 02-01",
+        cuisineType: "Chinese",
+        tags: ["hokkien mee", "noodles", "seafood"],
+        image_url:
+          "https://sethlui.com/wp-content/uploads/2017/07/Hong-Heng-Fried-Sotong-Prawn-Mee-1.jpg",
       },
       {
-        imageUrl:
-          'https://images.unsplash.com/photo-1612929633738-8fe44f7ec841?q=80&w=1200',
-        caption: 'Banana leaf nasi lemak set with extra sambal.',
-      },
-    ],
-    'Fried Carrot Cake (Black)': [
-      {
-        imageUrl:
-          'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?q=80&w=1200',
-        caption: 'Dark carrot cake with egg and spring onion.',
+        name: "Min Nan Pork Ribs Prawn Noodle",
+        description: "Rich pork and prawn broth with yellow noodles.",
+        location: "Stall 02-31",
+        cuisineType: "Chinese",
+        tags: ["prawn mee", "pork ribs", "soup"],
+        image_url:
+          "https://danielfooddiary.com/wp-content/uploads/2025/07/minnan4.jpg",
       },
       {
-        imageUrl:
-          'https://images.unsplash.com/photo-1525755662778-989d0524087e?q=80&w=1200',
-        caption: 'Close-up of sweet black carrot cake on plate.',
-      },
-    ],
-    'Fried Carrot Cake (White)': [
-      {
-        imageUrl:
-          'https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=1200',
-        caption: 'Crispy white carrot cake with chilli on the side.',
+        name: "Liang Liang Garden Economical Rice",
+        description: "Economic mixed vegetable rice with many dishes.",
+        location: "Stall 02-60",
+        cuisineType: "Chinese",
+        tags: ["economic rice", "mixed veg", "rice"],
+        image_url:
+          "https://sethlui.com/wp-content/uploads/2020/02/liang-liang-garden-desserts.jpg",
       },
       {
-        imageUrl:
-          'https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=1200',
-        caption: 'Top-down shot of pan-fried carrot cake cubes.',
-      },
-      {
-        imageUrl:
-          'https://images.unsplash.com/photo-1484723091739-30a097e8f929?q=80&w=1200',
-        caption: 'White carrot cake with plenty of egg and chai poh.',
-      },
-    ],
-    'Oyster Omelette': [
-      {
-        imageUrl:
-          'https://images.unsplash.com/photo-1604908176997-1251886d2c87?q=80&w=1200',
-        caption: 'Crispy oyster omelette served with tangy chilli sauce.',
-      },
-      {
-        imageUrl:
-          'https://images.unsplash.com/photo-1448043552756-e747b7a2b2b8?q=80&w=1200',
-        caption: 'Close-up of oysters nestled in egg batter.',
+        name: "Tiong Bahru Pau & Snacks",
+        description:
+          "Traditional paus and dim sum snacks, great for breakfast.",
+        location: "Stall 02-18",
+        cuisineType: "Chinese",
+        tags: ["pau", "dim sum", "snack"],
+        image_url:
+          "https://cdn.foodadvisor.com.sg/1/500/tccrg/1687335810_fsjwsk_waous1970965/tiong-bahru-pau-snack-outram.jpg",
       },
     ],
   };
 
-  let uploadCount = 0;
+  // Menu items per stall (5 items each, realistic hawker food)
+  const menuItemsByStallName = {
+    "Tian Tian Hainanese Chicken Rice": [
+      {
+        name: "Hainanese Chicken Rice",
+        description: "Steamed chicken with fragrant rice and chilli.",
+        priceCents: 500,
+        category: "Main",
+        prepTimeMins: 8,
+      },
+      {
+        name: "Roasted Chicken Rice",
+        description: "Roasted chicken with savoury soy sauce.",
+        priceCents: 550,
+        category: "Main",
+        prepTimeMins: 8,
+      },
+      {
+        name: "Chicken Rice (Drumstick)",
+        description: "Premium drumstick portion with extra meat.",
+        priceCents: 650,
+        category: "Main",
+        prepTimeMins: 10,
+      },
+      {
+        name: "Chicken Gizzard Rice",
+        description: "Chicken gizzard served with rice and soup.",
+        priceCents: 550,
+        category: "Main",
+        prepTimeMins: 9,
+      },
+      {
+        name: "Chicken Rice Set (With Veg)",
+        description: "Chicken rice with seasonal vegetables.",
+        priceCents: 700,
+        category: "Set Meal",
+        prepTimeMins: 10,
+      },
+    ],
+    "Zhen Zhen Porridge": [
+      {
+        name: "Chicken Porridge",
+        description: "Thick porridge with shredded chicken.",
+        priceCents: 350,
+        category: "Main",
+        prepTimeMins: 6,
+      },
+      {
+        name: "Fish Porridge",
+        description: "Sliced fish in smooth porridge, topped with shallots.",
+        priceCents: 400,
+        category: "Main",
+        prepTimeMins: 7,
+      },
+      {
+        name: "Century Egg Porridge",
+        description: "Century egg and minced pork porridge.",
+        priceCents: 400,
+        category: "Main",
+        prepTimeMins: 7,
+      },
+      {
+        name: "Mixed Pork Porridge",
+        description: "Assorted pork cuts for extra flavour.",
+        priceCents: 450,
+        category: "Main",
+        prepTimeMins: 8,
+      },
+      {
+        name: "You Tiao",
+        description: "Crispy fried dough stick to go with porridge.",
+        priceCents: 150,
+        category: "Side",
+        prepTimeMins: 2,
+      },
+    ],
+    "Maxwell Fuzhou Oyster Cake": [
+      {
+        name: "Original Oyster Cake",
+        description:
+          "Fuzhou-style oyster cake with minced meat and peanuts.",
+        priceCents: 300,
+        category: "Snack",
+        prepTimeMins: 5,
+      },
+      {
+        name: "Oyster Cake (Extra Oyster)",
+        description: "Extra oysters for seafood lovers.",
+        priceCents: 400,
+        category: "Snack",
+        prepTimeMins: 6,
+      },
+      {
+        name: "Meat-Only Fritter",
+        description: "No oysters, just fragrant minced meat filling.",
+        priceCents: 300,
+        category: "Snack",
+        prepTimeMins: 5,
+      },
+      {
+        name: "Peanut Fritter",
+        description: "Crispy fritter filled with peanuts and vegetables.",
+        priceCents: 250,
+        category: "Snack",
+        prepTimeMins: 5,
+      },
+      {
+        name: "Oyster Cake Set (3 pcs)",
+        description: "Sharing set for small groups.",
+        priceCents: 900,
+        category: "Set",
+        prepTimeMins: 8,
+      },
+    ],
+    "Jia Ji Mei Shi": [
+      {
+        name: "Chee Cheong Fun (Plain)",
+        description: "Steamed rice rolls with sweet sauce.",
+        priceCents: 250,
+        category: "Breakfast",
+        prepTimeMins: 4,
+      },
+      {
+        name: "Chee Cheong Fun (Yong Tau Foo)",
+        description: "Rice rolls topped with assorted yong tau foo.",
+        priceCents: 350,
+        category: "Breakfast",
+        prepTimeMins: 5,
+      },
+      {
+        name: "Yam Cake",
+        description: "Traditional yam cake with dried shrimp.",
+        priceCents: 280,
+        category: "Breakfast",
+        prepTimeMins: 4,
+      },
+      {
+        name: "Soon Kueh",
+        description: "Teochew dumplings with turnip filling.",
+        priceCents: 150,
+        category: "Snack",
+        prepTimeMins: 3,
+      },
+      {
+        name: "Glutinous Rice",
+        description: "Savory glutinous rice with mushrooms and peanuts.",
+        priceCents: 300,
+        category: "Breakfast",
+        prepTimeMins: 5,
+      },
+    ],
+    "Maxwell Favourites Drinks": [
+      {
+        name: "Kopi O",
+        description: "Black coffee, no sugar.",
+        priceCents: 120,
+        category: "Drink",
+        prepTimeMins: 2,
+      },
+      {
+        name: "Teh C",
+        description: "Milk tea with evaporated milk.",
+        priceCents: 150,
+        category: "Drink",
+        prepTimeMins: 2,
+      },
+      {
+        name: "Iced Lime Juice",
+        description: "Refreshing homemade lime juice.",
+        priceCents: 180,
+        category: "Drink",
+        prepTimeMins: 2,
+      },
+      {
+        name: "Iced Milo",
+        description: "Chilled chocolate malt drink.",
+        priceCents: 200,
+        category: "Drink",
+        prepTimeMins: 2,
+      },
+      {
+        name: "Barley Drink",
+        description: "Homemade barley with barley grains.",
+        priceCents: 150,
+        category: "Drink",
+        prepTimeMins: 2,
+      },
+    ],
+    "Tiong Bahru Hainanese Boneless Chicken Rice": [
+      {
+        name: "Boneless Chicken Rice",
+        description: "Tender boneless chicken with fragrant rice.",
+        priceCents: 500,
+        category: "Main",
+        prepTimeMins: 8,
+      },
+      {
+        name: "Roasted Boneless Chicken Rice",
+        description: "Roasted boneless chicken with crispy skin.",
+        priceCents: 550,
+        category: "Main",
+        prepTimeMins: 8,
+      },
+      {
+        name: "Double Meat Chicken Rice",
+        description: "Extra portion of chicken for big eaters.",
+        priceCents: 700,
+        category: "Main",
+        prepTimeMins: 9,
+      },
+      {
+        name: "Chicken Rice with Braised Egg",
+        description: "Chicken rice served with braised egg.",
+        priceCents: 600,
+        category: "Main",
+        prepTimeMins: 9,
+      },
+      {
+        name: "Chicken Rice Set (Soup & Veg)",
+        description: "Set meal with soup and vegetables.",
+        priceCents: 750,
+        category: "Set Meal",
+        prepTimeMins: 10,
+      },
+    ],
+    "Hong Heng Fried Sotong Prawn Mee": [
+      {
+        name: "Fried Hokkien Mee (Regular)",
+        description:
+          "Yellow noodles and bee hoon fried in rich prawn stock.",
+        priceCents: 500,
+        category: "Main",
+        prepTimeMins: 7,
+      },
+      {
+        name: "Fried Hokkien Mee (Large)",
+        description: "Larger portion for sharing.",
+        priceCents: 650,
+        category: "Main",
+        prepTimeMins: 8,
+      },
+      {
+        name: "Hokkien Mee with Extra Sotong",
+        description: "Extra sotong rings for seafood lovers.",
+        priceCents: 650,
+        category: "Main",
+        prepTimeMins: 8,
+      },
+      {
+        name: "Hokkien Mee with Extra Prawn",
+        description: "Extra prawns added.",
+        priceCents: 650,
+        category: "Main",
+        prepTimeMins: 8,
+      },
+      {
+        name: "Otak Side",
+        description: "Grilled otak to go with noodles.",
+        priceCents: 200,
+        category: "Side",
+        prepTimeMins: 3,
+      },
+    ],
+    "Min Nan Pork Ribs Prawn Noodle": [
+      {
+        name: "Pork Ribs Prawn Noodle (Soup)",
+        description: "Rich soup with pork ribs and prawns.",
+        priceCents: 550,
+        category: "Main",
+        prepTimeMins: 7,
+      },
+      {
+        name: "Pork Ribs Prawn Noodle (Dry)",
+        description: "Dry version with chilli and dark sauce.",
+        priceCents: 550,
+        category: "Main",
+        prepTimeMins: 7,
+      },
+      {
+        name: "Big Prawn Noodle",
+        description: "Generous big prawns in prawn broth.",
+        priceCents: 650,
+        category: "Main",
+        prepTimeMins: 8,
+      },
+      {
+        name: "Pork Ribs Noodle",
+        description: "Just pork ribs with noodles and soup.",
+        priceCents: 550,
+        category: "Main",
+        prepTimeMins: 7,
+      },
+      {
+        name: "Add On: Pig Tail",
+        description: "Add pig tail to your noodles.",
+        priceCents: 200,
+        category: "Add On",
+        prepTimeMins: 1,
+      },
+    ],
+    "Liang Liang Garden Economical Rice": [
+      {
+        name: "Economical Rice (2 Veg 1 Meat)",
+        description: "Choice of two vegetables and one meat.",
+        priceCents: 400,
+        category: "Main",
+        prepTimeMins: 5,
+      },
+      {
+        name: "Economical Rice (2 Veg 2 Meat)",
+        description: "Choice of two vegetables and two meats.",
+        priceCents: 500,
+        category: "Main",
+        prepTimeMins: 5,
+      },
+      {
+        name: "Fried Egg Add-On",
+        description: "Sunny-side up egg.",
+        priceCents: 100,
+        category: "Add On",
+        prepTimeMins: 2,
+      },
+      {
+        name: "Curry Gravy Add-On",
+        description: "Curry gravy over rice.",
+        priceCents: 50,
+        category: "Add On",
+        prepTimeMins: 1,
+      },
+      {
+        name: "Steamed Egg",
+        description: "Silky steamed egg with minced meat.",
+        priceCents: 150,
+        category: "Side",
+        prepTimeMins: 4,
+      },
+    ],
+    "Tiong Bahru Pau & Snacks": [
+      {
+        name: "Char Siew Pau",
+        description: "Fluffy bun with char siew filling.",
+        priceCents: 150,
+        category: "Snack",
+        prepTimeMins: 2,
+      },
+      {
+        name: "Big Pau",
+        description: "Large pork bun with egg inside.",
+        priceCents: 220,
+        category: "Snack",
+        prepTimeMins: 3,
+      },
+      {
+        name: "Lotus Paste Pau",
+        description: "Sweet lotus paste filling.",
+        priceCents: 150,
+        category: "Snack",
+        prepTimeMins: 2,
+      },
+      {
+        name: "Siew Mai",
+        description: "Steamed pork dumplings.",
+        priceCents: 200,
+        category: "Dim Sum",
+        prepTimeMins: 3,
+      },
+      {
+        name: "Har Gow",
+        description: "Shrimp dumpling with thin skin.",
+        priceCents: 220,
+        category: "Dim Sum",
+        prepTimeMins: 3,
+      },
+    ],
+  };
 
-  for (const menuItem of menuItems) {
-    const uploadSeeds = uploadsByName[menuItem.name] || [];
-    for (const upload of uploadSeeds) {
-      await prisma.mediaUpload.create({
+  const defaultMenuItems = [
+    {
+      name: "Nasi Lemak",
+      description: "Coconut rice with ikan bilis, egg and sambal.",
+      priceCents: 400,
+      category: "Main",
+      prepTimeMins: 6,
+    },
+    {
+      name: "Mee Goreng",
+      description: "Spicy fried noodles with egg and vegetables.",
+      priceCents: 400,
+      category: "Main",
+      prepTimeMins: 7,
+    },
+    {
+      name: "Laksa",
+      description: "Curry laksa with fishcake and cockles.",
+      priceCents: 450,
+      category: "Main",
+      prepTimeMins: 8,
+    },
+    {
+      name: "Carrot Cake (Black)",
+      description: "Fried radish cake with dark sweet sauce.",
+      priceCents: 350,
+      category: "Main",
+      prepTimeMins: 7,
+    },
+    {
+      name: "Ice Kachang",
+      description: "Shaved ice dessert with syrup and jelly.",
+      priceCents: 300,
+      category: "Dessert",
+      prepTimeMins: 5,
+    },
+  ];
+
+
+  // --- Create hawker centres, stalls, menu items (NO uploads yet) ---
+  const hawkerCentres = [];
+
+  for (const hcData of hawkerCentresData) {
+    const hc = await prisma.hawkerCentre.create({
+      data: {
+        name: hcData.name,
+        slug: hcData.slug,
+        address: hcData.address,
+        postalCode: hcData.postalCode,
+        latitude: hcData.latitude,
+        longitude: hcData.longitude,
+      },
+    });
+    
+    hawkerCentres.push(hc);
+
+    const stallsForCentre = stallsByCentre[hc.slug] || [];
+
+    for (const stallTemplate of stallsForCentre) {
+      const stall = await prisma.stall.create({
         data: {
-          menuItemId: menuItem.id,
-          userId: demoUser.id,
-          imageUrl: upload.imageUrl,
-          caption: upload.caption,
-          validationStatus: 'approved',
-          aiConfidenceScore: 0.95,
-          reviewedAt: new Date(),
-          reviewedBy: demoUser.id,
-          upvoteCount: 0,
-          downvoteCount: 0,
-          voteScore: 0,
+          name: stallTemplate.name,
+          description: stallTemplate.description,
+          location: stallTemplate.location,
+          cuisineType: stallTemplate.cuisineType,
+          tags: stallTemplate.tags,
+          hawkerCentre: {
+            connect: { id: hc.id },
+          },
+          image_url: stallTemplate.image_url || null,
         },
       });
-      uploadCount += 1;
+
+      const menuTemplates =
+        menuItemsByStallName[stall.name] || defaultMenuItems;
+
+      const selectedMenuTemplates = menuTemplates.slice(0, 5);
+
+      for (const itemTemplate of selectedMenuTemplates) {
+        await prisma.menuItem.create({
+          data: {
+            stallId: stall.id,
+            name: itemTemplate.name,
+            description: itemTemplate.description,
+            priceCents: itemTemplate.priceCents,
+            category: itemTemplate.category,
+            prepTimeMins: itemTemplate.prepTimeMins,
+            // imageUrl left null
+          },
+        });
+      }
     }
   }
 
-  console.log(`✅ Created ${uploadCount} media uploads`);
+  // --- MANUAL media upload seeds (no randomness) ---
+  // Edit / add rows here as you like.
+  // You can leave caption empty and later fill it / imageUrl via the app or DB.
 
-  await linkDemoStallToCentre();
+const mediaUploadSeeds = [
+  {
+  stallName: "Tian Tian Hainanese Chicken Rice",
+  menuItemName: "Hainanese Chicken Rice",
+  userEmail: "foodie1@example.com",
+  caption: "Super tender chicken and fragrant rice — this place really lives up to the hype.",
+  validationStatus: "approved",
+  upvoteCount: 366,
+  downvoteCount: 76,
+  imageUrl: "https://www.seriouseats.com/thmb/OVPH7U5DQfboRHeAJ-8VH4DBGBQ=/1500x0/filters:no_upscale():max_bytes(150000):strip_icc()/hainanese-chicken-rice-set-recipe-hero-Fred-Hardy-d04b51b0338144dc8549c89802b721e4.JPG",
+},
+{
+  stallName: "Tian Tian Hainanese Chicken Rice",
+  menuItemName: "Hainanese Chicken Rice",
+  userEmail: "foodie2@example.com",
+  caption: "Classic chicken rice done right — simple, clean flavours and super satisfying.",
+  validationStatus: "approved",
+  upvoteCount: 52,
+  downvoteCount: 51,
+  imageUrl: "https://upload.wikimedia.org/wikipedia/commons/7/71/Hainanese_Chicken_Rice.jpg",
+},
+{
+  stallName: "Tian Tian Hainanese Chicken Rice",
+  menuItemName: "Hainanese Chicken Rice",
+  userEmail: "foodie3@example.com",
+  caption: "Juicy meat and silky skin! Easily one of the best versions I've tried.",
+  validationStatus: "approved",
+  upvoteCount: 423,
+  downvoteCount: 45,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQJK0doBjyjNOatQpInxwcrgCsxspUig0Rx2w&s",
+},
+{
+  stallName: "Tian Tian Hainanese Chicken Rice",
+  menuItemName: "Roasted Chicken Rice",
+  userEmail: "foodie1@example.com",
+  caption: "Roasted chicken was crispy and flavourful — pairs so well with the rice.",
+  validationStatus: "approved",
+  upvoteCount: 217,
+  downvoteCount: 31,
+  imageUrl: "https://i.ytimg.com/vi/NsSFQpQZULA/maxresdefault.jpg",
+},
+{
+  stallName: "Tian Tian Hainanese Chicken Rice",
+  menuItemName: "Roasted Chicken Rice",
+  userEmail: "foodie2@example.com",
+  caption: "Loved the roast! Savoury, juicy, and the chili really completes the dish.",
+  validationStatus: "approved",
+  upvoteCount: 337,
+  downvoteCount: 10,
+  imageUrl: "https://sethlui.com/wp-content/uploads/2023/11/Overall2-1.jpg",
+},
+{
+  stallName: "Tian Tian Hainanese Chicken Rice",
+  menuItemName: "Roasted Chicken Rice",
+  userEmail: "foodie3@example.com",
+  caption: "A bit oily but still tasty — perfect if you enjoy strong roasted flavours.",
+  validationStatus: "approved",
+  upvoteCount: 22,
+  downvoteCount: 152,
+  imageUrl: "https://sethlui.com/wp-content/uploads/2019/02/Sam-Leong-Hainanese-Chicken-Rice-4.jpg",
+},
+{
+  stallName: "Tian Tian Hainanese Chicken Rice",
+  menuItemName: "Chicken Rice (Drumstick)",
+  userEmail: "foodie1@example.com",
+  caption: "Drumstick was extra tender! Really enjoyed the texture and seasoning.",
+  validationStatus: "approved",
+  upvoteCount: 81,
+  downvoteCount: 153,
+  imageUrl: "https://freezermeals101.com/wp-content/uploads/2024/11/Paprika-Chicken-square-2.jpg",
+},
+{
+  stallName: "Tian Tian Hainanese Chicken Rice",
+  menuItemName: "Chicken Rice (Drumstick)",
+  userEmail: "foodie2@example.com",
+  caption: "Pretty good portion and flavour. The drumstick was juicy and well cooked.",
+  validationStatus: "approved",
+  upvoteCount: 191,
+  downvoteCount: 139,
+  imageUrl: "https://kitchendivas.com/wp-content/uploads/2018/04/chinese-chicken-drumsticks0.jpg",
+},
+{
+  stallName: "Tian Tian Hainanese Chicken Rice",
+  menuItemName: "Chicken Rice (Drumstick)",
+  userEmail: "foodie3@example.com",
+  caption: "Surprisingly tender and super fragrant — the rice itself was amazing.",
+  validationStatus: "approved",
+  upvoteCount: 497,
+  downvoteCount: 110,
+  imageUrl: "https://media-cdn.tripadvisor.com/media/photo-s/19/a0/1b/d9/braised-chicken-drumstick.jpg",
+},
+{
+  stallName: "Tian Tian Hainanese Chicken Rice",
+  menuItemName: "Chicken Gizzard Rice",
+  userEmail: "foodie1@example.com",
+  caption: "Gizzard was chewy but tasty — great option if you like stronger flavours.",
+  validationStatus: "approved",
+  upvoteCount: 173,
+  downvoteCount: 102,
+  imageUrl: "https://www.shutterstock.com/image-photo/stewed-chicken-gizzards-on-boiled-600nw-1936395841.jpg",
+},
+{
+  stallName: "Tian Tian Hainanese Chicken Rice",
+  menuItemName: "Chicken Gizzard Rice",
+  userEmail: "foodie2@example.com",
+  caption: "Pleasantly surprised! Gizzard was tender and went well with the chili.",
+  validationStatus: "approved",
+  upvoteCount: 305,
+  downvoteCount: 84,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTQsDQCmiSA4h1-EMrZ-dpa58yQCd1rF0PoZw&s",
+},
+{
+  stallName: "Tian Tian Hainanese Chicken Rice",
+  menuItemName: "Chicken Gizzard Rice",
+  userEmail: "foodie3@example.com",
+  caption: "Good texture and flavour — definitely for those who enjoy organ meats.",
+  validationStatus: "approved",
+  upvoteCount: 323,
+  downvoteCount: 53,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQuSKzFzjnhMzmUl3KDReVo0F7GoT72UxuCFw&s",
+},
 
-  console.log('🎉 Hawker seed completed successfully!');
+  {
+  stallName: "Tian Tian Hainanese Chicken Rice",
+  menuItemName: "Chicken Rice Set (With Veg)",
+  userEmail: "foodie1@example.com",
+  caption: "Good portion and the veggies make the meal feel more balanced. Simple but satisfying.",
+  validationStatus: "approved",
+  upvoteCount: 140,
+  downvoteCount: 133,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ2hpe_AZZD1r1yjauSp-N2XRpu1xtkR_6Hcw&s",
+},
+{
+  stallName: "Tian Tian Hainanese Chicken Rice",
+  menuItemName: "Chicken Rice Set (With Veg)",
+  userEmail: "foodie2@example.com",
+  caption: "The veggies were fresh and the chicken was tender. Pretty solid set meal.",
+  validationStatus: "approved",
+  upvoteCount: 200,
+  downvoteCount: 115,
+  imageUrl: "https://images.deliveryhero.io/image/fd-sg/Products/3645270.jpg?width=%s",
+},
+{
+  stallName: "Tian Tian Hainanese Chicken Rice",
+  menuItemName: "Chicken Rice Set (With Veg)",
+  userEmail: "foodie3@example.com",
+  caption: "Very tasty! Loved the smooth chicken and the added crunch from the veggies.",
+  validationStatus: "approved",
+  upvoteCount: 450,
+  downvoteCount: 34,
+  imageUrl: "https://axwwgrkdco.cloudimg.io/v7/__gmpics3__/65bfd4c20a374add9a9dce6bce28a31b.jpeg?width=1000",
+},
+{
+  stallName: "Zhen Zhen Porridge",
+  menuItemName: "Chicken Porridge",
+  userEmail: "foodie1@example.com",
+  caption: "Warm, comforting bowl — the chicken was soft and blended perfectly with the porridge.",
+  validationStatus: "approved",
+  upvoteCount: 121,
+  downvoteCount: 39,
+  imageUrl: "https://takestwoeggs.com/wp-content/uploads/2024/01/Chao-Ga-Vietnamese-Chicken-Rice-Porridge-recipe-takestwoeggs-1.jpg",
+},
+{
+  stallName: "Zhen Zhen Porridge",
+  menuItemName: "Chicken Porridge",
+  userEmail: "foodie2@example.com",
+  caption: "So smooth and flavourful! Perfect breakfast comfort food.",
+  validationStatus: "approved",
+  upvoteCount: 480,
+  downvoteCount: 104,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcREQi5yoxpI3TRfhO8o6EIEe2lrNB2HWEZg0A&s",
+},
+{
+  stallName: "Zhen Zhen Porridge",
+  menuItemName: "Chicken Porridge",
+  userEmail: "foodie3@example.com",
+  caption: "Light but tasty, with generous chicken slices. Great start to the morning.",
+  validationStatus: "approved",
+  upvoteCount: 133,
+  downvoteCount: 83,
+  imageUrl: "https://www.seriouseats.com/thmb/ThVFZvWhtlw6_NImbRu2-Bla2lw=/1500x0/filters:no_upscale():max_bytes(150000):strip_icc()/20200128-juk-korean-rice-porridge-vicky-wasik-7ba5f400330d4c4b947d1c8669ccbe0a.JPG",
+},
+{
+  stallName: "Zhen Zhen Porridge",
+  menuItemName: "Fish Porridge",
+  userEmail: "foodie1@example.com",
+  caption: "Very clean-tasting and comforting. The fish was fresh and tender.",
+  validationStatus: "approved",
+  upvoteCount: 251,
+  downvoteCount: 30,
+  imageUrl: "",
+},
+{
+  stallName: "Zhen Zhen Porridge",
+  menuItemName: "Fish Porridge",
+  userEmail: "foodie2@example.com",
+  caption: "Mild, smooth porridge with soft fish slices — super comforting bowl.",
+  validationStatus: "approved",
+  upvoteCount: 113,
+  downvoteCount: 92,
+  imageUrl: "https://salu-salo.com/wp-content/uploads/2020/12/Fish-Congee-500x375.jpg",
+},
+{
+  stallName: "Zhen Zhen Porridge",
+  menuItemName: "Fish Porridge",
+  userEmail: "foodie3@example.com",
+  caption: "Delicious and hearty. The fish flavour really comes through in the porridge.",
+  validationStatus: "approved",
+  upvoteCount: 411,
+  downvoteCount: 157,
+  imageUrl: "https://winniesbalance.com/wp-content/uploads/2024/05/fish-congee-rice-porridge-cantonese-dish-chinese-food-easy-healthy-.jpg",
+},
+{
+  stallName: "Zhen Zhen Porridge",
+  menuItemName: "Century Egg Porridge",
+  userEmail: "foodie1@example.com",
+  caption: "Rich flavour from the century egg — creamy and super comforting.",
+  validationStatus: "approved",
+  upvoteCount: 343,
+  downvoteCount: 156,
+  imageUrl: "https://kitchentigress.com/wp-content/uploads/2022/09/MOV_0545_000152B43.jpg",
+},
+{
+  stallName: "Zhen Zhen Porridge",
+  menuItemName: "Century Egg Porridge",
+  userEmail: "foodie2@example.com",
+  caption: "Very smooth porridge with a strong, savoury century egg taste. Loved it.",
+  validationStatus: "approved",
+  upvoteCount: 382,
+  downvoteCount: 178,
+  imageUrl: "https://www.siftandsimmer.com/wp-content/uploads/2025/02/IMG_6611-featured.jpg",
+},
+{
+  stallName: "Zhen Zhen Porridge",
+  menuItemName: "Century Egg Porridge",
+  userEmail: "foodie3@example.com",
+  caption: "Creamy bowl with a good balance of porridge and century egg flavour.",
+  validationStatus: "approved",
+  upvoteCount: 417,
+ downvoteCount: 112,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSl0_IJWszC8q7xdg4WfF4RpnigF1dWbScN0A&s",
+},
+{
+  stallName: "Zhen Zhen Porridge",
+  menuItemName: "Mixed Pork Porridge",
+  userEmail: "foodie1@example.com",
+  caption: "Super hearty bowl packed with flavour — loved the mix of pork cuts.",
+  validationStatus: "approved",
+  upvoteCount: 492,
+  downvoteCount: 186,
+  imageUrl: "https://farm2.staticflickr.com/1569/24974787999_8a4504abdc_o.jpg",
+},
+{
+  stallName: "Zhen Zhen Porridge",
+  menuItemName: "Mixed Pork Porridge",
+  userEmail: "foodie2@example.com",
+  caption: "Decent flavour and portion size. The pork pieces were nicely cooked.",
+  validationStatus: "approved",
+  upvoteCount: 174,
+  downvoteCount: 134,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRgDHdJC6ebv3QlPx12b_WNtUxFAJzvClu3tA&s",
+},
+{
+  stallName: "Zhen Zhen Porridge",
+  menuItemName: "Mixed Pork Porridge",
+  userEmail: "foodie3@example.com",
+  caption: "Not my favourite version but still comforting. The pork was a bit mild.",
+  validationStatus: "approved",
+  upvoteCount: 27,
+  downvoteCount: 35,
+  imageUrl: "https://noobcook.com/wp-content/uploads/2019/03/5-ingredient_pork_porridge.jpg",
+},
+{
+  stallName: "Zhen Zhen Porridge",
+  menuItemName: "You Tiao",
+  userEmail: "foodie1@example.com",
+  caption: "Crispy and light — perfect for dipping into hot porridge.",
+  validationStatus: "approved",
+  upvoteCount: 77,
+  downvoteCount: 110,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTUFLphnU0FFu1FsgdDAFMcKjqWFcNfezoJ2Q&s",
+},
+{
+  stallName: "Zhen Zhen Porridge",
+  menuItemName: "You Tiao",
+  userEmail: "foodie2@example.com",
+  caption: "Freshly fried and airy! Really good snack to go with porridge.",
+  validationStatus: "approved",
+  upvoteCount: 203,
+  downvoteCount: 107,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQPMO26fKoplCBI4F92Pah9G6LWHS91xdJg_w&s",
+},
+{
+  stallName: "Zhen Zhen Porridge",
+  menuItemName: "You Tiao",
+  userEmail: "foodie3@example.com",
+  caption: "Crispy on the outside, soft inside — great texture and very addictive.",
+  validationStatus: "approved",
+  upvoteCount: 401,
+  downvoteCount: 147,
+  imageUrl: "https://admin.misstamchiak.com/wp-content/uploads/2019/11/Uncle-Dough-Youtiao-Nutella-3.jpg",
+},
+
+  {
+  stallName: "Maxwell Fuzhou Oyster Cake",
+  menuItemName: "Original Oyster Cake",
+  userEmail: "foodie1@example.com",
+  caption: "Crispy but a bit too oily for me — still a unique old-school snack.",
+  validationStatus: "approved",
+  upvoteCount: 33,
+  downvoteCount: 146,
+  imageUrl: "https://dam.mediacorp.sg/image/upload/s--hs-PPfBK--/c_fill,g_auto,h_523,w_693/f_auto,q_auto/makan-kakis-oyster-cake-jalan-besar--2-.jpg?itok=UkFaxAwr",
+},
+{
+  stallName: "Maxwell Fuzhou Oyster Cake",
+  menuItemName: "Original Oyster Cake",
+  userEmail: "foodie2@example.com",
+  caption: "Super crispy on the outside and packed with flavour inside. Very shiok!",
+  validationStatus: "approved",
+  upvoteCount: 398,
+  downvoteCount: 53,
+  imageUrl: "https://admin.misstamchiak.com/wp-content/uploads/2017/02/IMG_3137-e1487302375227.jpg",
+},
+{
+  stallName: "Maxwell Fuzhou Oyster Cake",
+  menuItemName: "Original Oyster Cake",
+  userEmail: "foodie3@example.com",
+  caption: "Nice crunch and generous filling — great as a sharing snack.",
+  validationStatus: "approved",
+  upvoteCount: 43,
+  downvoteCount: 37,
+  imageUrl: "https://i.ytimg.com/vi/oYCmkMbzmmg/hq720.jpg?sqp=-oaymwEhCK4FEIIDSFryq4qpAxMIARUAAAAAGAElAADIQj0AgKJD&rs=AOn4CLBtkzSsbbuGn0TtimIwhKGJTVnxNg",
+},
+{
+  stallName: "Maxwell Fuzhou Oyster Cake",
+  menuItemName: "Oyster Cake (Extra Oyster)",
+  userEmail: "foodie1@example.com",
+  caption: "Extra oysters made it really intense—great if you love strong seafood flavours.",
+  validationStatus: "approved",
+  upvoteCount: 35,
+  downvoteCount: 154,
+  imageUrl: "https://sethlui.com/wp-content/uploads/2020/10/Oyster-cake-Showdown-2.jpg",
+},
+{
+  stallName: "Maxwell Fuzhou Oyster Cake",
+  menuItemName: "Oyster Cake (Extra Oyster)",
+  userEmail: "foodie2@example.com",
+  caption: "So satisfying with the extra oysters inside — crispy, juicy and savoury.",
+  validationStatus: "approved",
+  upvoteCount: 448,
+  downvoteCount: 36,
+  imageUrl: "https://dam.mediacorp.sg/image/upload/s--hs-PPfBK--/c_fill,g_auto,h_523,w_693/f_auto,q_auto/makan-kakis-oyster-cake-jalan-besar--2-.jpg?itok=UkFaxAwr",
+},
+{
+  stallName: "Maxwell Fuzhou Oyster Cake",
+  menuItemName: "Oyster Cake (Extra Oyster)",
+  userEmail: "foodie3@example.com",
+  caption: "Good balance of batter and oysters — very addictive when it's hot.",
+  validationStatus: "approved",
+  upvoteCount: 240,
+  downvoteCount: 114,
+  imageUrl: "https://sethlui.com/wp-content/uploads/2025/10/oystercake1.jpg",
+},
+{
+  stallName: "Maxwell Fuzhou Oyster Cake",
+  menuItemName: "Meat-Only Fritter",
+  userEmail: "foodie1@example.com",
+  caption: "No oysters, just meat — still super crunchy and flavourful.",
+  validationStatus: "approved",
+  upvoteCount: 331,
+  downvoteCount: 124,
+  imageUrl: "https://sethlui.com/wp-content/uploads/2022/03/Soon-Heng-Food-Delights-01.jpg",
+},
+{
+  stallName: "Maxwell Fuzhou Oyster Cake",
+  menuItemName: "Meat-Only Fritter",
+  userEmail: "foodie2@example.com",
+  caption: "Great option if you don’t like oysters. The meat filling is quite generous.",
+  validationStatus: "approved",
+  upvoteCount: 143,
+  downvoteCount: 56,
+  imageUrl: "https://admin.misstamchiak.com/wp-content/uploads/2018/08/IMG_0037.jpg",
+},
+{
+  stallName: "Maxwell Fuzhou Oyster Cake",
+  menuItemName: "Meat-Only Fritter",
+  userEmail: "foodie3@example.com",
+  caption: "Crispy edges and tasty meat inside — simple but really satisfying snack.",
+  validationStatus: "approved",
+  upvoteCount: 468,
+  downvoteCount: 62,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRwnREEXXp0RauhL1Nxj7et5T1xFKrjDxvFNQ&s",
+},
+{
+  stallName: "Maxwell Fuzhou Oyster Cake",
+  menuItemName: "Peanut Fritter",
+  userEmail: "foodie1@example.com",
+  caption: "Love the nutty crunch — slightly sweet and very nostalgic.",
+  validationStatus: "approved",
+  upvoteCount: 290,
+  downvoteCount: 142,
+  imageUrl: "https://i0.wp.com/www.guaishushu1.com/wp-content/uploads/2015/05/IMG_8734.jpg?resize=480%2C640&ssl=1",
+},
+{
+  stallName: "Maxwell Fuzhou Oyster Cake",
+  menuItemName: "Peanut Fritter",
+  userEmail: "foodie2@example.com",
+  caption: "Warm, crispy and packed with peanuts — perfect with kopi.",
+  validationStatus: "approved",
+  upvoteCount: 456,
+  downvoteCount: 92,
+  imageUrl: "https://kwgls.files.wordpress.com/2015/05/img_3002.jpg",
+},
+{
+  stallName: "Maxwell Fuzhou Oyster Cake",
+  menuItemName: "Peanut Fritter",
+  userEmail: "foodie3@example.com",
+  caption: "Bit on the sweet side but very crunchy and fragrant.",
+  validationStatus: "approved",
+  upvoteCount: 276,
+  downvoteCount: 136,
+  imageUrl: "https://eatwhattonight.com/wp-content/uploads/2016/09/Peanut-Pancakes_4.jpg",
+},
+{
+  stallName: "Maxwell Fuzhou Oyster Cake",
+  menuItemName: "Oyster Cake Set (3 pcs)",
+  userEmail: "foodie1@example.com",
+  caption: "Good for sharing, but gets a bit heavy after a few pieces.",
+  validationStatus: "approved",
+  upvoteCount: 115,
+  downvoteCount: 131,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQDPr48OR0BhQPi5abD5aQAzLqvM7ESsT1H4w&s",
+},
+{
+  stallName: "Maxwell Fuzhou Oyster Cake",
+  menuItemName: "Oyster Cake Set (3 pcs)",
+  userEmail: "foodie2@example.com",
+  caption: "Great value if you’re sharing with friends — best eaten hot and crispy.",
+  validationStatus: "approved",
+  upvoteCount: 71,
+  downvoteCount: 152,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSl8H-Uu0a9HlM68qFC4HQnCSsmxKuELVd60g&s",
+},
+{
+  stallName: "Maxwell Fuzhou Oyster Cake",
+  menuItemName: "Oyster Cake Set (3 pcs)",
+  userEmail: "foodie3@example.com",
+  caption: "Nice mix of textures and flavours — a bit indulgent but very shiok.",
+  validationStatus: "approved",
+  upvoteCount: 103,
+  downvoteCount: 87,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQKUAdklMwzl4pabMl2NWHO-LL3Cwy3mwJuzA&s",
+},
+{
+  stallName: "Jia Ji Mei Shi",
+  menuItemName: "Chee Cheong Fun (Plain)",
+  userEmail: "foodie1@example.com",
+  caption: "Simple rice rolls with sweet sauce — very old-school breakfast vibes.",
+  validationStatus: "approved",
+  upvoteCount: 44,
+  downvoteCount: 150,
+  imageUrl: "https://sethlui.com/wp-content/uploads/2019/06/pin-wei-ccf-11-800x533.jpg",
+},
+{
+  stallName: "Jia Ji Mei Shi",
+  menuItemName: "Chee Cheong Fun (Plain)",
+  userEmail: "foodie2@example.com",
+  caption: "Soft and silky, but I wish there was a bit more sauce.",
+  validationStatus: "approved",
+  upvoteCount: 222,
+  downvoteCount: 184,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSBo12WW2aRsWe1aA6J19JvBehffEWvrimYng&s",
+},
+{
+  stallName: "Jia Ji Mei Shi",
+  menuItemName: "Chee Cheong Fun (Plain)",
+  userEmail: "foodie3@example.com",
+  caption: "Very smooth rice rolls with a nice balance of sweet and savoury sauces.",
+  validationStatus: "approved",
+  upvoteCount: 414,
+  downvoteCount: 99,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRn2hoFeHCD6cL447szqsxd694JK1UE-hEccA&s",
+},
+{
+  stallName: "Jia Ji Mei Shi",
+  menuItemName: "Chee Cheong Fun (Yong Tau Foo)",
+  userEmail: "foodie1@example.com",
+  caption: "Loaded plate with chee cheong fun and yong tau foo — very filling.",
+  validationStatus: "approved",
+  upvoteCount: 370,
+  downvoteCount: 84,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQFqY7sM93bim33t3H5bBpQ3hrHag5gJVSbFw&s",
+},
+{
+  stallName: "Jia Ji Mei Shi",
+  menuItemName: "Chee Cheong Fun (Yong Tau Foo)",
+  userEmail: "foodie2@example.com",
+  caption: "Nice variety of ingredients with soft rice rolls and tasty sauce.",
+  validationStatus: "approved",
+  upvoteCount: 232,
+  downvoteCount: 76,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS5-jp-ILZWp-3okuUjnqY3NJUpqwfiTnLu3g&s",
+},
+{
+  stallName: "Jia Ji Mei Shi",
+  menuItemName: "Chee Cheong Fun (Yong Tau Foo)",
+  userEmail: "foodie3@example.com",
+  caption: "Generous portion but a bit heavy — good if you’re really hungry.",
+  validationStatus: "approved",
+  upvoteCount: 209,
+  downvoteCount: 139,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRELz5NXL0neOLDoFKE8n2zUG3A0pa8Xr3t1g&s",
+},
+{
+  stallName: "Jia Ji Mei Shi",
+  menuItemName: "Yam Cake",
+  userEmail: "foodie1@example.com",
+  caption: "Soft yam cake with savoury toppings — comforting and nostalgic.",
+  validationStatus: "approved",
+  upvoteCount: 143,
+  downvoteCount: 88,
+  imageUrl: "https://admin.misstamchiak.com/wp-content/uploads/2016/01/DSCF7744.jpg",
+},
+{
+  stallName: "Jia Ji Mei Shi",
+  menuItemName: "Yam Cake",
+  userEmail: "foodie2@example.com",
+  caption: "Fragrant and nicely seasoned yam cake, especially good with chili.",
+  validationStatus: "approved",
+  upvoteCount: 376,
+  downvoteCount: 34,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS7VEffc4zHgBGIE2CTXdHYtb6iPmWIdXukRw&s",
+},
+{
+  stallName: "Jia Ji Mei Shi",
+  menuItemName: "Yam Cake",
+  userEmail: "foodie3@example.com",
+  caption: "Texture was a bit too soft for me, but flavour was still decent.",
+  validationStatus: "approved",
+  upvoteCount: 37,
+  downvoteCount: 169,
+  imageUrl: "https://substackcdn.com/image/fetch/$s_!HGTV!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fc7988aa3-7aa0-4ff2-8259-993bcca5b1c5_1134x945.jpeg",
+},
+{
+  stallName: "Jia Ji Mei Shi",
+  menuItemName: "Soon Kueh",
+  userEmail: "foodie1@example.com",
+  caption: "Thin skin with tasty turnip filling — very nice traditional snack.",
+  validationStatus: "approved",
+  upvoteCount: 221,
+  downvoteCount: 112,
+  imageUrl: "https://sethlui.com/wp-content/uploads/2020/03/Fatt-Soon-Kueh-6.jpg",
+},
+{
+  stallName: "Jia Ji Mei Shi",
+  menuItemName: "Soon Kueh",
+  userEmail: "foodie2@example.com",
+  caption: "Chewy skin and well-seasoned filling — especially good with the chili.",
+  validationStatus: "approved",
+  upvoteCount: 443,
+  downvoteCount: 179,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTgYoSanhSS9wcT96yzKH_RsIh85M9fZZIAAg&s",
+},
+{
+  stallName: "Jia Ji Mei Shi",
+  menuItemName: "Soon Kueh",
+  userEmail: "foodie3@example.com",
+  caption: "Filling was tasty but the skin felt a bit thick for my liking.",
+  validationStatus: "approved",
+  upvoteCount: 56,
+  downvoteCount: 158,
+  imageUrl: "https://eatbook.sg/wp-content/uploads/2022/12/soon-kueh-lai-heng.jpg",
+},
+{
+  stallName: "Jia Ji Mei Shi",
+  menuItemName: "Glutinous Rice",
+  userEmail: "foodie1@example.com",
+  caption: "Sticky, fragrant and very filling — classic old-school breakfast.",
+  validationStatus: "approved",
+  upvoteCount: 256,
+  downvoteCount: 171,
+  imageUrl: "https://sethlui.com/wp-content/uploads/2020/12/millenium-glutinous-rice-7.jpg",
+},
+{
+  stallName: "Jia Ji Mei Shi",
+  menuItemName: "Glutinous Rice",
+  userEmail: "foodie2@example.com",
+  caption: "Loved the savoury flavour and texture — especially good with fried shallots.",
+  validationStatus: "approved",
+  upvoteCount: 343,
+  downvoteCount: 64,
+  imageUrl: "https://sethlui.com/wp-content/uploads/2020/12/millenium-glutinous-rice-10.jpg",
+},
+{
+  stallName: "Jia Ji Mei Shi",
+  menuItemName: "Glutinous Rice",
+  userEmail: "foodie3@example.com",
+  caption: "Very hearty plate of glutinous rice — a bit heavy but really tasty.",
+  validationStatus: "approved",
+  upvoteCount: 246,
+  downvoteCount: 55,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR123Vskw8aupwwV15hjw6KLfhA3ri9acsPNw&s",
+},
+
+  {
+  stallName: "Maxwell Favourites Drinks",
+  menuItemName: "Kopi O",
+  userEmail: "foodie1@example.com",
+  caption: "Strong and slightly bitter — good for those who like a punchy kopi.",
+  validationStatus: "approved",
+  upvoteCount: 148,
+  downvoteCount: 165,
+  imageUrl: "https://s3-media0.fl.yelpcdn.com/bphoto/cNXJVto6ISfvA8b_C7CIog/348s.jpg",
+},
+{
+  stallName: "Maxwell Favourites Drinks",
+  menuItemName: "Kopi O",
+  userEmail: "foodie2@example.com",
+  caption: "Aromatic and smooth black coffee — perfect to go with hawker food.",
+  validationStatus: "approved",
+  upvoteCount: 493,
+  downvoteCount: 34,
+  imageUrl: "https://eatbook.sg/wp-content/uploads/2024/07/hainan-story-kopi-o-1024x683.jpg",
+},
+{
+  stallName: "Maxwell Favourites Drinks",
+  menuItemName: "Kopi O",
+  userEmail: "foodie3@example.com",
+  caption: "Quite gao and slightly on the bitter side, but wakes you up instantly.",
+  validationStatus: "approved",
+  upvoteCount: 80,
+  downvoteCount: 155,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSeqFUXIKcsx21-DkaJGpJG8ZjcWI0obDKeiQ&s",
+},
+{
+  stallName: "Maxwell Favourites Drinks",
+  menuItemName: "Teh C",
+  userEmail: "foodie1@example.com",
+  caption: "Very smooth and creamy — just the right amount of sweetness.",
+  validationStatus: "approved",
+  upvoteCount: 382,
+  downvoteCount: 25,
+  imageUrl: "https://www.shutterstock.com/image-photo/cup-tehc-kosong-tea-evaporated-260nw-2691171539.jpg",
+},
+{
+  stallName: "Maxwell Favourites Drinks",
+  menuItemName: "Teh C",
+  userEmail: "foodie2@example.com",
+  caption: "Nice blend of tea and milk, though slightly sweet for my taste.",
+  validationStatus: "approved",
+  upvoteCount: 171,
+  downvoteCount: 60,
+  imageUrl: "https://makansutra.com/wp-content/uploads/2018/08/a6b0e4_Teh-C-small.jpg",
+},
+{
+  stallName: "Maxwell Favourites Drinks",
+  menuItemName: "Teh C",
+  userEmail: "foodie3@example.com",
+  caption: "Fragrant, milky and comforting — great to sip while people-watching.",
+  validationStatus: "approved",
+  upvoteCount: 355,
+  downvoteCount: 69,
+  imageUrl: "https://static.honeykidsasia.com/wp-content/uploads/2023/04/ordering-kopi-teh-like-a-pro-ya-kun-singapore-coffee-900x643.png",
+},
+{
+  stallName: "Maxwell Favourites Drinks",
+  menuItemName: "Iced Lime Juice",
+  userEmail: "foodie1@example.com",
+  caption: "Very refreshing but a little too sweet and syrupy for me.",
+  validationStatus: "approved",
+  upvoteCount: 57,
+  downvoteCount: 179,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQgFTQiMjqlfznYsQtlAUN1wx-oReK_HC54og&s",
+},
+{
+  stallName: "Maxwell Favourites Drinks",
+  menuItemName: "Iced Lime Juice",
+  userEmail: "foodie2@example.com",
+  caption: "Tangy and cooling on a hot day, though the sweetness can be quite strong.",
+  validationStatus: "approved",
+  upvoteCount: 264,
+  downvoteCount: 199,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTDynWDzXviB4PPX7QxVtb5DcUs0ZeB-FMfrw&s",
+},
+{
+  stallName: "Maxwell Favourites Drinks",
+  menuItemName: "Iced Lime Juice",
+  userEmail: "foodie3@example.com",
+  caption: "Cold, zesty and refreshing — great palate cleanser between dishes.",
+  validationStatus: "approved",
+  upvoteCount: 270,
+  downvoteCount: 162,
+  imageUrl: "https://lh3.googleusercontent.com/p/AF1QipMTZIHMq-LeMKNh5EhNG4gAzxhqzETem94kzGxs=s1360-w1360-h1020",
+},
+{
+  stallName: "Maxwell Favourites Drinks",
+  menuItemName: "Iced Milo",
+  userEmail: "foodie1@example.com",
+  caption: "Classic childhood drink — could be a bit thicker, but still comforting.",
+  validationStatus: "approved",
+  upvoteCount: 87,
+  downvoteCount: 133,
+  imageUrl: "https://substackcdn.com/image/fetch/$s_!rJKH!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fc639a480-7753-4f9f-ba5d-d4976bed8362_535x574.jpeg",
+},
+{
+  stallName: "Maxwell Favourites Drinks",
+  menuItemName: "Iced Milo",
+  userEmail: "foodie2@example.com",
+  caption: "Rich, chocolatey and cold — exactly how an iced Milo should be.",
+  validationStatus: "approved",
+  upvoteCount: 407,
+  downvoteCount: 58,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQs5Qzk4SWYoHsKEPDoUgFe4JelquhiODYeow&s",
+},
+{
+  stallName: "Maxwell Favourites Drinks",
+  menuItemName: "Iced Milo",
+  userEmail: "foodie3@example.com",
+  caption: "Very gao and sweet — super shiok treat on a hot afternoon.",
+  validationStatus: "approved",
+  upvoteCount: 452,
+  downvoteCount: 199,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT1w171LVU1m7Z1523hLyD0p3_IeiiMIwPqEw&s",
+},
+{
+  stallName: "Maxwell Favourites Drinks",
+  menuItemName: "Barley Drink",
+  userEmail: "foodie1@example.com",
+  caption: "Warm, soothing and not too sweet — great if you have a sore throat.",
+  validationStatus: "approved",
+  upvoteCount: 445,
+  downvoteCount: 138,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTAcQ2QPP8FDubmgr0Ti4Kj2f5KNR2Z8vA57A&s",
+},
+{
+  stallName: "Maxwell Favourites Drinks",
+  menuItemName: "Barley Drink",
+  userEmail: "foodie2@example.com",
+  caption: "Light and refreshing with soft barley grains at the bottom.",
+  validationStatus: "approved",
+  upvoteCount: 166,
+  downvoteCount: 52,
+  imageUrl: "https://tinyurbankitchen.com/wp-content/uploads/2014/11/wpid14831-DSC8948-1024x681.jpg",
+},
+{
+  stallName: "Maxwell Favourites Drinks",
+  menuItemName: "Barley Drink",
+  userEmail: "foodie3@example.com",
+  caption: "Very comforting traditional drink — especially nice when not too sweet.",
+  validationStatus: "approved",
+  upvoteCount: 497,
+  downvoteCount: 87,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRhyNwMZCx2U42mpok_W4wFmYIVdAV6g2GaWQ&s",
+},
+{
+  stallName: "Tiong Bahru Hainanese Boneless Chicken Rice",
+  menuItemName: "Boneless Chicken Rice",
+  userEmail: "foodie1@example.com",
+  caption: "Tender chicken and fragrant rice — simple but very satisfying plate.",
+  validationStatus: "approved",
+  upvoteCount: 119,
+  downvoteCount: 10,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRQKjFRjZX9eH__3ykhBe2Nlop7x0GL0PcYLg&s",
+},
+{
+  stallName: "Tiong Bahru Hainanese Boneless Chicken Rice",
+  menuItemName: "Boneless Chicken Rice",
+  userEmail: "foodie2@example.com",
+  caption: "Meat was juicy and the rice was super fragrant — definitely worth the queue.",
+  validationStatus: "approved",
+  upvoteCount: 386,
+  downvoteCount: 40,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR1PfAz8C21IVF_2Tc6bQBRj_gsL_bX3SnVgQ&s",
+},
+{
+  stallName: "Tiong Bahru Hainanese Boneless Chicken Rice",
+  menuItemName: "Boneless Chicken Rice",
+  userEmail: "foodie3@example.com",
+  caption: "One of my favourite chicken rice — smooth chicken and flavourful rice.",
+  validationStatus: "approved",
+  upvoteCount: 404,
+  downvoteCount: 31,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTAmnxXuoR79hQ2SN6ElmpR6Vj6lPQh38bFRg&s",
+},
+{
+  stallName: "Tiong Bahru Hainanese Boneless Chicken Rice",
+  menuItemName: "Roasted Boneless Chicken Rice",
+  userEmail: "foodie1@example.com",
+  caption: "Roast was a bit dry for me, but still decent with the chili and sauce.",
+  validationStatus: "approved",
+  upvoteCount: 24,
+  downvoteCount: 159,
+  imageUrl: "https://admin.misstamchiak.com/wp-content/uploads/2016/07/tiong-bahru-hainanese-boneless-chicken-rice-roast-chicken.jpg",
+},
+{
+  stallName: "Tiong Bahru Hainanese Boneless Chicken Rice",
+  menuItemName: "Roasted Boneless Chicken Rice",
+  userEmail: "foodie2@example.com",
+  caption: "Crispy skin and savoury flavour — great if you prefer roasted over steamed.",
+  validationStatus: "approved",
+  upvoteCount: 151,
+  downvoteCount: 88,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSpN-9BTBOYu9KNLebeZXm2Abm3Gve0KUkjNw&s",
+},
+{
+  stallName: "Tiong Bahru Hainanese Boneless Chicken Rice",
+  menuItemName: "Roasted Boneless Chicken Rice",
+  userEmail: "foodie3@example.com",
+  caption: "Strong roasted flavour but a bit oily — still tasty with the chili.",
+  validationStatus: "approved",
+  upvoteCount: 292,
+  downvoteCount: 187,
+  imageUrl: "https://preview.redd.it/hainanese-boneless-chicken-rice-army-market-aka-golden-mile-v0-45fqrivijdte1.jpg?width=1080&crop=smart&auto=webp&s=77e6eba79a18d8576e520743516bb2abe0b4988a",
+},
+{
+  stallName: "Tiong Bahru Hainanese Boneless Chicken Rice",
+  menuItemName: "Double Meat Chicken Rice",
+  userEmail: "foodie1@example.com",
+  caption: "Huge portion with both cuts of chicken — super shiok if you’re hungry.",
+  validationStatus: "approved",
+  upvoteCount: 364,
+  downvoteCount: 51,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQdYeDJEhQPDlDkqFWvkTkr1PxAdrqQYHDD2Q&s",
+},
+{
+  stallName: "Tiong Bahru Hainanese Boneless Chicken Rice",
+  menuItemName: "Double Meat Chicken Rice",
+  userEmail: "foodie2@example.com",
+  caption: "Best of both worlds — roasted and steamed chicken on one plate.",
+  validationStatus: "approved",
+  upvoteCount: 483,
+  downvoteCount: 137,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT5oIuUUISIFtbG75GTfUIXEbVXSFysHD6AnQ&s",
+},
+{
+  stallName: "Tiong Bahru Hainanese Boneless Chicken Rice",
+  menuItemName: "Double Meat Chicken Rice",
+  userEmail: "foodie3@example.com",
+  caption: "Very filling plate, great for sharing or big appetites.",
+  validationStatus: "approved",
+  upvoteCount: 446,
+  downvoteCount: 109,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSrSsIT77qN3KDbaeqBj-zNaiyP-zHhuI3I1w&s",
+},
+{
+  stallName: "Tiong Bahru Hainanese Boneless Chicken Rice",
+  menuItemName: "Chicken Rice with Braised Egg",
+  userEmail: "foodie1@example.com",
+  caption: "Braised egg adds extra flavour — simple upgrade that feels very worth it.",
+  validationStatus: "approved",
+  upvoteCount: 459,
+  downvoteCount: 77,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQhSdG-2gvJIPNfV6d3UuMWNunJEAQ5_HYxWw&s",
+},
+{
+  stallName: "Tiong Bahru Hainanese Boneless Chicken Rice",
+  menuItemName: "Chicken Rice with Braised Egg",
+  userEmail: "foodie2@example.com",
+  caption: "Love the soy flavour of the braised egg with the fragrant rice.",
+  validationStatus: "approved",
+  upvoteCount: 475,
+  downvoteCount: 70,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSyhqMLyVRCmBgQsKRC858ovjImh000KvVReA&s",
+},
+{
+  stallName: "Tiong Bahru Hainanese Boneless Chicken Rice",
+  menuItemName: "Chicken Rice with Braised Egg",
+  userEmail: "foodie3@example.com",
+  caption: "Braised egg was tasty, though overall the plate felt a bit heavy.",
+  validationStatus: "approved",
+  upvoteCount: 350,
+  downvoteCount: 158,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSc0LPnw0v-AZp0r3MG3RRtefKFJzHVOjvDbA&s",
+},
+{
+  stallName: "Tiong Bahru Hainanese Boneless Chicken Rice",
+  menuItemName: "Chicken Rice Set (Soup & Veg)",
+  userEmail: "foodie1@example.com",
+  caption: "Nice complete set with soup and veg — feels more balanced as a meal.",
+  validationStatus: "approved",
+  upvoteCount: 305,
+  downvoteCount: 157,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRRThc3QeIV5tEfWw_v_3VAJ3a2o5rPVvNDiw&s",
+},
+{
+  stallName: "Tiong Bahru Hainanese Boneless Chicken Rice",
+  menuItemName: "Chicken Rice Set (Soup & Veg)",
+  userEmail: "foodie2@example.com",
+  caption: "Soup was light and the veggies added a nice crunch to the meal.",
+  validationStatus: "approved",
+  upvoteCount: 480,
+  downvoteCount: 123,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRwJubs6H1366eZ1GJ11eA6khW5mXZ3F03khg&s",
+},
+{
+  stallName: "Tiong Bahru Hainanese Boneless Chicken Rice",
+  menuItemName: "Chicken Rice Set (Soup & Veg)",
+  userEmail: "foodie3@example.com",
+  caption: "Good value set if you want a fuller meal with sides.",
+  validationStatus: "approved",
+  upvoteCount: 327,
+  downvoteCount: 88,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRkG3bqSSv_Ytb_3QPRp3sVGp2CUR7QpNFVCg&s",
+},
+
+  {
+  stallName: "Hong Heng Fried Sotong Prawn Mee",
+  menuItemName: "Fried Hokkien Mee (Regular)",
+  userEmail: "foodie1@example.com",
+  caption: "Wok hei was a bit mild, but still a decent plate of Hokkien mee.",
+  validationStatus: "approved",
+  upvoteCount: 52,
+  downvoteCount: 190,
+  imageUrl: "https://sethlui.com/wp-content/uploads/2025/06/singapore-fried-hokkien-mee-3.jpg",
+},
+{
+  stallName: "Hong Heng Fried Sotong Prawn Mee",
+  menuItemName: "Fried Hokkien Mee (Regular)",
+  userEmail: "foodie2@example.com",
+  caption: "Nicely soaked noodles with a good prawn stock flavour — very satisfying.",
+  validationStatus: "approved",
+  upvoteCount: 308,
+  downvoteCount: 124,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT33JJRuOMg8lAwfbobLA6TTDhc_5gWb5s7BA&s",
+},
+{
+  stallName: "Hong Heng Fried Sotong Prawn Mee",
+  menuItemName: "Fried Hokkien Mee (Regular)",
+  userEmail: "foodie3@example.com",
+  caption: "Slurpy, flavourful and packed with umami — would definitely order again.",
+  validationStatus: "approved",
+  upvoteCount: 392,
+  downvoteCount: 47,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR878vJ4lqPKghxlnlw8nkKG_NIbbf4rz1pOw&s",
+},
+{
+  stallName: "Hong Heng Fried Sotong Prawn Mee",
+  menuItemName: "Fried Hokkien Mee (Large)",
+  userEmail: "foodie1@example.com",
+  caption: "Big portion with strong broth flavour — great for sharing.",
+  validationStatus: "approved",
+  upvoteCount: 345,
+  downvoteCount: 64,
+  imageUrl: "https://danielfooddiary.com/wp-content/uploads/2023/04/singaporehokkienmee8.jpg",
+},
+{
+  stallName: "Hong Heng Fried Sotong Prawn Mee",
+  menuItemName: "Fried Hokkien Mee (Large)",
+  userEmail: "foodie2@example.com",
+  caption: "Plenty of noodles and ingredients, though I wish it had more wok hei.",
+  validationStatus: "approved",
+  upvoteCount: 127,
+  downvoteCount: 49,
+  imageUrl: "https://sethlui.com/wp-content/uploads/2021/11/Ah-Hock-Fried-Hokkien-Noodles-Hokkien-mee-1000x750.jpg",
+},
+{
+  stallName: "Hong Heng Fried Sotong Prawn Mee",
+  menuItemName: "Fried Hokkien Mee (Large)",
+  userEmail: "foodie3@example.com",
+  caption: "Generous serving size and a rich prawn flavour — worth the upgrade.",
+  validationStatus: "approved",
+  upvoteCount: 320,
+  downvoteCount: 48,
+  imageUrl: "https://sethlui.com/wp-content/uploads/2022/06/20210217141446_IMG_9897-800x542.jpg",
+},
+{
+  stallName: "Hong Heng Fried Sotong Prawn Mee",
+  menuItemName: "Hokkien Mee with Extra Sotong",
+  userEmail: "foodie1@example.com",
+  caption: "Extra sotong made every bite super shiok — bouncy and fresh.",
+  validationStatus: "approved",
+  upvoteCount: 403,
+  downvoteCount: 21,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQJktX7WDIxYY7dAncXDKnPxf1JIIw5vLx1vQ&s",
+},
+{
+  stallName: "Hong Heng Fried Sotong Prawn Mee",
+  menuItemName: "Hokkien Mee with Extra Sotong",
+  userEmail: "foodie2@example.com",
+  caption: "Lots of sotong and good bite, though the noodles were slightly soft.",
+  validationStatus: "approved",
+  upvoteCount: 337,
+  downvoteCount: 122,
+  imageUrl: "https://sethlui.com/wp-content/uploads/2024/01/Article-Image-Template-16-copy-11-jpg.webp",
+},
+{
+  stallName: "Hong Heng Fried Sotong Prawn Mee",
+  menuItemName: "Hokkien Mee with Extra Sotong",
+  userEmail: "foodie3@example.com",
+  caption: "Seafood lovers will enjoy this — super generous with the sotong.",
+  validationStatus: "approved",
+  upvoteCount: 55,
+  downvoteCount: 23,
+  imageUrl: "https://admin.misstamchiak.com/wp-content/uploads/2019/03/Hokkiensotongmeefeaturedimage.jpg",
+},
+{
+  stallName: "Hong Heng Fried Sotong Prawn Mee",
+  menuItemName: "Hokkien Mee with Extra Prawn",
+  userEmail: "foodie1@example.com",
+  caption: "Extra prawns were fresh but the broth could have been richer.",
+  validationStatus: "approved",
+  upvoteCount: 213,
+  downvoteCount: 188,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSanJHJaf8LWq-r9te4U-u_eu4j8rk6psXQ5A&s",
+},
+{
+  stallName: "Hong Heng Fried Sotong Prawn Mee",
+  menuItemName: "Hokkien Mee with Extra Prawn",
+  userEmail: "foodie2@example.com",
+  caption: "Sweet, succulent prawns and a nice smoky aroma from the wok.",
+  validationStatus: "approved",
+  upvoteCount: 187,
+  downvoteCount: 141,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRBt96mlmawmAnMDKt9qMkFsGNEFPHmk0yUCw&s",
+},
+{
+  stallName: "Hong Heng Fried Sotong Prawn Mee",
+  menuItemName: "Hokkien Mee with Extra Prawn",
+  userEmail: "foodie3@example.com",
+  caption: "Good portion of prawns, but flavour-wise it was just average for me.",
+  validationStatus: "approved",
+  upvoteCount: 110,
+  downvoteCount: 117,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQeWJeoMaEbgxq-C3vaqghWGNXuACLC61AUeg&s",
+},
+{
+  stallName: "Hong Heng Fried Sotong Prawn Mee",
+  menuItemName: "Otak Side",
+  userEmail: "foodie1@example.com",
+  caption: "Smoky, spicy and fragrant — perfect side to go with the noodles.",
+  validationStatus: "approved",
+  upvoteCount: 190,
+  downvoteCount: 97,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR4FvFJJhSnOTykadT8xxG-goRXF-yRueRRnA&s",
+},
+{
+  stallName: "Hong Heng Fried Sotong Prawn Mee",
+  menuItemName: "Otak Side",
+  userEmail: "foodie2@example.com",
+  caption: "Moist otak with strong coconut and spice flavour — really tasty.",
+  validationStatus: "approved",
+  upvoteCount: 264,
+  downvoteCount: 93,
+  imageUrl: "https://i.ytimg.com/vi/KQZncvvrvuE/hq720.jpg?sqp=-oaymwEhCK4FEIIDSFryq4qpAxMIARUAAAAAGAElAADIQj0AgKJD&rs=AOn4CLBnjNgVlcWYDaYMdT7knRPkQQdCLw",
+},
+{
+  stallName: "Hong Heng Fried Sotong Prawn Mee",
+  menuItemName: "Otak Side",
+  userEmail: "foodie3@example.com",
+  caption: "Nice char on the outside and soft inside — great to share.",
+  validationStatus: "approved",
+  upvoteCount: 188,
+  downvoteCount: 112,
+  imageUrl: "https://i.ytimg.com/vi/KAPkdHtcgxI/hq720.jpg?sqp=-oaymwEhCK4FEIIDSFryq4qpAxMIARUAAAAAGAElAADIQj0AgKJD&rs=AOn4CLDG3wNqWxNWjm4IKW2ekboarba3fg",
+},
+{
+  stallName: "Min Nan Pork Ribs Prawn Noodle",
+  menuItemName: "Pork Ribs Prawn Noodle (Soup)",
+  userEmail: "foodie1@example.com",
+  caption: "Broth was a bit light for me, but the prawns were fresh.",
+  validationStatus: "approved",
+  upvoteCount: 31,
+  downvoteCount: 200,
+  imageUrl: "https://i.ytimg.com/vi/dvMnPHoNaRc/maxresdefault.jpg",
+},
+{
+  stallName: "Min Nan Pork Ribs Prawn Noodle",
+  menuItemName: "Pork Ribs Prawn Noodle (Soup)",
+  userEmail: "foodie2@example.com",
+  caption: "Comforting bowl with tender pork ribs and decent prawn flavour.",
+  validationStatus: "approved",
+  upvoteCount: 155,
+  downvoteCount: 51,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTy7QyxKzErDlS5qU9jkZFdsIz5ZIieIhIRag&s",
+},
+{
+  stallName: "Min Nan Pork Ribs Prawn Noodle",
+  menuItemName: "Pork Ribs Prawn Noodle (Soup)",
+  userEmail: "foodie3@example.com",
+  caption: "Rich, savoury broth with fall-off-the-bone ribs — very satisfying.",
+  validationStatus: "approved",
+  upvoteCount: 409,
+  downvoteCount: 156,
+  imageUrl: "https://admin.misstamchiak.com/wp-content/uploads/2015/07/19283274059_e6b2f255ce_o.jpg",
+},
+{
+  stallName: "Min Nan Pork Ribs Prawn Noodle",
+  menuItemName: "Pork Ribs Prawn Noodle (Dry)",
+  userEmail: "foodie1@example.com",
+  caption: "Chili and sauce were fragrant, but noodles were slightly overcooked.",
+  validationStatus: "approved",
+  upvoteCount: 149,
+  downvoteCount: 99,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ-pktlNGmD-xiqCaZOoFJAhDRXlP-9JCukJA&s",
+},
+{
+  stallName: "Min Nan Pork Ribs Prawn Noodle",
+  menuItemName: "Pork Ribs Prawn Noodle (Dry)",
+  userEmail: "foodie2@example.com",
+  caption: "Good mix of savoury sauce, pork ribs and noodles — very shiok dry version.",
+  validationStatus: "approved",
+  upvoteCount: 324,
+  downvoteCount: 141,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ93tUUCqLV3yAyDzpFtfJZ5zhAYp7eC13-bw&s",
+},
+{
+  stallName: "Min Nan Pork Ribs Prawn Noodle",
+  menuItemName: "Pork Ribs Prawn Noodle (Dry)",
+  userEmail: "foodie3@example.com",
+  caption: "Flavourful, though I prefer the soup version for the rich broth.",
+  validationStatus: "approved",
+  upvoteCount: 160,
+  downvoteCount: 124,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTprwJcNk2uGCN-ApWX9RD-TG2wlvtapkaGlA&s",
+},
+{
+  stallName: "Min Nan Pork Ribs Prawn Noodle",
+  menuItemName: "Big Prawn Noodle",
+  userEmail: "foodie1@example.com",
+  caption: "Huge prawns and deep, prawn-y broth — super satisfying bowl.",
+  validationStatus: "approved",
+  upvoteCount: 462,
+  downvoteCount: 74,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT01vHcBSm_eNudZuAlPVdhaBIAj29NgsW6Jg&s",
+},
+{
+  stallName: "Min Nan Pork Ribs Prawn Noodle",
+  menuItemName: "Big Prawn Noodle",
+  userEmail: "foodie2@example.com",
+  caption: "Sweet, fresh prawns with a rich broth — really enjoyed this.",
+  validationStatus: "approved",
+  upvoteCount: 130,
+  downvoteCount: 72,
+  imageUrl: "https://eatbook.sg/wp-content/uploads/2023/07/zion-road-big-prawn-noodle-dry.jpg",
+},
+{
+  stallName: "Min Nan Pork Ribs Prawn Noodle",
+  menuItemName: "Big Prawn Noodle",
+  userEmail: "foodie3@example.com",
+  caption: "Strong prawn flavour and bouncy noodles — worth the top-up.",
+  validationStatus: "approved",
+  upvoteCount: 334,
+  downvoteCount: 68,
+  imageUrl: "https://sethlui.com/wp-content/uploads/2016/10/Sumo-Big-Prawn-Noodle-7.jpg",
+},
+{
+  stallName: "Min Nan Pork Ribs Prawn Noodle",
+  menuItemName: "Pork Ribs Noodle",
+  userEmail: "foodie1@example.com",
+  caption: "Ribs were tender and well-marinated — a hearty, comforting bowl.",
+  validationStatus: "approved",
+  upvoteCount: 322,
+  downvoteCount: 89,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQnotzt-i53FDCzUCHMceCuoB8kvhQBTeYKtA&s",
+},
+{
+  stallName: "Min Nan Pork Ribs Prawn Noodle",
+  menuItemName: "Pork Ribs Noodle",
+  userEmail: "foodie2@example.com",
+  caption: "Decent flavour, but I felt the soup could have been more intense.",
+  validationStatus: "approved",
+  upvoteCount: 160,
+  downvoteCount: 161,
+  imageUrl: "https://yumzyumz.com/wp-content/uploads/2021/03/happy-garden-pork-ribs-noodle-featured.jpg",
+},
+{
+  stallName: "Min Nan Pork Ribs Prawn Noodle",
+  menuItemName: "Pork Ribs Noodle",
+  userEmail: "foodie3@example.com",
+  caption: "Not bad overall — tender ribs, but nothing particularly standout.",
+  validationStatus: "approved",
+  upvoteCount: 210,
+  downvoteCount: 158,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT_77_WU9YZIhc9ePefauoeqgePzJPqEXD_wg&s",
+},
+{
+  stallName: "Min Nan Pork Ribs Prawn Noodle",
+  menuItemName: "Add On: Pig Tail",
+  userEmail: "foodie1@example.com",
+  caption: "Soft, gelatinous pig tail that soaked up all the broth — very rich.",
+  validationStatus: "approved",
+  upvoteCount: 458,
+  downvoteCount: 198,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTzpWLBuwsADTKM3BbBKbL-CDz4nMCZJKu79A&s",
+},
+{
+  stallName: "Min Nan Pork Ribs Prawn Noodle",
+  menuItemName: "Add On: Pig Tail",
+  userEmail: "foodie2@example.com",
+  caption: "Great add-on if you like collagen-rich cuts — very flavourful.",
+  validationStatus: "approved",
+  upvoteCount: 137,
+  downvoteCount: 87,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQeGf8Z1Qsf2-gptfgDlV_bc3itozdWH5K0rA&s",
+},
+{
+  stallName: "Min Nan Pork Ribs Prawn Noodle",
+  menuItemName: "Add On: Pig Tail",
+  userEmail: "foodie3@example.com",
+  caption: "Rich, fatty and full of flavour — definitely for those who enjoy offal.",
+  validationStatus: "approved",
+  upvoteCount: 434,
+  downvoteCount: 149,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQxuu-2VItBCTrw5IspIhQUSAc8vroGHAmhBQ&s",
+},
+
+  {
+  stallName: "Liang Liang Garden Economical Rice",
+  menuItemName: "Economical Rice (2 Veg 1 Meat)",
+  userEmail: "foodie1@example.com",
+  caption: "Affordable and filling — simple cai fan with decent variety of dishes.",
+  validationStatus: "approved",
+  upvoteCount: 176,
+  downvoteCount: 132,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRhawD2UR-m_YAi9m9dofJ8WX9it7WrgoK3gw&s",
+},
+{
+  stallName: "Liang Liang Garden Economical Rice",
+  menuItemName: "Economical Rice (2 Veg 1 Meat)",
+  userEmail: "foodie2@example.com",
+  caption: "Good mix of veggies and meat, portions are generous for the price.",
+  validationStatus: "approved",
+  upvoteCount: 489,
+  downvoteCount: 187,
+  imageUrl: "https://sethlui.com/wp-content/uploads/2016/05/EconomicRice-20.jpg",
+},
+{
+  stallName: "Liang Liang Garden Economical Rice",
+  menuItemName: "Economical Rice (2 Veg 1 Meat)",
+  userEmail: "foodie3@example.com",
+  caption: "Classic comfort cai fan — nothing fancy, but hits the spot.",
+  validationStatus: "approved",
+  upvoteCount: 494,
+  downvoteCount: 124,
+  imageUrl: "https://hungrygowhere.com/wp-content/uploads/2023/01/03-pl-economic-rice-Kimly-Teochew-Porridge-set-meal-HungryGoWhere.png",
+},
+{
+  stallName: "Liang Liang Garden Economical Rice",
+  menuItemName: "Economical Rice (2 Veg 2 Meat)",
+  userEmail: "foodie1@example.com",
+  caption: "Loaded plate with plenty of meat and veg — super value for money.",
+  validationStatus: "approved",
+  upvoteCount: 416,
+  downvoteCount: 88,
+  imageUrl: "https://sethlui.com/wp-content/uploads/2016/05/EconomicRice-2-e1463849655182-800x600.jpg",
+},
+{
+  stallName: "Liang Liang Garden Economical Rice",
+  menuItemName: "Economical Rice (2 Veg 2 Meat)",
+  userEmail: "foodie2@example.com",
+  caption: "Variety is great and everything tasted home-cooked and satisfying.",
+  validationStatus: "approved",
+  upvoteCount: 292,
+  downvoteCount: 37,
+  imageUrl: "https://sethlui.com/wp-content/uploads/2016/05/EconomicRice-12-e1463850632383-800x600.jpg",
+},
+{
+  stallName: "Liang Liang Garden Economical Rice",
+  menuItemName: "Economical Rice (2 Veg 2 Meat)",
+  userEmail: "foodie3@example.com",
+  caption: "Big hearty cai fan plate — a bit oily but very shiok.",
+  validationStatus: "approved",
+  upvoteCount: 365,
+  downvoteCount: 151,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSMyiaah4WNRnhrB7QTAeYZrtyTwP_Dcb8Y1Q&s",
+},
+{
+  stallName: "Liang Liang Garden Economical Rice",
+  menuItemName: "Fried Egg Add-On",
+  userEmail: "foodie1@example.com",
+  caption: "Crispy edges with a runny yolk — perfect on top of rice.",
+  validationStatus: "approved",
+  upvoteCount: 415,
+  downvoteCount: 65,
+  imageUrl: "https://www.shutterstock.com/image-photo/penang-famous-hawker-fried-rice-600w-1475077055.jpg",
+},
+{
+  stallName: "Liang Liang Garden Economical Rice",
+  menuItemName: "Fried Egg Add-On",
+  userEmail: "foodie2@example.com",
+  caption: "Simple fried egg, nothing special but always a comforting add-on.",
+  validationStatus: "approved",
+  upvoteCount: 199,
+  downvoteCount: 133,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTrNY4790ZDBa7dOFLE6dERrSrSL1e-e753ZA&s",
+},
+{
+  stallName: "Liang Liang Garden Economical Rice",
+  menuItemName: "Fried Egg Add-On",
+  userEmail: "foodie3@example.com",
+  caption: "Nice golden-brown egg that goes super well with the curry gravy.",
+  validationStatus: "approved",
+  upvoteCount: 271,
+  downvoteCount: 45,
+  imageUrl: "https://sethlui.com/wp-content/uploads/2019/02/Famous-Old-Airport-Fried-Oyster-3-800x533.jpg",
+},
+{
+  stallName: "Liang Liang Garden Economical Rice",
+  menuItemName: "Curry Gravy Add-On",
+  userEmail: "foodie1@example.com",
+  caption: "Spicy, savoury curry that instantly levels up the whole plate.",
+  validationStatus: "approved",
+  upvoteCount: 344,
+  downvoteCount: 30,
+  imageUrl: "https://sethlui.com/wp-content/uploads/2016/05/EconomicRice-20.jpg",
+},
+{
+  stallName: "Liang Liang Garden Economical Rice",
+  menuItemName: "Curry Gravy Add-On",
+  userEmail: "foodie2@example.com",
+  caption: "Fragrant and slightly spicy — must add if you like curry rice.",
+  validationStatus: "approved",
+  upvoteCount: 312,
+  downvoteCount: 18,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRl3qHPtuuMpN9uf0ZlveeSM_tYVgS9qofCTQ&s",
+},
+{
+  stallName: "Liang Liang Garden Economical Rice",
+  menuItemName: "Curry Gravy Add-On",
+  userEmail: "foodie3@example.com",
+  caption: "Curry soaked into the rice nicely, though a bit salty for me.",
+  validationStatus: "approved",
+  upvoteCount: 372,
+  downvoteCount: 132,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRjbyph2uKZKBdsPRHCVUuBc4KqoKe6ZeLUoA&s",
+},
+{
+  stallName: "Liang Liang Garden Economical Rice",
+  menuItemName: "Steamed Egg",
+  userEmail: "foodie1@example.com",
+  caption: "Soft and silky, but the flavour was quite mild.",
+  validationStatus: "approved",
+  upvoteCount: 117,
+  downvoteCount: 129,
+  imageUrl: "https://thewoksoflife.com/wp-content/uploads/2024/06/steamed-egg-10.jpg",
+},
+{
+  stallName: "Liang Liang Garden Economical Rice",
+  menuItemName: "Steamed Egg",
+  userEmail: "foodie2@example.com",
+  caption: "Very smooth steamed egg with a nice savoury taste — great side dish.",
+  validationStatus: "approved",
+  upvoteCount: 489,
+  downvoteCount: 117,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTHRJproJ7ATTsrKDckM912zouXsRYJToCZCw&s",
+},
+{
+  stallName: "Liang Liang Garden Economical Rice",
+  menuItemName: "Steamed Egg",
+  userEmail: "foodie3@example.com",
+  caption: "Comforting homestyle steamed egg, though slightly on the salty side.",
+  validationStatus: "approved",
+  upvoteCount: 283,
+  downvoteCount: 161,
+  imageUrl: "https://cookinginchinglish.com/wp-content/uploads/2021/05/steamed-egg-with-minced-pork-11.jpg",
+},
+{
+  stallName: "Tiong Bahru Pau & Snacks",
+  menuItemName: "Char Siew Pau",
+  userEmail: "foodie1@example.com",
+  caption: "Fluffy bun with sweet, sticky char siew — very addictive.",
+  validationStatus: "approved",
+  upvoteCount: 436,
+  downvoteCount: 86,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQt_0IC3cOvpKJL3PRBygZH5Qq6gkyRaLHmKw&s",
+},
+{
+  stallName: "Tiong Bahru Pau & Snacks",
+  menuItemName: "Char Siew Pau",
+  userEmail: "foodie2@example.com",
+  caption: "Char siew filling was flavourful and not too fatty — solid pau.",
+  validationStatus: "approved",
+  upvoteCount: 314,
+  downvoteCount: 41,
+  imageUrl: "https://sethlui.com/wp-content/uploads/2019/09/Imperial-Treasure-3-e1567665574167.jpg",
+},
+{
+  stallName: "Tiong Bahru Pau & Snacks",
+  menuItemName: "Char Siew Pau",
+  userEmail: "foodie3@example.com",
+  caption: "Nice balance of sweet and savoury in the filling. Great snack on the go.",
+  validationStatus: "approved",
+  upvoteCount: 160,
+  downvoteCount: 18,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ5i3YZyQYzzjnvVQNixfu9bQ0LmH9wmqy-6g&s",
+},
+{
+  stallName: "Tiong Bahru Pau & Snacks",
+  menuItemName: "Big Pau",
+  userEmail: "foodie1@example.com",
+  caption: "Massive pau stuffed with meat and egg — super filling breakfast.",
+  validationStatus: "approved",
+  upvoteCount: 432,
+  downvoteCount: 121,
+  imageUrl: "https://sethlui.com/wp-content/uploads/2018/06/nam-kee-pau-08-e1558957573238.jpg",
+},
+{
+  stallName: "Tiong Bahru Pau & Snacks",
+  menuItemName: "Big Pau",
+  userEmail: "foodie2@example.com",
+  caption: "Juicy, savoury filling and soft skin — definitely shareable.",
+  validationStatus: "approved",
+  upvoteCount: 432,
+  downvoteCount: 61,
+  imageUrl: "https://xl-the.fat.guide/singapore/eat/Nam%20Kee%20Pau/Nam%20Kee%20Pau%20Big%20Pau%20filling.webp",
+},
+{
+  stallName: "Tiong Bahru Pau & Snacks",
+  menuItemName: "Big Pau",
+  userEmail: "foodie3@example.com",
+  caption: "Huge and satisfying. Great if you want a one-item lunch.",
+  validationStatus: "approved",
+  upvoteCount: 371,
+  downvoteCount: 30,
+  imageUrl: "https://preview.redd.it/has-anyone-ever-tried-the-amy-yip-pau-from-nam-kee-pau-for-v0-x5g6bylk3iue1.jpeg?auto=webp&s=0999cba9e70e8bd33faaaee76bb98306332ae40e",
+},
+{
+  stallName: "Tiong Bahru Pau & Snacks",
+  menuItemName: "Lotus Paste Pau",
+  userEmail: "foodie1@example.com",
+  caption: "Sweet lotus filling, but a bit too dense for my liking.",
+  validationStatus: "approved",
+  upvoteCount: 122,
+  downvoteCount: 148,
+  imageUrl: "https://xl-the.fat.guide/singapore/eat/Nam%20Kee%20Pau/Nam%20Kee%20Pau%20Lotus%20Paste%20Pau%20filling.webp",
+},
+{
+  stallName: "Tiong Bahru Pau & Snacks",
+  menuItemName: "Lotus Paste Pau",
+  userEmail: "foodie2@example.com",
+  caption: "Smooth, sweet lotus paste with soft fluffy pau — great as a dessert.",
+  validationStatus: "approved",
+  upvoteCount: 191,
+  downvoteCount: 96,
+  imageUrl: "https://media.nedigital.sg/fairprice/90050779_BXL1_20251114223132_61f37114688719746bfb0585faa6e1e5.jpg",
+},
+{
+  stallName: "Tiong Bahru Pau & Snacks",
+  menuItemName: "Lotus Paste Pau",
+  userEmail: "foodie3@example.com",
+  caption: "Quite sweet and heavy — best for those with a sweet tooth.",
+  validationStatus: "approved",
+  upvoteCount: 73,
+  downvoteCount: 189,
+  imageUrl: "https://dam.mediacorp.sg/image/upload/s--c2iFba1N--/f_auto,q_auto/c_fill,g_auto,h_622,w_830/v1/tdy-migration/lotus-paste-pau-side.jpg?itok=IpizC0fQ",
+},
+{
+  stallName: "Tiong Bahru Pau & Snacks",
+  menuItemName: "Siew Mai",
+  userEmail: "foodie1@example.com",
+  caption: "Juicy bite-sized siew mai — especially good with chili sauce.",
+  validationStatus: "approved",
+  upvoteCount: 229,
+  downvoteCount: 72,
+  imageUrl: "https://sethlui.com/wp-content/uploads/2023/01/bei-ing-dimsum-club-24.jpg",
+},
+{
+  stallName: "Tiong Bahru Pau & Snacks",
+  menuItemName: "Siew Mai",
+  userEmail: "foodie2@example.com",
+  caption: "Meaty and springy texture, though slightly fatty for me.",
+  validationStatus: "approved",
+  upvoteCount: 459,
+  downvoteCount: 190,
+  imageUrl: "https://sethlui.com/wp-content/uploads/2022/08/fantastic-dim-sum-05.jpg",
+},
+{
+  stallName: "Tiong Bahru Pau & Snacks",
+  menuItemName: "Siew Mai",
+  userEmail: "foodie3@example.com",
+  caption: "Solid siew mai — flavourful, juicy and very satisfying.",
+  validationStatus: "approved",
+  upvoteCount: 406,
+  downvoteCount: 11,
+  imageUrl: "https://dam.mediacorp.sg/image/upload/s--XJDVdH4H--/f_auto,q_auto/v1/mediacorp/8days/image/2022/06/07/6_siew_mai_platter.jpg?itok=8n_Ky9E8",
+},
+{
+  stallName: "Tiong Bahru Pau & Snacks",
+  menuItemName: "Har Gow",
+  userEmail: "foodie1@example.com",
+  caption: "Skin was a bit thick, but the prawn filling was fresh and bouncy.",
+  validationStatus: "approved",
+  upvoteCount: 421,
+  downvoteCount: 191,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSCU3_YYhO054ZEId6lvmJpefzp1mwuc_RHuw&s",
+},
+{
+  stallName: "Tiong Bahru Pau & Snacks",
+  menuItemName: "Har Gow",
+  userEmail: "foodie2@example.com",
+  caption: "Nice translucent skin and crunchy prawn — very well done.",
+  validationStatus: "approved",
+  upvoteCount: 150,
+  downvoteCount: 20,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQU1t7l57z9fuclGIHLobmO7vN6rGbe_79yaw&s",
+},
+{
+  stallName: "Tiong Bahru Pau & Snacks",
+  menuItemName: "Har Gow",
+  userEmail: "foodie3@example.com",
+  caption: "Good prawn flavour, though I prefer a thinner skin.",
+  validationStatus: "approved",
+  upvoteCount: 160,
+  downvoteCount: 118,
+  imageUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTsugAuM9rcakfjXQtbiOfwHqePHqVPPbPxbw&s",
+},
+
+];
+
+
+  for (const seed of mediaUploadSeeds) {
+    const user = await prisma.user.findUnique({ where: { email: seed.userEmail } });
+    const menuItem = await prisma.menuItem.findFirst({
+      where: {
+        name: seed.menuItemName,
+        stall: { name: seed.stallName },
+      },
+    });
+
+    if (!user || !menuItem) continue;
+
+    await prisma.mediaUpload.create({
+      data: {
+        menuItemId: menuItem.id,
+        userId: user.id,
+        imageUrl: seed.imageUrl,
+        caption: seed.caption,
+        validationStatus: seed.validationStatus,
+        upvoteCount: seed.upvoteCount,
+        downvoteCount: seed.downvoteCount,
+        voteScore: seed.upvoteCount - seed.downvoteCount,
+      },
+    });
+  }
+
+
+  // --- Optional: seed system configuration (service fee, etc.) ---
+
+  await prisma.system_configuration.upsert({
+    where: { id: 1n },
+    update: {
+      servicefeecents: 50, // e.g. $0.50 service fee
+    },
+    create: {
+      id: 1n,
+      servicefeecents: 50,
+    },
+  });
+
+  console.log("Seeding completed successfully (manual uploads).");
 }
 
 main()
   .catch((e) => {
-    console.error('❌ Seed failed:', e);
+    console.error("Error during seeding:", e);
     process.exit(1);
   })
   .finally(async () => {

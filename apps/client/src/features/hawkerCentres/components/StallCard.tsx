@@ -12,6 +12,7 @@ const StallCard = ({ name, cuisineType, imageUrl }: StallCardProps) => {
   // Hardcoded values as per requirements
   const rating = 201;
   const price = '$7.50';
+  console.log('StallCard imageUrl:', imageUrl);
 
   // Use placeholder image if imageUrl is null
   const displayImage = imageUrl || placeholderImage;

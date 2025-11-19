@@ -184,6 +184,8 @@ const HawkerCentreDetailPage = () => {
               ? dish.mediaUploads[0]
               : null;
 
+          console.log(dish);
+
           return {
             ...dish,
             stallId: dish.stallId,
@@ -194,8 +196,8 @@ const HawkerCentreDetailPage = () => {
               typeof dish.priceCents === "number"
                 ? dish.priceCents / 100
                 : 0,
-            imageUrl: topUpload?.url || fallbackDishImg,
-            orders: dish.orders ?? 0,
+            imageUrl: dish.mediaUploads[0].imageUrl || fallbackDishImg,
+            orders: dish.orders ?? null,
           };
         });
 
