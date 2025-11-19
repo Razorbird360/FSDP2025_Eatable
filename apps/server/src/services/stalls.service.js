@@ -116,7 +116,15 @@ export const stallsService = {
     });
 
     return uploads;
-  }
+  },
 
-
+  async findByOwnerId(userId) {
+    return await prisma.stall.findMany({
+      where: { ownerId: userId },
+      include: {
+        menuItems: true,
+        hawkerCentre: true,
+      },
+    });
+  },
 };

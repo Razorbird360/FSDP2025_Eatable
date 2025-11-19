@@ -9,25 +9,28 @@ datasource db {
 }
 
 model User {
-  id             String            @id @default(uuid()) @db.Uuid
-  email          String            @unique
-  displayName    String            @map("display_name")
-  role           String            @default("user")
-  createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
-  username       String            @unique
-  skipOnboarding Boolean           @default(false) @map("skip_Onboarding")
-  first_name     String?
-  last_name      String?
-  location       String?
-  description    String?
-  reports        ContentReport[]
-  votes          MediaUploadVote[]
-  mediaUploads   MediaUpload[]
-  orders         Order[]
-  ownedStalls    Stall[]
-  user_cart      user_cart[]
-  favorites      UserFavorite[]
+  id                      String            @id @default(uuid()) @db.Uuid
+  email                   String            @unique
+  displayName             String            @map("display_name")
+  role                    String            @default("user")
+  createdAt               DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  username                String            @unique
+  skipOnboarding          Boolean           @default(false) @map("skip_Onboarding")
+  first_name              String?
+  last_name               String?
+  location                String?
+  description             String?
+  verified                Boolean           @default(false)
+  verificationPhotoUrl    String?           @map("verification_photo_url")
+  verificationSubmittedAt DateTime?         @map("verification_submitted_at") @db.Timestamptz(6)
+  reports                 ContentReport[]
+  votes                   MediaUploadVote[]
+  mediaUploads            MediaUpload[]
+  orders                  Order[]
+  ownedStalls             Stall[]
+  user_cart               user_cart[]
+  favorites               UserFavorite[]
 
   @@map("users")
 }

@@ -1,7 +1,8 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import arrowRight from "../assets/icons/arrow right.svg";
 import cameraIcon from "../assets/icons/camera.svg";
+import verifyIcon from "../assets/HomePage/verify.svg";
 import point from "../assets/icons/point.svg";
 import trendUp from "../assets/icons/trend-up.svg";
 import locationBrand from "../assets/icons/location-brand.svg";
@@ -12,6 +13,8 @@ import logo_full from "../assets/logo/logo_full.png";
 import profilePlaceholder from "../assets/navbar/profile_placeholder.jpg";
 import api from "../lib/api";
 import { toaster } from "../components/ui/toaster";
+import { useAuth } from "../features/auth/useAuth";
+import VerificationModal from "../features/verification/components/VerificationModal";
 
 const CUISINE_TYPES = ["malay", "indian", "western", "chinese", "desserts", "local"];
 
@@ -39,6 +42,9 @@ const NEARBY_ITEMS = [
 function HomePage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { profile, refreshProfile, status } = useAuth();
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
+  const isProfileLoading = status === 'loading';
 
   useEffect(() => {
     if (location.state?.photoUploaded) {
@@ -50,6 +56,40 @@ function HomePage() {
       navigate(location.pathname, { replace: true, state: null });
     }
   }, [location, navigate]);
+
+  const getButtonConfig = () => {
+    // Wait for profile to load or default to explore stalls
+    if (!profile) {
+      return { text: 'Explore Stalls', link: '/hawker-centres' };
+    }
+
+    // Hawker-specific logic
+    if (profile.role === 'hawker') {
+      if (!profile.verified) {
+        return {
+          text: 'Verify Identity',
+          onClick: () => setShowVerificationModal(true),
+          icon: verifyIcon,
+          iconSize: '32px',
+        };
+      }
+      if (!profile.hasStall) {
+        return {
+          text: 'Setup Stall',
+          link: '/stall/setup',
+        };
+      }
+      return {
+        text: 'Edit Stall Menu',
+        link: `/stall/manage/${profile.stallId}`,
+      };
+    }
+
+    // Default for customers and guests
+    return { text: 'Explore Stalls', link: '/hawker-centres' };
+  };
+
+  const buttonConfig = isProfileLoading ? null : getButtonConfig();
 
   useEffect(() => {
     const html = document.documentElement;
@@ -97,7 +137,7 @@ function HomePage() {
     <section className="box-border flex w-full flex-col items-center gap-6 px-4 pt-0 pb-6 max-[430px]:gap-5 max-[430px]:px-3.5 sm:px-8 md:px-0 md:pt-0 md:pb-0 md:flex-row md:gap-0 md:min-h-[calc(100vh-4rem)] md:items-stretch bg-[#FBF7F0]">
 
       {/* left column */}
-      <div className="w-[90vw] max-w-[24rem] rounded-lg px-4 py-4 max-[430px]:w-[88vw] max-[430px]:max-w-[22rem] max-[430px]:px-3 md:w-[38vw] lg:w-[36vw] xl:w-[34vw] 2xl:w-[34vw] md:max-w-none md:py-6 md:pl-[4vw] md:pr-3 xl:py-8 xl:pl-[4.75vw] xl:pr-4 2xl:py-10 2xl:pl-[5.5vw] flex h-full flex-col items-start">
+      <div className="w-[90vw] max-w-[24rem] rounded-lg px-4 py-4 max-[430px]:w-[88vw] max-[430px]:max-w-[22rem] max-[430px]:px-3 md:w-[38vw] lg:w-[36vw] xl:w-[34vw] 2xl:w-[34vw] md:max-w-none md:py-6 md:pl-[4vw] md:pr-3 xl:py-8 xl:pl-[4.75vw] xl:pr-4 2xl:py-10 2xl:pl-[5.5vw] 2xl:pr-[5.5vw] flex h-full flex-col items-start">
         <img
           src={logo_full}
           alt="eatable logo"
@@ -113,36 +153,87 @@ function HomePage() {
         </div>
 
         <div className="mt-6 hidden md:block">
-          <div className="flex flex-col gap-3.5 w-full max-w-[34rem]">
-            <Link to="/hawker-centres" className="w-full">
+          <div className="flex flex-col gap-3.5">
+            {buttonConfig ? (
+              buttonConfig.link ? (
+                <Link to={buttonConfig.link} className="w-full">
+                  <Button
+                    height="44px"
+                    rounded="10px"
+                    width="16vw"
+                    maxW="280px"
+                    px={6}
+                    bg="#21421B"
+                    color="white"
+                    fontWeight="semibold"
+                    fontSize="md"
+                    justifyContent="space-between"
+                    boxShadow="0 4px 12px rgba(33, 66, 27, 0.18)"
+                    _hover={{ bg: '#1A3517' }}
+                    _active={{ bg: '#142812' }}
+                  >
+                    {buttonConfig.text}
+                    <img
+                      src={arrowRight}
+                      alt=""
+                      className="h-6 w-6 translate-y-[1px]"
+                      aria-hidden="true"
+                    />
+                  </Button>
+                </Link>
+              ) : (
+                <Button
+                  height="44px"
+                  rounded="10px"
+                  width="16vw"
+                  maxW="280px"
+                  px={6}
+                  bg="#21421B"
+                  color="white"
+                  fontWeight="semibold"
+                  fontSize="md"
+                  justifyContent="center"
+                  boxShadow="0 4px 12px rgba(33, 66, 27, 0.18)"
+                  _hover={{ bg: '#1A3517' }}
+                  _active={{ bg: '#142812' }}
+                  onClick={buttonConfig.onClick}
+                >
+                  <div className="flex items-center gap-3">
+                    {buttonConfig.icon && (
+                      <img
+                        src={buttonConfig.icon}
+                        alt=""
+                        style={{ width: buttonConfig.iconSize ?? '24px', height: buttonConfig.iconSize ?? '24px' }}
+                        aria-hidden="true"
+                      />
+                    )}
+                    <span>{buttonConfig.text}</span>
+                  </div>
+                </Button>
+              )
+            ) : (
               <Button
                 height="44px"
                 rounded="10px"
-                w="full"
+                width="16vw"
+                maxW="280px"
                 px={6}
                 bg="#21421B"
                 color="white"
                 fontWeight="semibold"
                 fontSize="md"
-                justifyContent="space-between"
-                boxShadow="0 4px 12px rgba(33, 66, 27, 0.18)"
-                _hover={{ bg: '#1A3517' }}
-                _active={{ bg: '#142812' }}
-              >
-                Explore Stalls
-                <img
-                  src={arrowRight}
-                  alt=""
-                  className="h-6 w-6 translate-y-[1px]"
-                  aria-hidden="true"
-                />
-              </Button>
-            </Link>
+                justifyContent="center"
+                isDisabled
+                isLoading
+                loadingText="Loading..."
+              />
+            )}
 
             <Button
               height="44px"
               rounded="10px"
-              w="full"
+              width="16vw"
+              maxW="280px"
               px={6}
               bg="#F6FBF2"
               borderWidth="2px"
@@ -210,7 +301,57 @@ function HomePage() {
           </div>
 
           <div className="flex flex-col gap-3 w-[90vw] max-w-[24rem] max-[430px]:w-[88vw] max-[430px]:max-w-[22rem] mt-6">
-            <Link to="/hawker-centres" className="w-full">
+            {buttonConfig ? (
+              buttonConfig.link ? (
+                <Link to={buttonConfig.link} className="w-full">
+                  <Button
+                    height="56px"
+                    rounded="10px"
+                    w="full"
+                    px={6}
+                    bg="#21421B"
+                    color="white"
+                    fontWeight="semibold"
+                    fontSize="md"
+                    justifyContent="space-between"
+                    boxShadow="0 4px 12px rgba(33, 66, 27, 0.18)"
+                    _hover={{ bg: '#1A3517' }}
+                    _active={{ bg: '#142812' }}
+                  >
+                    {buttonConfig.text}
+                    <img src={arrowRight} alt="" className="h-6 w-6 hover:filter hover:invert hover:brightness-200 transition duration-150 ease-in-out" aria-hidden="true" />
+                  </Button>
+                </Link>
+              ) : (
+                <Button
+                  height="56px"
+                  rounded="10px"
+                  w="full"
+                  px={6}
+                  bg="#21421B"
+                  color="white"
+                  fontWeight="semibold"
+                  fontSize="md"
+                  justifyContent="center"
+                  boxShadow="0 4px 12px rgba(33, 66, 27, 0.18)"
+                  _hover={{ bg: '#1A3517' }}
+                  _active={{ bg: '#142812' }}
+                  onClick={buttonConfig.onClick}
+                >
+                  <div className="flex items-center gap-3">
+                    {buttonConfig.icon && (
+                      <img
+                        src={buttonConfig.icon}
+                        alt=""
+                        style={{ width: buttonConfig.iconSize ?? '24px', height: buttonConfig.iconSize ?? '24px' }}
+                        aria-hidden="true"
+                      />
+                    )}
+                    <span>{buttonConfig.text}</span>
+                  </div>
+                </Button>
+              )
+            ) : (
               <Button
                 height="56px"
                 rounded="10px"
@@ -220,15 +361,12 @@ function HomePage() {
                 color="white"
                 fontWeight="semibold"
                 fontSize="md"
-                justifyContent="space-between"
-                boxShadow="0 4px 12px rgba(33, 66, 27, 0.18)"
-                _hover={{ bg: '#1A3517' }}
-                _active={{ bg: '#142812' }}
-              >
-                Explore Stalls
-                <img src={arrowRight} alt="" className="h-6 w-6 hover:filter hover:invert hover:brightness-200 transition duration-150 ease-in-out" aria-hidden="true" />
-              </Button>
-            </Link>
+                justifyContent="center"
+                isDisabled
+                isLoading
+                loadingText="Loading..."
+              />
+            )}
 
             <Button
               height="56px"
@@ -326,6 +464,15 @@ function HomePage() {
           </div>
         </div>
       </div>
+
+      <VerificationModal
+        isOpen={showVerificationModal}
+        onClose={() => setShowVerificationModal(false)}
+        onSuccess={() => {
+          setShowVerificationModal(false);
+          refreshProfile();
+        }}
+      />
     </section>
   );
 }
