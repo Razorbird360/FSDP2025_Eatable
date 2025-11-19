@@ -39,7 +39,7 @@ export const stallsService = {
             mediaUploads: {
               where: {
                 // optional: only approved uploads
-                validationStatus: 'approved',
+                //validationStatus: 'approved', //FOR DEMO PURPOSE, WE WILL RETRIEVE ALL UPLOADS AS THERE ISNT A WAY TO APPROVE UPLOADS YET (AWAITING AI SCANING MODERATION FEATURE)
               },
               orderBy: [
                 { upvoteCount: 'desc' },   // main sort: most upvotes
@@ -86,7 +86,7 @@ export const stallsService = {
           stallId: stallId, // shorthand `stallId` is also fine
           isActive: true,
         },
-        validationStatus: 'approved',
+        //validationStatus: 'approved', //FOR DEMO PURPOSE, WE WILL RETRIEVE ALL UPLOADS AS THERE ISNT A WAY TO APPROVE UPLOADS YET (AWAITING AI SCANING MODERATION FEATURE)
       },
       orderBy: {
         upvoteCount: 'desc', // or createdAt, etc.

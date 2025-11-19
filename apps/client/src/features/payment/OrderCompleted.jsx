@@ -137,7 +137,7 @@ export default function OrderCompletedModal({ onClose, orderId }) {
   }
 
   /** PRICES / TOTALS */
-  const subtotal = items.reduce((sum, item) => sum + item.price);
+  const subtotal = items.reduce((sum, item) => sum + item.price, 0);
   const voucherApplied = 0.0; // keep static for now (or wire to backend later)
 
   let serviceFee = 0;
