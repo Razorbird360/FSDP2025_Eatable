@@ -21,10 +21,17 @@ export const storageService = {
    * @param {Buffer} imageBuffer - Original image buffer
    * @returns {Promise<Buffer>} Compressed image buffer
    */
-  async compressImage(imageBuffer) {
+  async compressImage(imageBuffer, aspectType = 'square') {
     // Validate buffer
     if (!Buffer.isBuffer(imageBuffer) || imageBuffer.length === 0) {
       throw new Error('Invalid image buffer provided');
+    }
+
+    const normalizedAspect = typeof aspectType === 'string'
+      ? aspectType.toLowerCase()
+      : 'square';
+    if (!['square', 'rectangle'].includes(normalizedAspect)) {
+      throw new Error('Unsupported aspect type. Expected "square" or "rectangle".');
     }
 
     // Extract metadata with error handling
@@ -40,32 +47,47 @@ export const storageService = {
     }
 
     const aspect_ratio = metadata.width / metadata.height;
+    const target_ratio = normalizedAspect === 'square' ? 1 : rectangle_ratio;
 
-    let resize_options;
+    let extractOptions = null;
 
-    // Check if square (aspect ratio close to 1:1)
-    if (Math.abs(aspect_ratio - 1) <= aspect_tolerance) {
-      // Square image
-      resize_options = {
-        width: square_size,
-        height: square_size,
-        fit: 'cover',
-      };
-    } else if (Math.abs(aspect_ratio - rectangle_ratio) <= aspect_tolerance) {
-      // Rectangle image (16:9)
-      resize_options = {
-        width: rectangle_width,
-        height: rectangle_height,
-        fit: 'cover',
-      };
-    } else {
-      throw new Error('Unsupported aspect ratio. Only 1:1 or 16:9 images are allowed.');
+    if (Math.abs(aspect_ratio - target_ratio) > aspect_tolerance) {
+      if (aspect_ratio > target_ratio) {
+        // too wide, crop width
+        const newWidth = Math.max(1, Math.round(metadata.height * target_ratio));
+        const left = Math.max(0, Math.floor((metadata.width - newWidth) / 2));
+        extractOptions = {
+          left,
+          top: 0,
+          width: Math.min(metadata.width, newWidth),
+          height: metadata.height,
+        };
+      } else {
+        // too tall, crop height
+        const newHeight = Math.max(1, Math.round(metadata.width / target_ratio));
+        const top = Math.max(0, Math.floor((metadata.height - newHeight) / 2));
+        extractOptions = {
+          left: 0,
+          top,
+          width: metadata.width,
+          height: Math.min(metadata.height, newHeight),
+        };
+      }
     }
+
+    const resize_options =
+      normalizedAspect === 'square'
+        ? { width: square_size, height: square_size, fit: 'cover' }
+        : { width: rectangle_width, height: rectangle_height, fit: 'cover' };
 
     const qualities = [default_jpeg_quality, 70, 60, 50, 40, 30, 25, 20];
 
     for (const quality of qualities) {
-      const output = await sharp(imageBuffer)
+      let pipeline = sharp(imageBuffer);
+      if (extractOptions) {
+        pipeline = pipeline.extract(extractOptions);
+      }
+      const output = await pipeline
         .resize(resize_options)
         .jpeg({ quality })
         .toBuffer();

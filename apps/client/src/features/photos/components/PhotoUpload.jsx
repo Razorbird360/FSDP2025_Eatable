@@ -1,19 +1,32 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import switchIcon from "../../../assets/PhotoUpload/switch.svg";
+import { usePhotoUpload } from "../context/PhotoUploadContext";
 
 export default function PhotoUpload() {
   const navigate = useNavigate();
   const videoRef = useRef(null);
   const fileInputRef = useRef(null);
+  const { previewUrl, aspectRatio: storedAspectRatio, setPhotoData } = usePhotoUpload();
 
   const [stream, setStream] = useState(null);
   const [cameraError, setCameraError] = useState(null);
   const [isRequestingCamera, setIsRequestingCamera] = useState(false);
   const [availableCameras, setAvailableCameras] = useState([]);
   const [selectedCameraId, setSelectedCameraId] = useState("");
-  const [capturedPhoto, setCapturedPhoto] = useState(null);
-  const [aspectRatio, setAspectRatio] = useState("square"); // "square" or "rectangle"
+  const [aspectRatio, setAspectRatioState] = useState(storedAspectRatio || "square");
+  const hasPhoto = Boolean(previewUrl);
+
+  const updateAspectRatio = (ratio) => {
+    setAspectRatioState(ratio);
+    setPhotoData({ aspectRatio: ratio });
+  };
+
+  useEffect(() => {
+    if (storedAspectRatio && storedAspectRatio !== aspectRatio) {
+      setAspectRatioState(storedAspectRatio);
+    }
+  }, [storedAspectRatio]);
 
   useEffect(() => {
     let mounted = true;
@@ -83,17 +96,46 @@ export default function PhotoUpload() {
     };
   }, [selectedCameraId]);
 
-  const handleTakePhoto = () => {
-    if (!videoRef.current) return;
+  const handleTakePhoto = async () => {
+    if (!videoRef.current) {
+      setCameraError("Camera not ready yet.");
+      return;
+    }
 
-    const video = videoRef.current;
-    const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth || 1280;
-    canvas.height = video.videoHeight || 720;
-    const ctx = canvas.getContext("2d");
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
-    setCapturedPhoto(dataUrl);
+    try {
+      const video = videoRef.current;
+      const canvas = document.createElement("canvas");
+      const targetWidth = aspectRatio === "square" ? 1200 : 1280;
+      const targetHeight = aspectRatio === "square" ? 1200 : 720;
+      canvas.width = targetWidth;
+      canvas.height = targetHeight;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      const file = await new Promise((resolve, reject) => {
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              reject(new Error("Unable to capture photo"));
+              return;
+            }
+            resolve(
+              new File([blob], `capture-${Date.now()}.jpg`, {
+                type: "image/jpeg",
+              })
+            );
+          },
+          "image/jpeg",
+          0.95
+        );
+      });
+
+      const preview = URL.createObjectURL(file);
+      setPhotoData({ file, previewUrl: preview, aspectRatio });
+      setCameraError(null);
+    } catch (error) {
+      setCameraError(error.message || "Failed to capture photo");
+    }
   };
 
   const handleUploadClick = () => {
@@ -104,15 +146,13 @@ export default function PhotoUpload() {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setCapturedPhoto(reader.result);
-    };
-    reader.readAsDataURL(file);
+    const preview = URL.createObjectURL(file);
+    setPhotoData({ file, previewUrl: preview, aspectRatio });
+    event.target.value = "";
   };
 
   const stopPreview = () => {
-    setCapturedPhoto(null);
+    setPhotoData({ file: null, previewUrl: null });
   };
 
   const switchCamera = () => {
@@ -177,7 +217,7 @@ export default function PhotoUpload() {
             <div className="hidden lg:flex flex-col gap-3">
               <button
                 type="button"
-                onClick={() => setAspectRatio("square")}
+                onClick={() => updateAspectRatio("square")}
                 className={`flex h-12 w-12 items-center justify-center rounded-xl border-2 transition ${
                   aspectRatio === "square"
                     ? "border-brand bg-brand"
@@ -198,7 +238,7 @@ export default function PhotoUpload() {
 
               <button
                 type="button"
-                onClick={() => setAspectRatio("rectangle")}
+                onClick={() => updateAspectRatio("rectangle")}
                 className={`flex h-12 w-12 items-center justify-center rounded-xl border-2 transition ${
                   aspectRatio === "rectangle"
                     ? "border-brand bg-brand"
@@ -225,10 +265,10 @@ export default function PhotoUpload() {
                   aspectRatio === "square" ? "aspect-square" : "aspect-[2.6/4]"
                 }`}
               >
-              {capturedPhoto ? (
+              {previewUrl ? (
                 <div className="relative h-full w-full">
                   <img
-                    src={capturedPhoto}
+                    src={previewUrl}
                     alt="Captured preview"
                     className="h-full w-full rounded-2xl object-cover"
                   />
@@ -296,7 +336,7 @@ export default function PhotoUpload() {
               {/* Left: Aspect Ratio Toggle */}
               <button
                 type="button"
-                onClick={() => setAspectRatio(aspectRatio === "square" ? "rectangle" : "square")}
+                onClick={() => updateAspectRatio(aspectRatio === "square" ? "rectangle" : "square")}
                 className="flex h-14 w-14 items-center justify-center rounded-lg bg-white border-2 border-gray-300 transition"
                 aria-label="Toggle aspect ratio"
               >
@@ -485,8 +525,9 @@ export default function PhotoUpload() {
             {/* Mobile: Next Button */}
             <button
               type="button"
-              onClick={() => navigate("/next-page")}
-              className="flex lg:hidden w-full items-center justify-center rounded-xl bg-brand px-6 py-3 text-sm font-medium text-white shadow-[0_4px_12px_rgba(33,66,27,0.25)] hover:bg-[#1A3517] transition mt-4"
+              onClick={() => navigate("/upload-details")}
+              disabled={!hasPhoto}
+              className="flex lg:hidden w-full items-center justify-center rounded-xl bg-brand px-6 py-3 text-sm font-medium text-white shadow-[0_4px_12px_rgba(33,66,27,0.25)] hover:bg-[#1A3517] transition mt-4 disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
               Next
             </button>
@@ -548,8 +589,9 @@ export default function PhotoUpload() {
             {/* Desktop: Next Button */}
             <button
               type="button"
-              onClick={() => navigate("/next-page")}
-              className="mt-4 w-full rounded-lg bg-brand px-8 py-2.5 text-sm font-medium text-white shadow-[0_4px_12px_rgba(33,66,27,0.25)] hover:bg-[#1A3517] transition"
+              onClick={() => navigate("/upload-details")}
+              disabled={!hasPhoto}
+              className="mt-4 w-full rounded-lg bg-brand px-8 py-2.5 text-sm font-medium text-white shadow-[0_4px_12px_rgba(33,66,27,0.25)] hover:bg-[#1A3517] transition disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
               Next
             </button>

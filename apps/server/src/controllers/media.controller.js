@@ -1,10 +1,7 @@
-import sharp from 'sharp';
 import { mediaService } from '../services/media.service.js';
 import { menuService } from '../services/menu.service.js';
 import { storageService } from '../services/storage.service.js';
 import { userService } from '../services/user.service.js';
-
-import { report } from 'process';
 
 const BUCKET_NAME = 'food-images';
 const VALID_STATUSES = ['pending', 'approved', 'rejected'];
@@ -22,7 +19,7 @@ export const mediaController = {
       }
 
       // 2. Validate required fields
-      const { menuItemId, caption } = req.body;
+      const { menuItemId, caption, aspectRatio: requestedAspect } = req.body;
       if (!menuItemId) {
         return res.status(400).json({ error: 'menuItemId is required' });
       }
@@ -33,27 +30,20 @@ export const mediaController = {
         return res.status(404).json({ error: 'Menu item not found' });
       }
 
-      // 4. Validate aspect ratio BEFORE compression (early fail)
-      const metadata = await sharp(req.file.buffer).metadata();
-      const aspect_ratio = metadata.width / metadata.height;
-      const aspect_tolerance = 0.05;
-      const rectangle_ratio = 16 / 9;
-
-      const is_square = Math.abs(aspect_ratio - 1) <= aspect_tolerance;
-      const is_rectangle = Math.abs(aspect_ratio - rectangle_ratio) <= aspect_tolerance;
-
-      if (!is_square && !is_rectangle) {
+      // 4. Determine requested aspect ratio (defaults to square)
+      const normalizedAspect = (requestedAspect || 'square').toString().toLowerCase();
+      const allowedAspects = ['square', 'rectangle'];
+      if (!allowedAspects.includes(normalizedAspect)) {
         return res.status(400).json({
-          error: 'Invalid aspect ratio. Only 1:1 (square) or 16:9 (rectangle) images are allowed.',
-          received: aspect_ratio.toFixed(3),
-          expected: '1.000 or 1.778',
+          error: 'Invalid aspectRatio. Expected "square" or "rectangle".',
         });
       }
 
-      const aspectType = is_square ? 'square' : 'rectangle';
-
       // 5. Compress image
-      const compressed_buffer = await storageService.compressImage(req.file.buffer);
+      const compressed_buffer = await storageService.compressImage(
+        req.file.buffer,
+        normalizedAspect
+      );
 
       // 6. Generate file path
       const file_path = storageService.generateFilePath(
@@ -76,7 +66,7 @@ export const mediaController = {
         userId: req.user.id,
         imageUrl: image_url,
         caption: caption || null,
-        aspectRatio: aspectType,
+        aspectRatio: normalizedAspect,
       });
 
       // 9. Return success
