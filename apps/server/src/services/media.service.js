@@ -204,7 +204,31 @@ export const mediaService = {
 
   async getVotesByUserId(userId) {
     return await prisma.mediaUploadVote.findMany({
-      where: { userId }
+      where: { userId },
+      include: {
+        upload: {
+          include: {
+            menuItem: {
+              select: {
+                id: true,
+                name: true,
+                stall: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
+              },
+            },
+            _count: {
+              select: {
+                votes: true,
+                reports: true,
+              },
+            },
+          },
+        },
+      },
     });
   },
 

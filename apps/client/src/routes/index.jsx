@@ -10,6 +10,7 @@ import SignupPage from '../features/auth/SignupPage';
 import LoginPage from '../features/auth/LoginPage';
 import ProfilePage from '../pages/ProfilePage';
 import OrderSummaryPage from "../pages/OrderSummaryPage";
+import MyCollectionPage from '../pages/MyCollectionPage';
 
 import MakePayment from "../features/payment/MakePayment";
 import OrderCompleted from "../features/payment/OrderCompleted";
@@ -58,6 +59,7 @@ function AppRoutes() {
           <Route path="/cart" element={<Cart />} />
           <Route path="/orders" element={<OrderHistory />} />
           <Route path="/orderSummary" element={<OrderSummaryPage />} />
+          <Route path="/my-collection" element={<MyCollectionPage />} />
           <Route path="/profile" element={<ProfilePage />} />
 
           {/* TODO: Add more protected routes: profile, upload photo, etc */}

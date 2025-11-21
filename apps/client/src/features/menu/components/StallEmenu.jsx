@@ -236,7 +236,7 @@ export default function StallEmenu() {
   const [showFullBlurb, setShowFullBlurb] = useState(false);
   const controlsRef = useRef(null);
 
-  const [stallPfp, setStallPfp] = useState(null); 
+  const [stallPfp, setStallPfp] = useState(null);
 
   const [selected, setSelected] = useState(null);
   const [showItem, setShowItem] = useState(false);
@@ -245,70 +245,70 @@ export default function StallEmenu() {
   const [toast, setToast] = useState(null);
 
   // Fetch stall from API
-// Fetch stall from API
-useEffect(() => {
-  let cancelled = false;
+  // Fetch stall from API
+  useEffect(() => {
+    let cancelled = false;
 
-  async function loadStall() {
-    try {
-      setLoading(true);
-      setError(null);
-      const res = await api.get(`/stalls/${stallId}`);
-      if (cancelled) return;
+    async function loadStall() {
+      try {
+        setLoading(true);
+        setError(null);
+        const res = await api.get(`/stalls/${stallId}`);
+        if (cancelled) return;
 
-      const data = res.data; // stall object
-      setStallPfp(data.image_url || null);
+        const data = res.data; // stall object
+        setStallPfp(data.image_url || null);
 
-      setStall(data);
-      console.log("Fetched stall data:", data);
+        setStall(data);
+        console.log("Fetched stall data:", data);
 
-      // Map menuItems -> UI menu items
-      const mappedMenu =
-        (data.menuItems || [])
-          .filter((m) => m.isActive !== false)
-          .map((m) => {
-            // 👇 take the top upload for this menu item (Prisma already limited to 1)
-            const topUpload = m.mediaUploads?.[0];
+        // Map menuItems -> UI menu items
+        const mappedMenu =
+          (data.menuItems || [])
+            .filter((m) => m.isActive !== false)
+            .map((m) => {
+              // 👇 take the top upload for this menu item (Prisma already limited to 1)
+              const topUpload = m.mediaUploads?.[0];
 
-      
 
-            return {
-              id: m.id,
-              name: m.name,
-              desc: m.description || "",
-              price: (m.priceCents || 0) / 100,
-              category: m.category || "Others",
-              // 👇 use imageUrl from the top upload, fallback to placeholder
-              img:
-                topUpload?.imageUrl ||
-                "https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=800",
-              // optional: show upvote count from the top upload
-              votes:
-                typeof topUpload?.upvoteCount === "number"
-                  ? topUpload.upvoteCount
-                  : undefined,
-            };
-          }) || [];
 
-      setMenu(mappedMenu);
-    } catch (err) {
-      if (!cancelled) {
-        console.error(err);
-        setError("Failed to load stall.");
+              return {
+                id: m.id,
+                name: m.name,
+                desc: m.description || "",
+                price: (m.priceCents || 0) / 100,
+                category: m.category || "Others",
+                // 👇 use imageUrl from the top upload, fallback to placeholder
+                img:
+                  topUpload?.imageUrl ||
+                  "https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=800",
+                // optional: show upvote count from the top upload
+                votes:
+                  typeof topUpload?.upvoteCount === "number"
+                    ? topUpload.upvoteCount
+                    : undefined,
+              };
+            }) || [];
+
+        setMenu(mappedMenu);
+      } catch (err) {
+        if (!cancelled) {
+          console.error(err);
+          setError("Failed to load stall.");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-    } finally {
-      if (!cancelled) setLoading(false);
     }
-  }
 
-  if (stallId) {
-    loadStall();
-  }
+    if (stallId) {
+      loadStall();
+    }
 
-  return () => {
-    cancelled = true;
-  };
-}, [stallId]);
+    return () => {
+      cancelled = true;
+    };
+  }, [stallId]);
 
   // Build STALL-like meta so JSX doesn’t change much
   const STALL_META = useMemo(() => {
@@ -383,8 +383,8 @@ useEffect(() => {
     showFullBlurb || !STALL_META
       ? STALL_META?.blurb || ""
       : STALL_META.blurb.length > blurbLimit
-      ? STALL_META.blurb.slice(0, blurbLimit) + "…"
-      : STALL_META.blurb;
+        ? STALL_META.blurb.slice(0, blurbLimit) + "…"
+        : STALL_META.blurb;
 
   if (loading) {
     return (
@@ -503,33 +503,30 @@ useEffect(() => {
             <div className="inline-flex rounded-xl border bg-white p-0.5">
               <button
                 onClick={() => setTab("menu")}
-                className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-[11px] sm:text-sm ${
-                  tab === "menu"
+                className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-[11px] sm:text-sm ${tab === "menu"
                     ? "bg-[#21421B] text-white"
                     : "text-gray-700 hover:bg-gray-100"
-                }`}
+                  }`}
               >
                 <Icon.MenuList className="h-3 w-3 sm:h-4 sm:w-4" />
                 Menu
               </button>
               <button
                 onClick={() => setTab("photos")}
-                className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-[11px] sm:text-sm ${
-                  tab === "photos"
+                className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-[11px] sm:text-sm ${tab === "photos"
                     ? "bg-[#21421B] text-white"
                     : "text-gray-700 hover:bg-gray-100"
-                }`}
+                  }`}
               >
                 <Icon.Photo className="h-3 w-3 sm:h-4 sm:w-4" />
                 Photos
               </button>
               <button
                 onClick={() => setTab("about")}
-                className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-[11px] sm:text-sm ${
-                  tab === "about"
+                className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-[11px] sm:text-sm ${tab === "about"
                     ? "bg-[#21421B] text-white"
                     : "text-gray-700 hover:bg-gray-100"
-                }`}
+                  }`}
               >
                 <Icon.Info className="h-3 w-3 sm:h-4 sm:w-4" />
                 About
@@ -560,11 +557,10 @@ useEffect(() => {
                           setActiveSection(s);
                           setOpenFilter(false);
                         }}
-                        className={`w-full px-3 py-1.5 text-left text-[11px] hover:bg-gray-100 sm:text-sm ${
-                          activeSection === s
+                        className={`w-full px-3 py-1.5 text-left text-[11px] hover:bg-gray-100 sm:text-sm ${activeSection === s
                             ? "font-medium text-[#21421B]"
                             : "text-gray-800"
-                        }`}
+                          }`}
                       >
                         {s}
                       </button>
@@ -577,20 +573,18 @@ useEffect(() => {
                     setShowSearch(true);
                     setOpenFilter(false);
                   }}
-                  className={`grid h-8 w-8 place-items-center rounded-xl border bg-white hover:bg-gray-50 sm:h-10 sm:w-10 ${
-                    showSearch ? "hidden" : ""
-                  }`}
+                  className={`grid h-8 w-8 place-items-center rounded-xl border bg-white hover:bg-gray-50 sm:h-10 sm:w-10 ${showSearch ? "hidden" : ""
+                    }`}
                   aria-label="Open search"
                 >
                   <Icon.Search className="h-3.5 w-3.5 text-gray-700 sm:h-4 sm:w-4" />
                 </button>
 
                 <div
-                  className={`absolute right-0 top-0 z-30 h-8 overflow-hidden transition-all duration-300 sm:h-10 ${
-                    showSearch
+                  className={`absolute right-0 top-0 z-30 h-8 overflow-hidden transition-all duration-300 sm:h-10 ${showSearch
                       ? "w-[8.8rem] opacity-100 sm:w-[14rem]"
                       : "pointer-events-none w-0 opacity-0"
-                  }`}
+                    }`}
                 >
                   <div className="relative h-full">
                     <Icon.Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-500 sm:h-4 sm:w-4" />
@@ -693,7 +687,20 @@ useEffect(() => {
 
           {tab === "photos" && (
             <div className="mt-3">
-              <StallGallery />
+              <StallGallery
+                onNavigateToMenuItem={(menuItemId) => {
+                  // Switch to menu tab
+                  setTab("menu");
+
+                  // Find the menu item by ID
+                  const menuItem = menu.find(item => item.id === menuItemId);
+                  if (menuItem) {
+                    // Open the item dialog
+                    setSelected(menuItem);
+                    setShowItem(true);
+                  }
+                }}
+              />
             </div>
           )}
 

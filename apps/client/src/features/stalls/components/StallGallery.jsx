@@ -5,7 +5,7 @@ import { useParams } from "react-router-dom";
 import api from "../../../lib/api";
 import { supabase } from "../../../lib/supabase";
 
-export default function StallGallery() {
+export default function StallGallery({ onNavigateToMenuItem }) {
   const { stallId } = useParams();
 
   // ===== Auth: current user id from Supabase =====
@@ -15,7 +15,7 @@ export default function StallGallery() {
     let cancelled = false;
 
     async function loadUser() {
-      const { data} = await supabase.auth.getSession();
+      const { data } = await supabase.auth.getSession();
 
       if (cancelled) return;
 
@@ -132,7 +132,7 @@ export default function StallGallery() {
   }, [currentUserId]);
 
 
-    // ===== Fetch user's existing reports from API =====
+  // ===== Fetch user's existing reports from API =====
   useEffect(() => {
     async function fetchReports() {
       try {
@@ -205,10 +205,10 @@ export default function StallGallery() {
       prev.map((it) =>
         it.id === id
           ? {
-              ...it,
-              upvoteCount: Math.max(0, it.upvoteCount + upDelta),
-              downvoteCount: Math.max(0, it.downvoteCount + downDelta),
-            }
+            ...it,
+            upvoteCount: Math.max(0, it.upvoteCount + upDelta),
+            downvoteCount: Math.max(0, it.downvoteCount + downDelta),
+          }
           : it
       )
     );
@@ -418,9 +418,9 @@ export default function StallGallery() {
   // ===== Render =====
   return (
     <section className="mt-10 mb-20">
-        <h2 className="text-left text-3xl font-bold text-emerald-900 mb-4 -mt-4">
-          Customer Favourites
-        </h2>
+      <h2 className="text-left text-3xl font-bold text-emerald-900 mb-4 -mt-4">
+        Customer Favourites
+      </h2>
 
       <div className="bento-grid w-full">
         {displayOrder.map((id) => {
@@ -469,15 +469,13 @@ export default function StallGallery() {
                   backdrop-blur border border-white/10 shadow
                   transition-all duration-200 overflow-hidden
                   w-[34px] hover:w-[110px]
-                  ${
-                    voteVal === 1
-                      ? "bg-emerald-700/70"
-                      : "bg-black/50 hover:bg-black/70"
+                  ${voteVal === 1
+                    ? "bg-emerald-700/70"
+                    : "bg-black/50 hover:bg-black/70"
                   }
-                  ${
-                    voteVal === 1
-                      ? "opacity-100"
-                      : "opacity-0 group-hover:opacity-100"
+                  ${voteVal === 1
+                    ? "opacity-100"
+                    : "opacity-0 group-hover:opacity-100"
                   }`}
               >
                 <img
@@ -502,15 +500,13 @@ export default function StallGallery() {
                   backdrop-blur border border-white/10 shadow
                   transition-all duration-200 overflow-hidden
                   w-[34px] hover:w-[120px]
-                  ${
-                    voteVal === 0
-                      ? "bg-rose-700/70"
-                      : "bg-black/50 hover:bg-black/70"
+                  ${voteVal === 0
+                    ? "bg-rose-700/70"
+                    : "bg-black/50 hover:bg-black/70"
                   }
-                  ${
-                    voteVal === 0
-                      ? "opacity-100"
-                      : "opacity-0 group-hover:opacity-100"
+                  ${voteVal === 0
+                    ? "opacity-100"
+                    : "opacity-0 group-hover:opacity-100"
                   }`}
               >
                 <img
@@ -585,16 +581,31 @@ export default function StallGallery() {
                 <button
                   onClick={openReportModal}
                   className={`text-[11px] md:text-xs mx-5 px-2.5 py-1 rounded-full border whitespace-nowrap
-                    ${
-                      reportedIds.includes(popupId)
-                        ? "border-rose-300 bg-rose-50 text-rose-500 cursor-default"
-                        : "border-rose-400 text-rose-600 hover:bg-rose-50"
+                    ${reportedIds.includes(popupId)
+                      ? "border-rose-300 bg-rose-50 text-rose-500 cursor-default"
+                      : "border-rose-400 text-rose-600 hover:bg-rose-50"
                     }`}
                 >
                   {reportedIds.includes(popupId) ? "✓ Reported" : "⚑ Report Post"}
                 </button>
               </div>
             </div>
+
+            {/* See Menu Item Button */}
+            {popupItem.raw?.menuItem && onNavigateToMenuItem && (
+              <div className="px-4 pb-4">
+                <button
+                  onClick={() => {
+                    setPopupId(null);
+                    onNavigateToMenuItem(popupItem.raw.menuItem.id);
+                  }}
+                  className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg transition-colors duration-200 flex items-center justify-center gap-2"
+                >
+                  <span>See Menu Item</span>
+                  <span className="text-lg">→</span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
