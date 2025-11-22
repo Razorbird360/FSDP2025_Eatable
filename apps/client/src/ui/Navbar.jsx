@@ -11,6 +11,7 @@ const communityIcon = new URL('../assets/navbar/community-photos.svg', import.me
 const infoIcon = new URL('../assets/navbar/about-us.svg', import.meta.url).href;
 const searchIcon = new URL('../assets/navbar/search.svg', import.meta.url).href;
 const collectionIcon = new URL('../assets/navbar/collection.svg', import.meta.url).href;
+const ordersIcon = new URL('../assets/navbar/orders.svg', import.meta.url).href;
 const cartIcon = new URL('../assets/navbar/cart.svg', import.meta.url).href;
 const closeIcon = new URL('../assets/navbar/close.svg', import.meta.url).href;
 const menuIcon = new URL('../assets/navbar/menu.svg', import.meta.url).href;
@@ -26,6 +27,7 @@ const navIcons = [
 
 const mobileNavItems = [
   ...navIcons,
+  { label: 'Orders', icon: ordersIcon, href: '/orders' },
   { label: 'My Collection', icon: collectionIcon, href: '/my-collection' },
 ];
 
@@ -186,9 +188,15 @@ export default function Navbar() {
             {status === 'authenticated' && (
               <>
                 <IconAction
+                  icon={ordersIcon}
+                  label="Orders"
+                  secondaryLabel="View past orders"
+                  to="/orders"
+                />
+                <IconAction
                   icon={collectionIcon}
                   label="My Collection"
-                  secondaryLabel="View Favourites & Orders"
+                  secondaryLabel="View favourites, uploads and reports"
                   to="/my-collection"
                 />
                 <IconAction icon={cartIcon} label="Cart" badge={count} onClick={openCart} />

@@ -174,10 +174,13 @@ export const orderService = {
                 orderItems: {
                     include: {
                         menuItem: {
-                            select: {
-                                id: true,
-                                name: true,
-                                priceCents: true,
+                            include: {
+                                mediaUploads: {
+                                    orderBy: {
+                                        upvoteCount: 'desc',
+                                    },
+                                    take: 1,
+                                }
                             },
                         },
                     },

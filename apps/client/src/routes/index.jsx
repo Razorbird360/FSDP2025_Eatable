@@ -11,6 +11,7 @@ import LoginPage from '../features/auth/LoginPage';
 import ProfilePage from '../pages/ProfilePage';
 import OrderSummaryPage from "../pages/OrderSummaryPage";
 import MyCollectionPage from '../pages/MyCollectionPage';
+import OrdersPage from '../pages/OrdersPage';
 
 import MakePayment from "../features/payment/MakePayment";
 import OrderCompleted from "../features/payment/OrderCompleted";
@@ -27,7 +28,6 @@ import PhotoUploadLayout from "../features/photos/layouts/PhotoUploadLayout";
 // Placeholder pages - to be replaced with actual feature pages
 const Stalls = () => <div className="p-8"><h1 className="text-3xl font-bold">Stalls</h1></div>;
 const Cart = () => <div className="p-8"><h1 className="text-3xl font-bold">Cart</h1></div>;
-const OrderHistory = () => <div className="p-8"><h1 className="text-3xl font-bold">Order History</h1></div>;
 const NotFound = () => <div className="p-8"><h1 className="text-3xl font-bold">404 - Not Found</h1></div>;
 
 function AppRoutes() {
@@ -57,7 +57,7 @@ function AppRoutes() {
         {/* Protected pages (requires login) */}
         <Route element={<ProtectedLayout />}>
           <Route path="/cart" element={<Cart />} />
-          <Route path="/orders" element={<OrderHistory />} />
+          <Route path="/orders" element={<OrdersPage />} />
           <Route path="/orderSummary" element={<OrderSummaryPage />} />
           <Route path="/my-collection" element={<MyCollectionPage />} />
           <Route path="/profile" element={<ProfilePage />} />

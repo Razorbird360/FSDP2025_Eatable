@@ -162,9 +162,9 @@ export const mediaController = {
       const path_segments = file_path.split('/');
 
       if (path_segments.length !== 3 ||
-          !uuid_pattern.test(path_segments[0]) ||
-          !uuid_pattern.test(path_segments[1]) ||
-          !path_segments[2].match(/^[a-f0-9-]+\.(jpg|jpeg)$/i)) {
+        !uuid_pattern.test(path_segments[0]) ||
+        !uuid_pattern.test(path_segments[1]) ||
+        !path_segments[2].match(/^[a-f0-9-]+\.(jpg|jpeg)$/i)) {
         return res.status(400).json({
           error: 'Invalid file path format. File may have been corrupted.',
         });
@@ -234,7 +234,7 @@ export const mediaController = {
 
   async getVotes(req, res, next) {
     try {
-      const userid  = req.user.id;
+      const userid = req.user.id;
       console.log("Getting votes for userId:", userid);
       const votes = await mediaService.getVotesByUserId(userid);
       res.json({
@@ -249,7 +249,7 @@ export const mediaController = {
 
   async upvote(req, res, next) {
     try {
-      const { uploadId} = req.params;
+      const { uploadId } = req.params;
       const userid = req.user.id;
       console.log("Upvoting uploadId:", uploadId, "by userId:", userid);
       const result = await mediaService.upvote(uploadId, userid);
@@ -320,7 +320,7 @@ export const mediaController = {
     } catch (error) {
       next(error);
     }
-},
+  },
 
 
   // POST /api/media/skip-onboarding
@@ -340,6 +340,28 @@ export const mediaController = {
       }
 
       return res.json({ ok: true });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /**
+   * Get current user's uploads
+   * GET /api/media/my-uploads
+   */
+  async getMyUploads(req, res, next) {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
+      const uploads = await mediaService.getByUser(userId);
+
+      res.json({
+        count: uploads.length,
+        uploads,
+      });
     } catch (error) {
       next(error);
     }

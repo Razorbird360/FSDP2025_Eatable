@@ -93,7 +93,6 @@ router.post("/query/:orderId", async (req, res) => {
 
       try {
         const updated = await orderService.orderPaymentSuccess(orderId);
-        console.log("Order updated:", updated);
       } catch (dbErr) {
         console.error("❌ Failed to update order:", dbErr);
       }
