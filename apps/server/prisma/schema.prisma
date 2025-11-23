@@ -24,6 +24,8 @@ model User {
   verified                  Boolean?
   verification_photo_url    String?
   verification_submitted_at DateTime?         @db.Timestamptz(6)
+  phone                     String?
+  language                  String?
   reports                   ContentReport[]
   votes                     MediaUploadVote[]
   mediaUploads              MediaUpload[]

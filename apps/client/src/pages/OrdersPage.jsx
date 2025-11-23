@@ -27,50 +27,46 @@ const OrdersPage = () => {
 
     if (loading) {
         return (
-            <div className="p-4 md:p-8 max-w-6xl mx-auto">
-                <div className="bg-white rounded-2xl border border-[#E7EEE7] p-6 md:p-8 min-h-[400px] flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#21421B]"></div>
-                </div>
+            <div className="bg-white rounded-xl border border-gray-100 p-8 min-h-[400px] flex items-center justify-center shadow-sm">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#21421B]"></div>
             </div>
         );
     }
 
     if (error) {
         return (
-            <div className="p-4 md:p-8 max-w-6xl mx-auto">
-                <div className="bg-white rounded-2xl border border-[#E7EEE7] p-6 md:p-8 min-h-[400px] flex items-center justify-center">
-                    <p className="text-red-500">{error}</p>
-                </div>
+            <div className="bg-white rounded-xl border border-gray-100 p-8 min-h-[400px] flex items-center justify-center shadow-sm">
+                <p className="text-red-500">{error}</p>
             </div>
         );
     }
 
     return (
-        <div className="p-4 md:p-8 max-w-6xl mx-auto">
-            <div className="bg-white rounded-2xl border border-[#E7EEE7] p-6 md:p-8">
-                <h1 className="text-2xl md:text-3xl font-bold mb-6 text-[#1C201D]">
+        <>
+            <div className="bg-white rounded-xl border border-gray-100 p-8 shadow-sm">
+                <h1 className="text-xl font-bold mb-6 text-gray-900">
                     My Orders
                 </h1>
 
                 {orders.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-16 bg-[#F8FDF3] rounded-2xl border border-dashed border-[#E7EEE7]">
-                        <div className="w-16 h-16 bg-[#EFF8EE] rounded-full flex items-center justify-center mb-4">
-                            <svg className="w-8 h-8 text-[#21421B]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="flex flex-col items-center justify-center py-16 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                            <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
                             </svg>
                         </div>
-                        <h3 className="text-lg font-semibold text-[#1C201D] mb-2">No orders yet</h3>
-                        <p className="text-sm text-[#4A554B] text-center">Your order history will appear here</p>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">No orders yet</h3>
+                        <p className="text-sm text-gray-500 text-center">Your order history will appear here</p>
                     </div>
                 ) : (
                     <div className="space-y-4">
                         {orders.map((order) => (
                             <div
                                 key={order.id}
-                                className="border border-[#E7EEE7] rounded-xl p-4 hover:shadow-md transition-shadow cursor-pointer"
+                                className="border border-gray-100 rounded-xl p-4 hover:shadow-md transition-shadow cursor-pointer bg-white"
                                 onClick={() => setSelectedOrder(order)}
                             >
-                                <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4 pb-4 border-b border-[#E7EEE7]">
+                                <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4 pb-4 border-b border-gray-100">
                                     <div className="flex items-center gap-3">
                                         {order.stall?.image_url ? (
                                             <img
@@ -84,8 +80,8 @@ const OrdersPage = () => {
                                             </div>
                                         )}
                                         <div>
-                                            <h3 className="font-semibold text-[#1C201D]">{order.stall?.name || 'Unknown Stall'}</h3>
-                                            <p className="text-sm text-[#4A554B]">{formatDateTime(order.createdAt)}</p>
+                                            <h3 className="font-semibold text-gray-900">{order.stall?.name || 'Unknown Stall'}</h3>
+                                            <p className="text-sm text-gray-500">{formatDateTime(order.createdAt)}</p>
                                         </div>
                                     </div>
                                     <div className="flex items-center justify-between md:justify-end gap-4">
@@ -96,7 +92,7 @@ const OrdersPage = () => {
                                             }`}>
                                             {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
                                         </span>
-                                        <span className="font-bold text-[#1C201D]">{formatPrice(order.totalCents)}</span>
+                                        <span className="font-bold text-gray-900">{formatPrice(order.totalCents)}</span>
                                     </div>
                                 </div>
 
@@ -104,17 +100,17 @@ const OrdersPage = () => {
                                     {order.orderItems?.map((item) => (
                                         <div key={item.id} className="flex justify-between text-sm">
                                             <div className="flex gap-2">
-                                                <span className="font-medium text-[#1C201D]">{item.quantity}x</span>
-                                                <span className="text-[#4A554B]">{item.menuItem?.name}</span>
+                                                <span className="font-medium text-gray-900">{item.quantity}x</span>
+                                                <span className="text-gray-600">{item.menuItem?.name}</span>
                                             </div>
-                                            <span className="text-[#4A554B]">{formatPrice(item.unitCents)}</span>
+                                            <span className="text-gray-600">{formatPrice(item.unitCents)}</span>
                                         </div>
                                     ))}
                                 </div>
 
-                                <div className="mt-4 pt-3 border-t border-[#E7EEE7] flex justify-end">
+                                <div className="mt-4 pt-3 border-t border-gray-100 flex justify-end">
                                     <button
-                                        className="text-sm font-semibold text-[#21421B] hover:underline"
+                                        className="text-sm font-semibold text-[#1B3C18] hover:underline"
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             setSelectedOrder(order);
@@ -135,7 +131,7 @@ const OrdersPage = () => {
                     onClose={() => setSelectedOrder(null)}
                 />
             )}
-        </div>
+        </>
     );
 };
 

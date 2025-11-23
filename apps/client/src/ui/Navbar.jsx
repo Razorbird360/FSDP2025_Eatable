@@ -223,6 +223,13 @@ export default function Navbar() {
 
                 {isProfileMenuOpen && (
                   <div className="absolute right-0 mt-2 w-40 rounded-2xl border border-[#E7EEE7] bg-white py-1 shadow-[0_10px_25px_rgba(0,0,0,0.08)]">
+                    <Link
+                      to="/profile"
+                      onClick={() => setIsProfileMenuOpen(false)}
+                      className="block w-full px-4 py-2 text-left text-sm text-[#1C201D] hover:bg-[#F8FDF3] rounded-2xl"
+                    >
+                      Profile
+                    </Link>
                     <button
                       type="button"
                       onClick={async () => {

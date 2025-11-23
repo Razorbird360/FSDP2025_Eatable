@@ -327,8 +327,8 @@ const MyCollectionPage = () => {
     };
 
     return (
-        <div className="p-4 md:p-8 max-w-6xl mx-auto">
-            <h1 className="text-2xl md:text-3xl font-bold mb-6 md:mb-8 text-[#1C201D]">My Collection</h1>
+        <div className="bg-white rounded-xl border border-gray-100 p-8 shadow-sm">
+            <h1 className="text-xl font-bold mb-6 text-gray-900">My Collection</h1>
 
             {/* Tabs */}
             <div className="flex gap-2 mb-6 md:mb-8 border-b border-[#E7EEE7] overflow-x-auto">

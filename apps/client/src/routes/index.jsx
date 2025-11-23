@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import RootLayout from '../layouts/RootLayout';
 import ProtectedLayout from '../layouts/ProtectedLayout';
 import HomePage from '../pages/HomePage';
+import ProfileLayout from '../layouts/ProfileLayout';
 import AboutPage from '../pages/AboutPage';
 import HawkerCentresPage from '../features/hawkerCentres/components/HawkerCentresPage';
 import HawkerPage from '../features/hawkerPage/components/hawkerpage.jsx';
@@ -12,6 +13,13 @@ import ProfilePage from '../pages/ProfilePage';
 import OrderSummaryPage from "../pages/OrderSummaryPage";
 import MyCollectionPage from '../pages/MyCollectionPage';
 import OrdersPage from '../pages/OrdersPage';
+import {
+  VouchersPage,
+  AchievementsPage,
+  SettingsPage,
+  BusinessPage,
+  HelpPage
+} from '../pages/ProfilePlaceholders';
 
 import MakePayment from "../features/payment/MakePayment";
 import OrderCompleted from "../features/payment/OrderCompleted";
@@ -57,10 +65,16 @@ function AppRoutes() {
         {/* Protected pages (requires login) */}
         <Route element={<ProtectedLayout />}>
           <Route path="/cart" element={<Cart />} />
-          <Route path="/orders" element={<OrdersPage />} />
-          <Route path="/orderSummary" element={<OrderSummaryPage />} />
-          <Route path="/my-collection" element={<MyCollectionPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
+          <Route element={<ProfileLayout />}>
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/orders" element={<OrdersPage />} />
+            <Route path="/my-collection" element={<MyCollectionPage />} />
+            <Route path="/vouchers" element={<VouchersPage />} />
+            <Route path="/achievements" element={<AchievementsPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/business" element={<BusinessPage />} />
+            <Route path="/help" element={<HelpPage />} />
+          </Route>
 
           {/* TODO: Add more protected routes: profile, upload photo, etc */}
 

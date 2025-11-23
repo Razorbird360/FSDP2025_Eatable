@@ -1,5 +1,16 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
+import {
+  FiUser,
+  FiClock,
+  FiUploadCloud,
+  FiHeart,
+  FiGift,
+  FiAward,
+  FiSettings,
+  FiBriefcase,
+  FiHelpCircle
+} from "react-icons/fi";
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState(null);
@@ -27,16 +38,21 @@ export default function ProfilePage() {
         return;
       }
 
-      const res = await fetch("http://localhost:3000/api/profile", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      try {
+        const res = await fetch("http://localhost:3000/api/profile", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
 
-      const data = await res.json();
-      console.log("PROFILE LOADED FROM API:", data);
-      setProfile(data);
-      setLoading(false);
+        const data = await res.json();
+        console.log("PROFILE LOADED FROM API:", data);
+        setProfile(data);
+      } catch (error) {
+        console.error("Error loading profile:", error);
+      } finally {
+        setLoading(false);
+      }
     }
 
     loadProfile();
@@ -50,137 +66,134 @@ export default function ProfilePage() {
 
     const token = await getToken();
 
-    const res = await fetch("http://localhost:3000/api/profile/update", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(profile),
-    });
+    try {
+      const res = await fetch("http://localhost:3000/api/profile/update", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(profile),
+      });
 
-    const data = await res.json();
-    console.log("UPDATE RESPONSE:", data);
+      const data = await res.json();
+      console.log("UPDATE RESPONSE:", data);
 
-    alert("Profile updated!");
-    setSaving(false);
+      alert("Profile updated!");
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      alert("Failed to update profile.");
+    } finally {
+      setSaving(false);
+    }
   }
 
-  if (loading || !profile) return <div className="p-6">Loading...</div>;
+  if (loading) return <div className="p-10 text-center">Loading profile...</div>;
+  if (!profile) return <div className="p-10 text-center">Profile not found.</div>;
+
+  const displayName = profile.display_name || `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || "User";
+  const email = profile.email || "No email";
+  const initials = displayName.charAt(0).toUpperCase();
 
   return (
-    <div className="flex max-w-6xl mx-auto p-6 gap-6 font-[Sansation]">
-
-      {/* LEFT SIDEBAR */}
-      <div className="w-1/4 bg-white p-6 rounded-xl shadow">
-        <h2 className="text-xl font-bold mb-4">Settings</h2>
-
-        <div className="space-y-3">
-          <button className="w-full py-2 text-white rounded-lg" 
-            style={{ backgroundColor: "#21421B" }}>
-            Account Preferences
-          </button>
-
-          <button className="w-full py-2 bg-white rounded-lg shadow">
-            Sign in & Security
-          </button>
-
-          <button className="w-full py-2 bg-white rounded-lg shadow">
-            Privacy
-          </button>
-
-          <button className="w-full py-2 bg-white rounded-lg shadow">
-            Notification
-          </button>
-
-          <button className="w-full py-2 bg-white rounded-lg shadow">
-            Orders & Activity
-          </button>
+    <>
+      {/* Header Card */}
+      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 flex items-center gap-6">
+        <div className="w-20 h-20 rounded-full bg-[#6B6BCE] flex items-center justify-center text-white text-3xl font-medium shadow-sm">
+          {initials}
+        </div>
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">{displayName}</h1>
+          <p className="text-gray-500 text-sm">{email}</p>
         </div>
       </div>
 
-      {/* MAIN PROFILE PANEL */}
-      <div className="flex-1 bg-white p-8 rounded-xl shadow">
+      {/* Form Section */}
+      <div className="bg-white rounded-xl p-8 shadow-sm relative">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
 
-        <h2 className="text-xl font-bold mb-6">Account Preferences</h2>
-
-        {/* PROFILE PICTURE */}
-        <div className="flex justify-center mb-6">
-          <div className="w-28 h-28 rounded-full bg-purple-500 text-white 
-            flex items-center justify-center text-4xl font-bold">
-            {profile.display_name?.charAt(0)?.toUpperCase()}
+          {/* Full Name */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-600">Full Name</label>
+            <input
+              type="text"
+              value={profile.display_name || ""}
+              onChange={(e) => setProfile({ ...profile, display_name: e.target.value })}
+              className="w-full px-4 py-2.5 rounded-lg border border-gray-300 text-gray-900 focus:ring-2 focus:ring-[#21421B] focus:border-transparent outline-none transition-all"
+              placeholder="Enter full name"
+            />
           </div>
+
+          {/* Username */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-600">Username</label>
+            <input
+              type="text"
+              value={profile.username || ""}
+              onChange={(e) => setProfile({ ...profile, username: e.target.value })}
+              className="w-full px-4 py-2.5 rounded-lg border border-gray-300 text-gray-900 focus:ring-2 focus:ring-[#21421B] focus:border-transparent outline-none transition-all"
+              placeholder="Enter username"
+            />
+          </div>
+
+          {/* Gmail */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-600">Gmail</label>
+            <input
+              type="email"
+              value={profile.email || ""}
+              readOnly // Often email is not editable directly
+              className="w-full px-4 py-2.5 rounded-lg border border-gray-300 text-gray-900 bg-gray-50 cursor-not-allowed"
+            />
+          </div>
+
+          {/* Phone Number */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-600">Phone Number</label>
+            <input
+              type="tel"
+              value={profile.phone || ""}
+              onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
+              className="w-full px-4 py-2.5 rounded-lg border border-gray-300 text-gray-900 focus:ring-2 focus:ring-[#21421B] focus:border-transparent outline-none transition-all"
+              placeholder="Enter phone number"
+            />
+          </div>
+
+          {/* Language */}
+          <div className="col-span-1 md:col-span-2 space-y-2">
+            <label className="text-sm font-medium text-gray-600">Language</label>
+            <div className="relative">
+              <select
+                value={profile.language || "English"}
+                onChange={(e) => setProfile({ ...profile, language: e.target.value })}
+                className="w-full px-4 py-2.5 rounded-lg border border-gray-300 text-gray-900 focus:ring-2 focus:ring-[#21421B] focus:border-transparent outline-none appearance-none bg-white transition-all"
+              >
+                <option value="English">English</option>
+                <option value="Chinese">Chinese</option>
+                <option value="Malay">Malay</option>
+                <option value="Tamil">Tamil</option>
+              </select>
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
+                <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </div>
+          </div>
+
         </div>
 
-        <div className="grid grid-cols-2 gap-6">
-
-          {/* FIRST NAME */}
-          <div>
-            <label className="block mb-1 font-medium">First Name</label>
-            <input
-              type="text"
-              className="w-full border rounded-md p-2"
-              value={profile.first_name || ""}
-              onChange={(e) =>
-                setProfile({ ...profile, first_name: e.target.value })
-              }
-            />
-          </div>
-
-          {/* LAST NAME */}
-          <div>
-            <label className="block mb-1 font-medium">Last Name</label>
-            <input
-              type="text"
-              className="w-full border rounded-md p-2"
-              value={profile.last_name || ""}
-              onChange={(e) =>
-                setProfile({ ...profile, last_name: e.target.value })
-              }
-            />
-          </div>
-
-          {/* LOCATION */}
-          <div>
-            <label className="block mb-1 font-medium">Location</label>
-            <input
-              type="text"
-              className="w-full border rounded-md p-2"
-              value={profile.location || ""}
-              onChange={(e) =>
-                setProfile({ ...profile, location: e.target.value })
-              }
-            />
-          </div>
-
-          {/* DESCRIPTION */}
-          <div className="col-span-2">
-            <label className="block mb-1 font-medium">Description</label>
-            <textarea
-              className="w-full border rounded-md p-2 h-32"
-              value={profile.description || ""}
-              onChange={(e) =>
-                setProfile({ ...profile, description: e.target.value })
-              }
-            />
-          </div>
-        </div>
-
-        {/* ACTION BUTTONS */}
-        <div className="flex gap-4 mt-8">
-          <button className="px-6 py-2 bg-gray-200 rounded-lg">Cancel</button>
-
+        {/* Edit Button */}
+        <div className="mt-8 flex justify-end">
           <button
             onClick={saveProfile}
             disabled={saving}
-            className="px-6 py-2 text-white rounded-lg"
-            style={{ backgroundColor: "#21421B" }}
+            className="px-8 py-2.5 bg-[#1B3C18] text-white font-medium rounded-lg hover:bg-[#142d12] active:bg-[#0f210d] transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
           >
-            {saving ? "Updating..." : "Update"}
+            {saving ? "Saving..." : "Edit"}
           </button>
         </div>
-
       </div>
-    </div>
+    </>
   );
 }
