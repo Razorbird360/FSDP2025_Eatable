@@ -1,19 +1,161 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Box, Button, HStack, Text, VStack } from '@chakra-ui/react';
 import { toaster } from '../../../components/ui/toaster';
 
 const TARGET_RATIO = 1.75;
-const AI_BASE_URL = import.meta.env.VITE_AI_SERVICE_URL || 'http://localhost:8000';
+const FRAME_INTERVAL = 200;
 
-export default function VerificationModal({ isOpen, onClose, onSuccess }) {
+export default function VerificationModal({ isOpen, onClose, onSuccess: _onSuccess }) {
   const videoRef = useRef(null);
-  const canvasRef = useRef(null);
-  const [stream, setStream] = useState(null);
+  const containerRef = useRef(null);
+  const captureCanvasRef = useRef(null);
+  const workerRef = useRef(null);
+  const workerReadyRef = useRef(false);
+  const frameTimerRef = useRef(null);
+  const previewActiveRef = useRef(false);
+  const imagePreviewValueRef = useRef(null);
   const [cameraError, setCameraError] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
-  const [imageFile, setImageFile] = useState(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [analysis, setAnalysis] = useState(null);
+  const [videoReady, setVideoReady] = useState(false);
+  const [cardDetected, setCardDetected] = useState(false);
+  useEffect(() => {
+    previewActiveRef.current = Boolean(imagePreview);
+    imagePreviewValueRef.current = imagePreview;
+  }, [imagePreview]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setVideoReady(false);
+      return undefined;
+    }
+    const video = videoRef.current;
+    if (!video) return undefined;
+    const handleLoaded = () => setVideoReady(true);
+    video.addEventListener('loadeddata', handleLoaded);
+    return () => {
+      video.removeEventListener('loadeddata', handleLoaded);
+      setVideoReady(false);
+    };
+  }, [isOpen]);
+
+  const clearOverlay = useCallback(() => {
+    setCardDetected(false);
+  }, []);
+
+  const stopLiveProcessing = useCallback(() => {
+    if (frameTimerRef.current) {
+      clearInterval(frameTimerRef.current);
+      frameTimerRef.current = null;
+    }
+  }, []);
+
+  const startLiveProcessing = useCallback(() => {
+    if (frameTimerRef.current || !workerRef.current || !workerReadyRef.current) {
+      return;
+    }
+    const video = videoRef.current;
+    const canvas = captureCanvasRef.current;
+    if (!video || !canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const captureFrame = () => {
+      if (!workerRef.current || !videoRef.current || previewActiveRef.current) {
+        return;
+      }
+      const currentVideo = videoRef.current;
+      if (!currentVideo || currentVideo.readyState < 2) {
+        return;
+      }
+      const { videoWidth: width, videoHeight: height } = currentVideo;
+      if (!width || !height) {
+        return;
+      }
+      if (canvas.width !== width || canvas.height !== height) {
+        canvas.width = width;
+        canvas.height = height;
+      }
+      ctx.drawImage(currentVideo, 0, 0, width, height);
+      const imageData = ctx.getImageData(0, 0, width, height);
+      const payload = { type: 'frame', width, height, buffer: imageData.data.buffer };
+      workerRef.current.postMessage(payload, [payload.buffer]);
+    };
+
+    captureFrame();
+    frameTimerRef.current = setInterval(captureFrame, FRAME_INTERVAL);
+  }, []);
+
+  const runImageDetection = useCallback((dataUrl) => {
+    if (!dataUrl || !workerRef.current || !workerReadyRef.current || !captureCanvasRef.current) {
+      return;
+    }
+    const img = new Image();
+    img.onload = () => {
+      const canvas = captureCanvasRef.current;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const payload = { type: 'image', width: canvas.width, height: canvas.height, buffer: imageData.data.buffer };
+      workerRef.current.postMessage(payload, [payload.buffer]);
+    };
+    img.onerror = () => console.error('Unable to load uploaded image for detection');
+    img.src = dataUrl;
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen || !workerReadyRef.current) {
+      stopLiveProcessing();
+      return;
+    }
+    if (imagePreview) {
+      stopLiveProcessing();
+      runImageDetection(imagePreview);
+    } else if (videoReady) {
+      startLiveProcessing();
+    }
+  }, [imagePreview, isOpen, videoReady, runImageDetection, startLiveProcessing, stopLiveProcessing]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return undefined;
+    }
+
+    const worker = new Worker(new URL('../workers/idWorker.js', import.meta.url));
+    workerRef.current = worker;
+
+    const handleMessage = (event) => {
+      const { type, points, width, height, coverage } = event.data;
+      if (type === 'ready') {
+        workerReadyRef.current = true;
+        if (imagePreviewValueRef.current) {
+          runImageDetection(imagePreviewValueRef.current);
+        } else {
+          startLiveProcessing();
+        }
+      } else if (type === 'detection') {
+        const detected = Boolean(points && points.length === 4);
+        setCardDetected(detected);
+        if (!detected && previewActiveRef.current) {
+          toaster.create({ title: 'No card detected', description: 'Try adjusting lighting or framing.', type: 'info' });
+        }
+        if (coverage && coverage >= 0.5) {
+          console.log(`[ID Overlay] high-coverage detection ${(coverage * 100).toFixed(1)}%`);
+        }
+      }
+    };
+
+    worker.addEventListener('message', handleMessage);
+
+    return () => {
+      worker.removeEventListener('message', handleMessage);
+      worker.terminate();
+      workerRef.current = null;
+      workerReadyRef.current = false;
+    };
+  }, [isOpen, runImageDetection, startLiveProcessing]);
 
   useEffect(() => {
     let localStream;
@@ -26,7 +168,6 @@ export default function VerificationModal({ isOpen, onClose, onSuccess }) {
             height: 480,
           },
         });
-        setStream(localStream);
         setCameraError(null);
         if (videoRef.current) {
           videoRef.current.srcObject = localStream;
@@ -45,29 +186,14 @@ export default function VerificationModal({ isOpen, onClose, onSuccess }) {
       if (localStream) {
         localStream.getTracks().forEach((track) => track.stop());
       }
-      setStream(null);
+      stopLiveProcessing();
+      clearOverlay();
       setImagePreview(null);
-      setImageFile(null);
-      setAnalysis(null);
       if (videoRef.current) {
         videoRef.current.srcObject = null;
       }
     };
-  }, [isOpen]);
-
-  const captureFromCamera = async () => {
-    if (!videoRef.current || !canvasRef.current) return;
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const dataUrl = await cropDataUrl(canvas.toDataURL('image/jpeg', 0.92));
-    setImagePreview(dataUrl);
-    setImageFile(null);
-    setAnalysis(null);
-  };
+  }, [isOpen, stopLiveProcessing, clearOverlay]);
 
   const handleFileSelect = async (event) => {
     const file = event.target.files?.[0];
@@ -81,55 +207,8 @@ export default function VerificationModal({ isOpen, onClose, onSuccess }) {
       return;
     }
     const dataUrl = await cropDataUrl(await fileToDataUrl(file));
+    clearOverlay();
     setImagePreview(dataUrl);
-    setImageFile(file);
-    setAnalysis(null);
-  };
-
-  const handleSubmit = async () => {
-    if (!imagePreview && !imageFile) {
-      toaster.create({ title: 'No image selected', description: 'Capture or upload your ID first', type: 'error' });
-      return;
-    }
-
-    const formData = new FormData();
-    if (imageFile) {
-      formData.append('image', imageFile, imageFile.name);
-    } else if (imagePreview) {
-      const blob = await dataUrlToBlob(imagePreview);
-      formData.append('image', blob, 'captured-id.jpg');
-    }
-
-    setSubmitting(true);
-    setAnalysis(null);
-    try {
-      const response = await fetch(`${AI_BASE_URL}/id/validate`, {
-        method: 'POST',
-        body: formData,
-      });
-      if (!response.ok) {
-        let message = 'Verification failed';
-        try {
-          const errorBody = await response.json();
-          if (typeof errorBody?.detail === 'string') {
-            message = errorBody.detail;
-          }
-        } catch {
-          // ignore JSON parsing errors
-        }
-        throw new Error(message);
-      }
-      const result = await response.json();
-      setAnalysis(result);
-      if (result.ready) {
-        onSuccess();
-      }
-    } catch (error) {
-      console.error(error);
-      toaster.create({ title: 'Verification failed', description: error.message, type: 'error' });
-    } finally {
-      setSubmitting(false);
-    }
   };
 
   if (!isOpen) return null;
@@ -163,7 +242,15 @@ export default function VerificationModal({ isOpen, onClose, onSuccess }) {
             Capture a clear photo of your ID. We&apos;ll validate it on our secure server before proceeding.
           </Text>
 
-          <Box position="relative" rounded="xl" overflow="hidden" bg="gray.900" height={{ base: '260px', sm: '320px' }}>
+          <Box
+            ref={containerRef}
+            position="relative"
+            rounded="xl"
+            overflow="hidden"
+            bg="gray.900"
+            width="100%"
+            style={{ aspectRatio: TARGET_RATIO }}
+          >
             {imagePreview ? (
               <img src={imagePreview} alt="ID preview" className="h-full w-full object-cover" />
             ) : (
@@ -183,8 +270,7 @@ export default function VerificationModal({ isOpen, onClose, onSuccess }) {
                 _hover={{ bg: '#F6FBF2' }}
                 onClick={() => {
                   setImagePreview(null);
-                  setImageFile(null);
-                  setAnalysis(null);
+                  clearOverlay();
                 }}
               >
                 Retake
@@ -216,24 +302,7 @@ export default function VerificationModal({ isOpen, onClose, onSuccess }) {
             )}
           </Box>
 
-          <canvas ref={canvasRef} style={{ display: 'none' }} />
-
-          <Box bg="#F6FBF2" rounded="xl" p={3} border="1px solid #E3F0D9">
-            <Text fontSize="sm" fontWeight="semibold" color="#21421B">
-              {analysis
-                ? analysis.ready
-                  ? 'ID validated successfully'
-                  : 'Please adjust your ID'
-                : imagePreview || imageFile
-                  ? 'Image ready to submit'
-                  : 'Capture or upload your ID to begin'}
-            </Text>
-            {analysis?.feedback?.map((line) => (
-              <Text key={line} fontSize="xs" color="#3a3a3a">
-                {line}
-              </Text>
-            ))}
-          </Box>
+          <canvas ref={captureCanvasRef} style={{ display: 'none' }} />
 
           <input type="file" accept="image/*" id="verification-file-input" style={{ display: 'none' }} onChange={handleFileSelect} />
 
@@ -251,33 +320,12 @@ export default function VerificationModal({ isOpen, onClose, onSuccess }) {
               >
                 Upload ID
               </Button>
-              <Button
-                flex={1}
-                minW="130px"
-                rounded="full"
-                bg="#21421B"
-                color="white"
-                _hover={{ bg: '#1A3517' }}
-                _active={{ bg: '#142812' }}
-                onClick={captureFromCamera}
-                disabled={!!cameraError}
-              >
-                Capture from camera
-              </Button>
             </HStack>
 
-            {(imagePreview || imageFile) && (
-              <Button
-                rounded="full"
-                bg="#21421B"
-                color="white"
-                _hover={{ bg: '#1A3517' }}
-                _active={{ bg: '#142812' }}
-                isLoading={submitting}
-                onClick={handleSubmit}
-              >
-                Submit for verification
-              </Button>
+            {imagePreview && cardDetected && (
+              <Text fontSize="sm" color="green.600" textAlign="center">
+                Card detected. Ready to submit.
+              </Text>
             )}
 
             <Button rounded="full" variant="ghost" color="gray.600" onClick={onClose}>
@@ -289,6 +337,7 @@ export default function VerificationModal({ isOpen, onClose, onSuccess }) {
     </Box>
   );
 }
+
 
 function cropDataUrl(dataUrl) {
   const img = document.createElement('img');
@@ -325,9 +374,4 @@ function fileToDataUrl(file) {
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
-}
-
-async function dataUrlToBlob(dataUrl) {
-  const res = await fetch(dataUrl);
-  return res.blob();
 }

@@ -12,7 +12,7 @@ import numpy as np
 from dataclasses import dataclass
 from typing import List, Optional, Tuple
 
-TARGET_RATIO = 1.75  # width:height for ID cards
+TARGET_RATIO = 1.75  # width andd height for ID cards
 READY_COVERAGE = 0.7
 MAX_TILT_PIXELS = 15
 MIN_BRIGHTNESS = 65
