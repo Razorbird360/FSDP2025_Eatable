@@ -14,11 +14,13 @@ export default function VerificationModal({ isOpen, onClose, onSuccess: _onSucce
   const frameTimerRef = useRef(null);
   const previewActiveRef = useRef(false);
   const imagePreviewValueRef = useRef(null);
+  const cameraDetectionCountRef = useRef(0);
+  const lastFrameDataRef = useRef(null);
   const [cameraError, setCameraError] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [videoReady, setVideoReady] = useState(false);
   const [cardDetected, setCardDetected] = useState(false);
-  const [lastDetectionSource, setLastDetectionSource] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
   useEffect(() => {
     previewActiveRef.current = Boolean(imagePreview);
     imagePreviewValueRef.current = imagePreview;
@@ -41,7 +43,7 @@ export default function VerificationModal({ isOpen, onClose, onSuccess: _onSucce
 
   const clearOverlay = useCallback(() => {
     setCardDetected(false);
-    setLastDetectionSource(null);
+    cameraDetectionCountRef.current = 0;
   }, []);
 
   const stopLiveProcessing = useCallback(() => {
@@ -78,6 +80,11 @@ export default function VerificationModal({ isOpen, onClose, onSuccess: _onSucce
         canvas.height = height;
       }
       ctx.drawImage(currentVideo, 0, 0, width, height);
+      try {
+        lastFrameDataRef.current = canvas.toDataURL('image/jpeg', 0.9);
+      } catch (error) {
+        console.warn('Unable to capture frame data', error);
+      }
       const imageData = ctx.getImageData(0, 0, width, height);
       const payload = { type: 'frame', width, height, buffer: imageData.data.buffer };
       workerRef.current.postMessage(payload, [payload.buffer]);
@@ -139,10 +146,26 @@ export default function VerificationModal({ isOpen, onClose, onSuccess: _onSucce
         }
       } else if (type === 'detection') {
         const detected = Boolean(points && points.length === 4);
-        setCardDetected(detected);
-        setLastDetectionSource(previewActiveRef.current ? 'upload' : 'camera');
-        if (!detected && previewActiveRef.current) {
-          toaster.create({ title: 'No card detected', description: 'Try adjusting lighting or framing.', type: 'info' });
+        if (previewActiveRef.current) {
+          setCardDetected(detected);
+          if (!detected) {
+            toaster.create({ title: 'No card detected', description: 'Try adjusting lighting or framing.', type: 'info' });
+          }
+        } else {
+          if (detected) {
+            cameraDetectionCountRef.current += 1;
+            if (cameraDetectionCountRef.current >= 3 && lastFrameDataRef.current) {
+              stopLiveProcessing();
+              const frameData = lastFrameDataRef.current;
+              previewActiveRef.current = true;
+              imagePreviewValueRef.current = frameData;
+              setImagePreview(frameData);
+              setCardDetected(true);
+              cameraDetectionCountRef.current = 0;
+            }
+          } else {
+            cameraDetectionCountRef.current = 0;
+          }
         }
         if (coverage && coverage >= 0.5) {
           console.log(`[ID Overlay] high-coverage detection ${(coverage * 100).toFixed(1)}%`);
@@ -221,6 +244,25 @@ export default function VerificationModal({ isOpen, onClose, onSuccess: _onSucce
       startLiveProcessing();
     }
   }, [clearOverlay, startLiveProcessing]);
+
+  const handleSubmit = async () => {
+    if (!imagePreview || !cardDetected) {
+      toaster.create({ title: 'Verification', description: 'Capture or upload a valid ID first', type: 'info' });
+      return;
+    }
+    setSubmitting(true);
+    try {
+      if (typeof _onSuccess === 'function') {
+        await _onSuccess();
+      }
+      toaster.create({ title: 'Submitted', description: 'Verification sent successfully.', type: 'success' });
+    } catch (error) {
+      console.error(error);
+      toaster.create({ title: 'Submit failed', description: 'Please try again.', type: 'error' });
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -330,10 +372,25 @@ export default function VerificationModal({ isOpen, onClose, onSuccess: _onSucce
               </Button>
             </HStack>
 
-            {imagePreview && cardDetected && (
+            {cardDetected && (
               <Text fontSize="sm" color="green.600" textAlign="center">
-                Card detected. Ready to submit.
+                Card detected.
               </Text>
+            )}
+
+            {imagePreview && (
+              <Button
+                rounded="full"
+                bg="#21421B"
+                color="white"
+                _hover={{ bg: '#1A3517' }}
+                _active={{ bg: '#142812' }}
+                isDisabled={!cardDetected}
+                isLoading={submitting}
+                onClick={handleSubmit}
+              >
+                Submit for verification
+              </Button>
             )}
 
             <Button rounded="full" variant="ghost" color="gray.600" onClick={onClose}>
