@@ -41,6 +41,9 @@ coverage/
 # Prisma
 # Note: migrations should be committed to version control
 
+# Docker
+docker/
+
 # Python
 __pycache__/
 *.py[cod]

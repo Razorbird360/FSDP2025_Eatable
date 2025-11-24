@@ -1,44 +1,42 @@
 # Prisma Workflow Guide
 
-## Core Commands
-Always use `pnpm` to ensure you are using the project's installed dependencies.
+## 1. Development Workflow (Feature Branch)
 
-### 1. Development (Local Changes)
-When you make changes to `schema.prisma`:
+When you need to make database schema changes (DO THIS WHEN U NEED TO MERGE TO MAIN):
+
+1.  **Create migration on your feature branch**:
+    ```bash
+    pnpm prisma migrate dev
+    ```
+    - This updates your **local DB (Docker)** only.
+    - It creates a new SQL file in `prisma/migrations`.
+
+2.  **Commit the migration folder**:
+    - Include the new folder in `prisma/migrations/...` in a seperate, new commit.
+
+3.  **Merge**:
+    - Open PR → Code review → Merge into `main`.
+
+---
+
+## 2. Running Local Database
+
+We use Docker for local development to avoid touching the production database.
+
+**Start Local DB**:
 ```bash
-pnpm prisma migrate dev
-```
-- **What it does**:
-    - Creates a new migration file.
-    - Applies it to your local database.
-    - Regenerates the Prisma Client.
-- **When to use**: Whenever you modify the schema.
-
-### 2. Status Check
-To check if your database is in sync with your migrations:
-```bash
-pnpm prisma migrate status
-```
-- **When to use**: After pulling code, or if you suspect issues.
-
-### 3. Viewing Data
-To open a GUI for your database:
-```bash
-pnpm prisma studio
+scripts/start-local-db.bat
 ```
 
-### 4. Resetting (Last Resort)
-If your local database is hopelessly out of sync:
-```bash
-pnpm prisma migrate reset
-```
-- **Warning**: Deletes all data and re-applies all migrations.
+**What this script does:**
+1.  **Safety Check**: Verifies your `.env` points to `localhost` (aborts if not).
+2.  **Docker**: Starts the PostgreSQL container.
+3.  **Migrate**: Runs `pnpm prisma migrate dev` to apply all migrations.
+4.  **Seed**: Runs `pnpm prisma db seed` to populate sample data.
 
-## Important Rules
+***When stopping docker container***
+- Run `docker-compose down -v`  
+
 > [!IMPORTANT]
 > **NEVER** modify the database schema directly in the Supabase SQL Editor.
-> Always change `schema.prisma` and run `pnpm prisma migrate dev`.
-
-## Troubleshooting
-- **Schema Drift**: If the DB has changes not in Prisma, run `pnpm prisma db pull`.
-- **Merge Conflicts**: If migration files conflict, you may need to resolve them manually or reset.
+> Always change `schema.prisma` and use the workflow above.
