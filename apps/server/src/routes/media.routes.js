@@ -31,11 +31,15 @@ router.delete('/:uploadId', authMiddleware, mediaController.deleteUpload);
 
 router.get('/getVotes', authMiddleware, mediaController.getVotes);
 router.post('/upvote/:uploadId/', authMiddleware, mediaController.upvote);
-router.post('/downvote/:uploadId/', authMiddleware,mediaController.downvote);
+router.post('/downvote/:uploadId/', authMiddleware, mediaController.downvote);
 router.delete('/removeupvote/:uploadId/', authMiddleware, mediaController.removeUpvote);
 router.delete('/removedownvote/:uploadId/', authMiddleware, mediaController.removeDownvote);
 
-router.get('/skip-onboarding',authMiddleware, mediaController.getSkipOnboarding);
+router.get('/skip-onboarding', authMiddleware, mediaController.getSkipOnboarding);
 router.post('/skip-onboarding', authMiddleware, mediaController.setSkipOnboarding);
+
+// Get current user's uploads
+router.get('/my-uploads', authMiddleware, mediaController.getMyUploads);
+
 
 export default router;

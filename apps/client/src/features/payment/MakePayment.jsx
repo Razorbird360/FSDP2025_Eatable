@@ -16,8 +16,8 @@ function mapOrderItem(raw) {
     typeof raw.unitCents === "number"
       ? raw.unitCents
       : typeof mi.priceCents === "number"
-      ? mi.priceCents
-      : 0;
+        ? mi.priceCents
+        : 0;
 
   const price = priceCents / 100;
 
@@ -52,10 +52,7 @@ export default function MakePayment() {
   const [loadingOrder, setLoadingOrder] = useState(true);
   const [orderError, setOrderError] = useState(null);
 
-    const [orderInfo, setOrderInfo] = useState(null);
-
-  const [serviceFee, setServiceFee] = useState(0);
-  const [loadingFee, setLoadingFee] = useState(true);
+  const [orderInfo, setOrderInfo] = useState(null);
 
   // ⭐ NEW STATE
   const [showOrderSuccess, setShowOrderSuccess] = useState(false);
@@ -67,23 +64,6 @@ export default function MakePayment() {
   // ───────────────────────────────
   // Fetch order + items
   // ───────────────────────────────
-  useEffect(() => {
-    async function fetchServiceFee() {
-      try {
-        const res = await api.get("/orders/serviceFees");
-        // assuming backend returns { serviceFee: 2.0 }
-        setServiceFee(res.data.serviceFeesCents / 100 || 0);
-      } catch (err) {
-        console.error("Failed to fetch service fee:", err);
-        setServiceFee(0); // fallback to 0 or default
-      } finally {
-        setLoadingFee(false);
-      }
-    }
-
-    fetchServiceFee();
-  }, []);
-
   useEffect(() => {
     async function fetchOrder() {
       try {
@@ -130,7 +110,12 @@ export default function MakePayment() {
 
   const subtotal = items.reduce((sum, item) => sum + item.price, 0);
   const voucherApplied = 0.0; // placeholder
-  const total = subtotal + serviceFee - voucherApplied;
+
+  // Extract service fee from orderInfo.discounts_charges where type === "fee"
+  const serviceFee = orderInfo?.discounts_charges?.find(dc => dc.type === "fee")?.amountCents / 100 || 0;
+
+  const total = orderInfo?.totalCents / 100 || 0;
+
 
   const handleSelectCard = () => {
     setPaymentMethod("card");
@@ -179,9 +164,8 @@ export default function MakePayment() {
                 className="flex items-center gap-3 w-full text-left hover:bg-gray-50 rounded-lg px-2 py-2 transition"
               >
                 <div
-                  className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                    isCard ? "border-blue-500" : "border-gray-300"
-                  }`}
+                  className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${isCard ? "border-blue-500" : "border-gray-300"
+                    }`}
                 >
                   {isCard && (
                     <div className="w-2 h-2 rounded-full bg-blue-500" />
@@ -238,9 +222,8 @@ export default function MakePayment() {
                 className="pt-6 flex items-center gap-3 w-full text-left hover:bg-gray-50 rounded-lg px-2 py-2 transition"
               >
                 <div
-                  className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                    isNets ? "border-blue-500" : "border-gray-300"
-                  }`}
+                  className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${isNets ? "border-blue-500" : "border-gray-300"
+                    }`}
                 >
                   {isNets && (
                     <div className="w-2 h-2 rounded-full bg-blue-500" />
@@ -350,11 +333,7 @@ export default function MakePayment() {
                       <span className="text-gray-800 font-medium">
                         Service Fees
                       </span>
-                      <span>
-                        {loadingFee
-                          ? "Loading..."
-                          : `$ ${serviceFee.toFixed(2)}`}
-                      </span>
+                      <span>$ {serviceFee.toFixed(2)}</span>
                     </div>
 
                     <div className="flex justify-between">

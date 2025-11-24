@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import RootLayout from '../layouts/RootLayout';
 import ProtectedLayout from '../layouts/ProtectedLayout';
 import HomePage from '../pages/HomePage';
+import ProfileLayout from '../layouts/ProfileLayout';
 import AboutPage from '../pages/AboutPage';
 import CommunityPage from '../pages/CommunityPage';
 import HawkerCentresPage from '../features/hawkerCentres/components/HawkerCentresPage';
@@ -11,6 +12,16 @@ import SignupPage from '../features/auth/SignupPage';
 import LoginPage from '../features/auth/LoginPage';
 import ProfilePage from '../pages/ProfilePage';
 import OrderSummaryPage from "../pages/OrderSummaryPage";
+import MyCollectionPage from '../pages/MyCollectionPage';
+import FavouritesPage from '../pages/FavouritesPage';
+import OrdersPage from '../pages/OrdersPage';
+import {
+  VouchersPage,
+  AchievementsPage,
+  SettingsPage,
+  BusinessPage,
+  HelpPage
+} from '../pages/ProfilePlaceholders';
 
 import MakePayment from "../features/payment/MakePayment";
 import OrderCompleted from "../features/payment/OrderCompleted";
@@ -30,7 +41,6 @@ import PhotoUploadLayout from "../features/photos/layouts/PhotoUploadLayout";
 // Placeholder pages - to be replaced with actual feature pages
 const Stalls = () => <div className="p-8"><h1 className="text-3xl font-bold">Stalls</h1></div>;
 const Cart = () => <div className="p-8"><h1 className="text-3xl font-bold">Cart</h1></div>;
-const OrderHistory = () => <div className="p-8"><h1 className="text-3xl font-bold">Order History</h1></div>;
 const NotFound = () => <div className="p-8"><h1 className="text-3xl font-bold">404 - Not Found</h1></div>;
 
 function AppRoutes() {
@@ -57,13 +67,22 @@ function AppRoutes() {
         {/* Payment Pages */}
         <Route path="/ordercompleted/:orderid" element={<OrderCompleted />} />
         <Route path="/makepayment/:orderid" element={<MakePayment />} />
+        <Route path="/orderSummary" element={<OrderSummaryPage />} />
 
         {/* Protected pages (requires login) */}
         <Route element={<ProtectedLayout />}>
           <Route path="/cart" element={<Cart />} />
-          <Route path="/orders" element={<OrderHistory />} />
-          <Route path="/orderSummary" element={<OrderSummaryPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
+          <Route element={<ProfileLayout />}>
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/orders" element={<OrdersPage />} />
+            <Route path="/my-collection" element={<MyCollectionPage />} />
+            <Route path="/favourites" element={<FavouritesPage />} />
+            <Route path="/vouchers" element={<VouchersPage />} />
+            <Route path="/achievements" element={<AchievementsPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/business" element={<BusinessPage />} />
+            <Route path="/help" element={<HelpPage />} />
+          </Route>
 
           {/* Hawker-only routes */}
           <Route

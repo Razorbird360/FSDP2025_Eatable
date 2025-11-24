@@ -5,7 +5,7 @@ import { useParams } from "react-router-dom";
 import api from "../../../lib/api";
 import { supabase } from "../../../lib/supabase";
 
-export default function StallGallery() {
+export default function StallGallery({ onNavigateToMenuItem }) {
   const { stallId } = useParams();
 
   // ===== Auth: current user id from Supabase =====
@@ -15,7 +15,7 @@ export default function StallGallery() {
     let cancelled = false;
 
     async function loadUser() {
-      const { data} = await supabase.auth.getSession();
+      const { data } = await supabase.auth.getSession();
 
       if (cancelled) return;
 
@@ -132,7 +132,7 @@ export default function StallGallery() {
   }, [currentUserId]);
 
 
-    // ===== Fetch user's existing reports from API =====
+  // ===== Fetch user's existing reports from API =====
   useEffect(() => {
     async function fetchReports() {
       try {
@@ -205,10 +205,10 @@ export default function StallGallery() {
       prev.map((it) =>
         it.id === id
           ? {
-              ...it,
-              upvoteCount: Math.max(0, it.upvoteCount + upDelta),
-              downvoteCount: Math.max(0, it.downvoteCount + downDelta),
-            }
+            ...it,
+            upvoteCount: Math.max(0, it.upvoteCount + upDelta),
+            downvoteCount: Math.max(0, it.downvoteCount + downDelta),
+          }
           : it
       )
     );
@@ -357,7 +357,7 @@ export default function StallGallery() {
     try {
       await api.post(`/moderation/report/${popupId}`, {
         reason: reportReason,
-        details: reportDetails,
+        details: reportDetails || "", // Ensure details is at least an empty string
       });
 
       setReportedIds((prev) =>
@@ -418,9 +418,9 @@ export default function StallGallery() {
   // ===== Render =====
   return (
     <section className="mt-10 mb-20">
-        <h2 className="text-left text-3xl font-bold text-emerald-900 mb-4 -mt-4">
-          Customer Favourites
-        </h2>
+      <h2 className="text-left text-3xl font-bold text-emerald-900 mb-4 -mt-4">
+        Customer Favourites
+      </h2>
 
       <div className="bento-grid w-full">
         {displayOrder.map((id) => {
@@ -469,15 +469,13 @@ export default function StallGallery() {
                   backdrop-blur border border-white/10 shadow
                   transition-all duration-200 overflow-hidden
                   w-[34px] hover:w-[110px]
-                  ${
-                    voteVal === 1
-                      ? "bg-emerald-700/70"
-                      : "bg-black/50 hover:bg-black/70"
+                  ${voteVal === 1
+                    ? "bg-emerald-700/70"
+                    : "bg-black/50 hover:bg-black/70"
                   }
-                  ${
-                    voteVal === 1
-                      ? "opacity-100"
-                      : "opacity-0 group-hover:opacity-100"
+                  ${voteVal === 1
+                    ? "opacity-100"
+                    : "opacity-0 group-hover:opacity-100"
                   }`}
               >
                 <img
@@ -502,15 +500,13 @@ export default function StallGallery() {
                   backdrop-blur border border-white/10 shadow
                   transition-all duration-200 overflow-hidden
                   w-[34px] hover:w-[120px]
-                  ${
-                    voteVal === 0
-                      ? "bg-rose-700/70"
-                      : "bg-black/50 hover:bg-black/70"
+                  ${voteVal === 0
+                    ? "bg-rose-700/70"
+                    : "bg-black/50 hover:bg-black/70"
                   }
-                  ${
-                    voteVal === 0
-                      ? "opacity-100"
-                      : "opacity-0 group-hover:opacity-100"
+                  ${voteVal === 0
+                    ? "opacity-100"
+                    : "opacity-0 group-hover:opacity-100"
                   }`}
               >
                 <img
@@ -530,44 +526,45 @@ export default function StallGallery() {
       {/* ===== IMAGE PREVIEW POPUP ===== */}
       {popupId && popupItem && (
         <div
-          className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4"
           onClick={() => setPopupId(null)}
         >
           <div
-            className="relative bg-white rounded-xl max-w-3xl w-full overflow-hidden shadow-2xl"
+            className="relative bg-white rounded-xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <button
-              className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/10 hover:bg-black/20"
+              className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/10 hover:bg-black/20 z-10"
               onClick={() => setPopupId(null)}
             >
               ✕
             </button>
 
-            <img
-              src={popupItem.src}
-              className="w-full max-h-[70vh] object-cover"
-            />
+            <div className="shrink-0">
+              <img
+                src={popupItem.src}
+                className="w-full max-h-[45vh] object-cover"
+                alt={popupItem.caption}
+              />
+            </div>
 
-            <div className="p-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <div className="flex flex-col gap-1">
-                <div className="flex items-center gap-2 text-lg font-semibold text-gray-800">
+            <div className="p-4 flex flex-col gap-4 overflow-y-auto">
+              <div className="flex flex-col gap-1 shrink-0">
+                <div className="text-base font-semibold text-gray-800 break-words">
                   {popupItem.caption}
                 </div>
-                {/* NEW: uploader display name */}
                 <div className="text-xs text-gray-500">
                   Uploaded by <span className="font-medium">{uploaderName}</span>
                 </div>
               </div>
 
-              <div className="flex flex-col items-start md:flex-row md:items-center md:gap-6 gap-1">
-                <div className="font-medium text-gray-700 flex items-center gap-10">
+              <div className="flex items-center justify-between shrink-0">
+                <div className="font-medium text-gray-700 flex items-center gap-6">
                   <span className="flex items-center gap-1">
-                    {/* FIX: no invert so they show clearly on white background */}
                     <img
                       src={UpvoteIcon}
                       alt="Upvotes"
-                      className="h-6 w-6"
+                      className="h-5 w-5"
                     />
                     {popupItem.upvoteCount}
                   </span>
@@ -575,25 +572,39 @@ export default function StallGallery() {
                     <img
                       src={DownvoteIcon}
                       alt="Downvotes"
-                      className="h-6 w-6 translate-y-[3px]"
+                      className="h-5 w-5 translate-y-[3px]"
                     />
                     {popupItem.downvoteCount}
                   </span>
                 </div>
 
-                {/* Open report form popup */}
                 <button
                   onClick={openReportModal}
-                  className={`text-[11px] md:text-xs mx-5 px-2.5 py-1 rounded-full border whitespace-nowrap
-                    ${
-                      reportedIds.includes(popupId)
-                        ? "border-rose-300 bg-rose-50 text-rose-500 cursor-default"
-                        : "border-rose-400 text-rose-600 hover:bg-rose-50"
+                  className={`text-xs px-3 py-1.5 rounded-full border whitespace-nowrap
+                    ${reportedIds.includes(popupId)
+                      ? "border-rose-300 bg-rose-50 text-rose-500 cursor-default"
+                      : "border-rose-400 text-rose-600 hover:bg-rose-50"
                     }`}
                 >
                   {reportedIds.includes(popupId) ? "✓ Reported" : "⚑ Report Post"}
                 </button>
               </div>
+
+              {/* See Menu Item Button */}
+              {popupItem.raw?.menuItem && onNavigateToMenuItem && (
+                <div className="pt-2 shrink-0">
+                  <button
+                    onClick={() => {
+                      setPopupId(null);
+                      onNavigateToMenuItem(popupItem.raw.menuItem.id);
+                    }}
+                    className="w-full py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition-colors duration-200 flex items-center justify-center gap-2"
+                  >
+                    <span>See Menu Item</span>
+                    <span className="text-base">→</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>

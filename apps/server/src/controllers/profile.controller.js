@@ -1,33 +1,44 @@
-import supabase from "../lib/supabaseAdmin.js";
+import * as profileService from "../services/profile.service.js";
 
 export const getProfile = async (req, res) => {
-  const userId = req.user.id;
+  try {
+    const userId = req.user.id;
+    const user = await profileService.getProfileById(userId);
 
-  const { data, error } = await supabase
-    .from("users")
-    .select("*")
-    .eq("id", userId)
-    .single();
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
 
-  if (error) return res.status(400).json({ error });
+    // Map Prisma camelCase to snake_case for frontend compatibility
+    const responseData = {
+      ...user,
+      display_name: user.displayName,
+    };
 
-  res.json(data);
+    res.json(responseData);
+  } catch (error) {
+    console.error("Error fetching profile:", error);
+    res.status(500).json({ error: "Failed to fetch profile" });
+  }
 };
 
 export const updateProfile = async (req, res) => {
-  const userId = req.user.id;
-  const { first_name, last_name, location, description } = req.body;
+  try {
+    const userId = req.user.id;
+    const updatedUser = await profileService.updateUserProfile(userId, req.body);
 
-  const { error } = await supabase
-    .from("users")
-    .update({
-      first_name,
-      last_name,
-      location,
-      description,
-    })
-    .eq("id", userId);
+    const responseData = {
+      ...updatedUser,
+      display_name: updatedUser.displayName,
+    };
 
-  if (error) return res.status(400).json({ error });
-  res.json({ success: true });
+    res.json(responseData);
+  } catch (error) {
+    console.error("Error updating profile:", error);
+    // Handle unique constraint violation (e.g., username)
+    if (error.code === 'P2002') {
+      return res.status(400).json({ error: "Username already taken" });
+    }
+    res.status(500).json({ error: "Failed to update profile" });
+  }
 };

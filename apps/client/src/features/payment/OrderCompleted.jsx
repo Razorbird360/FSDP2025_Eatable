@@ -20,8 +20,8 @@ function mapOrderItem(raw) {
     typeof raw.unitCents === "number"
       ? raw.unitCents
       : typeof mi.priceCents === "number"
-      ? mi.priceCents
-      : 0;
+        ? mi.priceCents
+        : 0;
 
   const price = priceCents / 100;
 
@@ -66,7 +66,7 @@ export default function OrderCompletedModal({ onClose, orderId }) {
 
         const res = await api.get(`/orders/getOrder/${orderId}`);
         const data = res.data;
-        
+
         console.log("Raw order data received:", data);
 
         // data = [stallWrapper, itemsArr, infoObj]
@@ -140,21 +140,12 @@ export default function OrderCompletedModal({ onClose, orderId }) {
   const subtotal = items.reduce((sum, item) => sum + item.price, 0);
   const voucherApplied = 0.0; // keep static for now (or wire to backend later)
 
-  let serviceFee = 0;
-  let total = subtotal;
+  // Extract service fee from orderInfo.discounts_charges where type === "fee"
+  const serviceFee = orderInfo?.discounts_charges?.find(dc => dc.type === "fee")?.amountCents / 100 || 0;
 
-  if (orderInfo?.totalCents != null) {
-    // Use backend total as the source of truth
-    total = orderInfo.totalCents / 100;
+  // Use backend total as the source of truth
+  const total = orderInfo?.totalCents != null ? orderInfo.totalCents / 100 : subtotal + serviceFee - voucherApplied;
 
-    // Derive service fee from backend total - subtotal (+ voucher)
-    const derived = total - subtotal + voucherApplied;
-    serviceFee = derived > 0 ? derived : 0;
-  } else {
-    // fallback to previous hardcoded logic if backend total missing
-    serviceFee = 2.0;
-    total = subtotal + serviceFee - voucherApplied;
-  }
 
   /** ORDER NUMBER (shortened for UI) */
   const orderNumberRaw = orderId || orderInfo?.id || "—";
@@ -174,9 +165,9 @@ export default function OrderCompletedModal({ onClose, orderId }) {
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
       onClick={() => {
-  navigate("/home");
-  if (onClose) onClose();
-}}
+        navigate("/home");
+        if (onClose) onClose();
+      }}
     >
       <div
         className="relative bg-white shadow-[0px_4px_4px_rgba(0,0,0,0.25)] rounded-xl w-[1182px] h-[829px] max-w-full overflow-hidden"

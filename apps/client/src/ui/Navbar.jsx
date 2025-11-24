@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Input, Box } from '@chakra-ui/react';
+import Tooltip from './Tooltip';
 import { useCart } from '../features/orders/components/CartContext';
 import { useAuth } from '../features/auth/useAuth';
 
@@ -9,7 +10,8 @@ const foodIcon = new URL('../assets/navbar/food.svg', import.meta.url).href;
 const communityIcon = new URL('../assets/navbar/community-photos.svg', import.meta.url).href;
 const infoIcon = new URL('../assets/navbar/about-us.svg', import.meta.url).href;
 const searchIcon = new URL('../assets/navbar/search.svg', import.meta.url).href;
-const favouriteIcon = new URL('../assets/navbar/favourite.svg', import.meta.url).href;
+const collectionIcon = new URL('../assets/navbar/collection.svg', import.meta.url).href;
+const ordersIcon = new URL('../assets/navbar/orders.svg', import.meta.url).href;
 const cartIcon = new URL('../assets/navbar/cart.svg', import.meta.url).href;
 const closeIcon = new URL('../assets/navbar/close.svg', import.meta.url).href;
 const menuIcon = new URL('../assets/navbar/menu.svg', import.meta.url).href;
@@ -18,14 +20,16 @@ const profilePlaceholder = new URL('../assets/navbar/profile_placeholder.jpg', i
 
 const navIcons = [
   { label: 'Home', icon: homeIcon, href: '/home' },
-  { label: 'Hawkers', icon: foodIcon, href: '/stalls' },
+  { label: 'Hawkers', icon: foodIcon, href: '/hawker-centres' },
   { label: 'Community', icon: communityIcon, href: '/community' },
   { label: 'About', icon: infoIcon, href: '/about' },
 ];
 
 const mobileNavItems = [
   ...navIcons,
-  { label: 'Favourites', icon: favouriteIcon, href: '/favourites' },
+  { label: 'Profile', icon: profilePlaceholder, href: '/profile' },
+  { label: 'Orders', icon: ordersIcon, href: '/orders' },
+  { label: 'My Collection', icon: collectionIcon, href: '/my-collection' },
 ];
 
 const mobileMenuBaseColor = '#FFFFFF';
@@ -34,35 +38,56 @@ const mobileMenuLayerDelays = [0, 30, 55];
 
 function IconPill({ icon, label, href, isActive }) {
   return (
-    <Link to={href} aria-label={label}>
-      <span
-        className={`flex h-11 w-11 items-center justify-center rounded-xl border transition-colors ${
-          isActive
+    <Tooltip label={label}>
+      <Link to={href} aria-label={label}>
+        <span
+          className={`flex h-11 w-11 items-center justify-center rounded-xl border transition-colors ${isActive
             ? 'border-[#21421B] bg-[#21421B]'
             : 'border-[#E7EEE7] bg-white hover:bg-[#F8FDF3]'
-        }`}
-      >
-        <img src={icon} alt="" className={`h-5 w-5 ${isActive ? 'brightness-0 invert' : ''}`} />
-      </span>
-    </Link>
+            }`}
+        >
+          <img src={icon} alt="" className={`h-5 w-5 ${isActive ? 'brightness-0 invert' : ''}`} />
+        </span>
+      </Link>
+    </Tooltip>
   );
 }
 
-function IconAction({ icon, label, badge, onClick }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="relative flex h-11 w-11 items-center justify-center rounded-xl text-[#4A554B] transition-colors hover:bg-[#F8FDF3]"
-      aria-label={label}
-    >
+function IconAction({ icon, label, secondaryLabel, badge, onClick, to }) {
+  const content = (
+    <>
       <img src={icon} alt="" className="h-5 w-5" />
       {badge ? (
         <span className="absolute -top-1 -right-1 flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-[#21421B] px-1 text-xs font-semibold text-white">
           {badge}
         </span>
       ) : null}
-    </button>
+    </>
+  );
+
+  const className = "relative flex h-11 w-11 items-center justify-center rounded-xl text-[#4A554B] transition-colors hover:bg-[#F8FDF3]";
+
+  if (to) {
+    return (
+      <Tooltip label={label} secondaryLabel={secondaryLabel}>
+        <Link to={to} className={className} aria-label={label}>
+          {content}
+        </Link>
+      </Tooltip>
+    );
+  }
+
+  return (
+    <Tooltip label={label}>
+      <button
+        type="button"
+        onClick={onClick}
+        className={className}
+        aria-label={label}
+      >
+        {content}
+      </button>
+    </Tooltip>
   );
 }
 
@@ -163,29 +188,38 @@ export default function Navbar() {
           <div className="flex shrink-0 items-center gap-3">
             {status === 'authenticated' && (
               <>
-                <IconAction icon={favouriteIcon} label="Favourites" />
+
                 <IconAction icon={cartIcon} label="Cart" badge={count} onClick={openCart} />
               </>
             )}
 
             {status === 'authenticated' ? (
               <div className="relative" ref={profileMenuRef}>
-                <button
-                  type="button"
-                  onClick={() => setIsProfileMenuOpen((prev) => !prev)}
-                  disabled={authLoading}
-                  className="flex items-center gap-2 rounded-2xl border border-[#E7EEE7] bg-white px-3 py-1.5 text-left transition-colors hover:border-[#21421B]"
-                >
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#21421B] text-sm font-semibold text-white">
-                    {profileInitial}
-                  </span>
-                  <span className="text-sm font-semibold text-[#1C201D]">
-                    {profileIdentifier}
-                  </span>
-                </button>
+                <Tooltip label="Profile Menu">
+                  <button
+                    type="button"
+                    onClick={() => setIsProfileMenuOpen((prev) => !prev)}
+                    disabled={authLoading}
+                    className="flex items-center gap-2 rounded-2xl border border-[#E7EEE7] bg-white px-3 py-1.5 text-left transition-colors hover:border-[#21421B]"
+                  >
+                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#21421B] text-sm font-semibold text-white">
+                      {profileInitial}
+                    </span>
+                    <span className="text-sm font-semibold text-[#1C201D]">
+                      {profileIdentifier}
+                    </span>
+                  </button>
+                </Tooltip>
 
                 {isProfileMenuOpen && (
                   <div className="absolute right-0 mt-2 w-40 rounded-2xl border border-[#E7EEE7] bg-white py-1 shadow-[0_10px_25px_rgba(0,0,0,0.08)]">
+                    <Link
+                      to="/profile"
+                      onClick={() => setIsProfileMenuOpen(false)}
+                      className="block w-full px-4 py-2 text-left text-sm text-[#1C201D] hover:bg-[#F8FDF3] rounded-2xl"
+                    >
+                      Profile
+                    </Link>
                     <button
                       type="button"
                       onClick={async () => {
@@ -234,9 +268,8 @@ export default function Navbar() {
       <div
         aria-hidden={!isMobileMenuOpen}
         inert={!isMobileMenuOpen ? '' : undefined}
-        className={`fixed inset-0 z-50 transition-opacity duration-300 md:hidden ${
-          isMobileMenuOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
-        }`}
+        className={`fixed inset-0 z-50 transition-opacity duration-300 md:hidden ${isMobileMenuOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
+          }`}
       >
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
           <span
@@ -266,11 +299,10 @@ export default function Navbar() {
           ))}
         </div>
         <div
-          className={`relative z-10 flex h-full flex-col bg-white px-6 py-6 transition-transform duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] ${
-            isMobileMenuOpen
-              ? 'translate-x-0 shadow-[0_25px_80px_rgba(33,66,27,0.18)]'
-              : 'translate-x-full shadow-none'
-          }`}
+          className={`relative z-10 flex h-full flex-col bg-white px-6 py-6 transition-transform duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] ${isMobileMenuOpen
+            ? 'translate-x-0 shadow-[0_25px_80px_rgba(33,66,27,0.18)]'
+            : 'translate-x-full shadow-none'
+            }`}
         >
           <div className="mb-4 flex items-center justify-between px-4">
             <button
@@ -278,9 +310,8 @@ export default function Navbar() {
               aria-label="Open search"
               aria-expanded={isMobileSearchOpen}
               onClick={() => setIsMobileSearchOpen(true)}
-              className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-[#F8FDF3] transition-all duration-200 ${
-                isMobileSearchOpen ? 'pointer-events-none scale-95 opacity-0' : 'opacity-100'
-              }`}
+              className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-[#F8FDF3] transition-all duration-200 ${isMobileSearchOpen ? 'pointer-events-none scale-95 opacity-0' : 'opacity-100'
+                }`}
             >
               <img src={searchIcon} alt="" className="h-5 w-5" />
             </button>
@@ -295,11 +326,10 @@ export default function Navbar() {
           </div>
 
           <div
-            className={`overflow-hidden transition-all duration-300 ${
-              isMobileSearchOpen
-                ? 'max-h-32 translate-y-0 opacity-100'
-                : '-translate-y-2 max-h-0 pointer-events-none opacity-0'
-            }`}
+            className={`overflow-hidden transition-all duration-300 ${isMobileSearchOpen
+              ? 'max-h-32 translate-y-0 opacity-100'
+              : '-translate-y-2 max-h-0 pointer-events-none opacity-0'
+              }`}
           >
             <Box className="relative w-full" position="relative">
               <Box
@@ -335,9 +365,8 @@ export default function Navbar() {
                 key={label}
                 to={href}
                 onClick={closeMobileMenu}
-                className={`flex items-center gap-4 rounded-2xl border px-4 py-3 text-[#1C201D] ${
-                  isActive(href) ? 'border-[#21421B] bg-[#F8FDF3]' : 'border-[#F1F1F1]'
-                }`}
+                className={`flex items-center gap-4 rounded-2xl border px-4 py-3 text-[#1C201D] ${isActive(href) ? 'border-[#21421B] bg-[#F8FDF3]' : 'border-[#F1F1F1]'
+                  }`}
               >
                 <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F8FDF3]">
                   <img src={icon} alt="" className="h-5 w-5" />
