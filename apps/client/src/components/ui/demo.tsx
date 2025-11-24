@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import {
   GridBody,
   DraggableContainer,
@@ -110,6 +110,8 @@ type DemoOneProps = {
 };
 
 const DemoOne = ({ images, isLoading = false }: DemoOneProps) => {
+  const [failedImages, setFailedImages] = useState<Set<string | number>>(new Set());
+
   const gallery = useMemo(() => {
     const dataset = images?.length ? images : fallbackImages;
     return dataset
@@ -117,20 +119,28 @@ const DemoOne = ({ images, isLoading = false }: DemoOneProps) => {
         (
           image,
         ): image is GalleryImage & Required<Pick<GalleryImage, 'src'>> =>
-          Boolean(image?.src),
+          Boolean(image?.src) && !failedImages.has(image.id ?? image.src),
       )
       .map((image, index) => ({
         id: image.id ?? `fallback-${index}`,
         alt: image.alt || 'Community upload',
         src: image.src,
       }));
-  }, [images]);
+  }, [images, failedImages]);
+
+  const handleImageError = useCallback((imageId: string | number) => {
+    setFailedImages((prev) => {
+      const newSet = new Set(prev);
+      newSet.add(imageId);
+      return newSet;
+    });
+  }, []);
 
   return (
     <div className="relative">
       <DraggableContainer
         variant="masonry"
-        className="bg-[#f5ecdf]"
+        className="bg-[#fbf7f0]"
       >
         <GridBody>
           {gallery.map((image) => (
@@ -143,6 +153,7 @@ const DemoOne = ({ images, isLoading = false }: DemoOneProps) => {
                 alt={image.alt}
                 className="pointer-events-none absolute h-full w-full object-cover"
                 loading="lazy"
+                onError={() => handleImageError(image.id)}
               />
             </GridItem>
           ))}
@@ -150,7 +161,7 @@ const DemoOne = ({ images, isLoading = false }: DemoOneProps) => {
       </DraggableContainer>
 
       {isLoading && (
-        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-gradient-to-b from-brand/80 to-brand/60 text-center text-sm font-semibold text-white/80 backdrop-blur-sm">
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-[#fbf7f0]/95 text-center text-sm font-semibold text-[#1c201d]/80 backdrop-blur-sm">
           Loading community uploads…
         </div>
       )}

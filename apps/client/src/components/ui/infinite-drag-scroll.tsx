@@ -88,11 +88,11 @@ export const DraggableContainer = ({
 
   return (
     <GridVariantContext.Provider value={variant}>
-      <div className="h-dvh overflow-hidden">
+      <div className="h-dvh overflow-hidden bg-[#fbf7f0]">
         <motion.div className="h-dvh overflow-hidden">
           <motion.div
             className={cn(
-              'grid h-fit w-fit cursor-grab grid-cols-[repeat(2,1fr)] bg-brand active:cursor-grabbing will-change-transform',
+              'grid h-fit w-fit cursor-grab grid-cols-[repeat(2,1fr)] bg-[#fbf7f0] active:cursor-grabbing will-change-transform',
               className,
             )}
             drag
