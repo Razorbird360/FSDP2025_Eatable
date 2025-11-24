@@ -18,6 +18,7 @@ export default function VerificationModal({ isOpen, onClose, onSuccess: _onSucce
   const [imagePreview, setImagePreview] = useState(null);
   const [videoReady, setVideoReady] = useState(false);
   const [cardDetected, setCardDetected] = useState(false);
+  const [lastDetectionSource, setLastDetectionSource] = useState(null);
   useEffect(() => {
     previewActiveRef.current = Boolean(imagePreview);
     imagePreviewValueRef.current = imagePreview;
@@ -40,6 +41,7 @@ export default function VerificationModal({ isOpen, onClose, onSuccess: _onSucce
 
   const clearOverlay = useCallback(() => {
     setCardDetected(false);
+    setLastDetectionSource(null);
   }, []);
 
   const stopLiveProcessing = useCallback(() => {
@@ -138,6 +140,7 @@ export default function VerificationModal({ isOpen, onClose, onSuccess: _onSucce
       } else if (type === 'detection') {
         const detected = Boolean(points && points.length === 4);
         setCardDetected(detected);
+        setLastDetectionSource(previewActiveRef.current ? 'upload' : 'camera');
         if (!detected && previewActiveRef.current) {
           toaster.create({ title: 'No card detected', description: 'Try adjusting lighting or framing.', type: 'info' });
         }
@@ -211,6 +214,14 @@ export default function VerificationModal({ isOpen, onClose, onSuccess: _onSucce
     setImagePreview(dataUrl);
   };
 
+  const handleRetake = useCallback(() => {
+    setImagePreview(null);
+    clearOverlay();
+    if (workerReadyRef.current) {
+      startLiveProcessing();
+    }
+  }, [clearOverlay, startLiveProcessing]);
+
   if (!isOpen) return null;
 
   return (
@@ -268,10 +279,7 @@ export default function VerificationModal({ isOpen, onClose, onSuccess: _onSucce
                 color="#21421B"
                 fontWeight="semibold"
                 _hover={{ bg: '#F6FBF2' }}
-                onClick={() => {
-                  setImagePreview(null);
-                  clearOverlay();
-                }}
+                onClick={handleRetake}
               >
                 Retake
               </Button>
