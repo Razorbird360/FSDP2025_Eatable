@@ -38,3 +38,5 @@ echo 1. Update environment variables in apps\client\.env and apps\server\.env
 echo 2. Run migrations: pnpm prisma:migrate
 echo 3. Seed database: pnpm prisma:seed
 echo 4. Start development servers: pnpm dev
+echo.
+echo 📘 Read PRISMA_WORKFLOW.md for database management instructions.

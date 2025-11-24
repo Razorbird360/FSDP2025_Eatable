@@ -21,9 +21,11 @@ model User {
   last_name               String?
   location                String?
   description             String?
-  verified                Boolean           @default(false)
+  verified                Boolean?
   verificationPhotoUrl    String?           @map("verification_photo_url")
   verificationSubmittedAt DateTime?         @map("verification_submitted_at") @db.Timestamptz(6)
+  phone                   String?
+  language                String?
   reports                 ContentReport[]
   votes                   MediaUploadVote[]
   mediaUploads            MediaUpload[]

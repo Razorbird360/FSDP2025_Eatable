@@ -58,6 +58,7 @@ apps/ai-service/models/*.pt
 apps/ai-service/models/*.pkl
 .mcp.json
 .claude/
+.gemini/
 .local
 
 # OS
