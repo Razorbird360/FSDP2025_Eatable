@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, useRef } from 'react';
 import {
   GridBody,
   DraggableContainer,
@@ -9,6 +9,83 @@ type GalleryImage = {
   id?: string | number;
   src?: string;
   alt?: string;
+};
+
+type VotePopupProps = {
+  image: GalleryImage;
+  onClose: () => void;
+  onVote: (imageId: string | number, voteType: 'up' | 'down') => void;
+};
+
+const VotePopup = ({ image, onClose, onVote }: VotePopupProps) => {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overscroll-none"
+      onClick={onClose}
+      style={{ touchAction: 'none' }}
+    >
+      <div
+        className="relative max-w-md w-full bg-[#fbf7f0] rounded-2xl shadow-2xl overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Close button */}
+        <button
+          onClick={onClose}
+          className="absolute top-3 right-3 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-black/10 hover:bg-black/20 transition-colors"
+          aria-label="Close"
+        >
+          <svg className="w-5 h-5 text-[#1c201d]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+
+        {/* Image */}
+        <div className="w-full h-48 md:h-64 overflow-hidden bg-[#e7dec8]">
+          <img
+            src={image.src}
+            alt={image.alt}
+            className="w-full h-full object-cover"
+          />
+        </div>
+
+        {/* Content */}
+        <div className="p-6">
+          <h3 className="text-lg font-semibold text-[#1c201d] mb-4 text-center">
+            How do you rate this dish?
+          </h3>
+
+          {/* Vote buttons */}
+          <div className="flex gap-3">
+            <button
+              onClick={() => {
+                onVote(image.id!, 'up');
+                onClose();
+              }}
+              className="flex-1 flex items-center justify-center gap-2 px-6 py-3.5 bg-brand hover:bg-brand/90 text-white rounded-xl font-semibold transition-all hover:scale-105 active:scale-95 shadow-lg"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
+              </svg>
+              <span>Upvote</span>
+            </button>
+
+            <button
+              onClick={() => {
+                onVote(image.id!, 'down');
+                onClose();
+              }}
+              className="flex-1 flex items-center justify-center gap-2 px-6 py-3.5 bg-[#6b766b] hover:bg-[#5a645a] text-white rounded-xl font-semibold transition-all hover:scale-105 active:scale-95 shadow-lg"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.736 3h4.018a2 2 0 01.485.06l3.76.94m-7 10v5a2 2 0 002 2h.096c.5 0 .905-.405.905-.904 0-.715.211-1.413.608-2.008L17 13V4m-7 10h2m5-10h2a2 2 0 012 2v6a2 2 0 01-2 2h-2.5" />
+              </svg>
+              <span>Downvote</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 const fallbackImages: GalleryImage[] = [
@@ -111,6 +188,8 @@ type DemoOneProps = {
 
 const DemoOne = ({ images, isLoading = false }: DemoOneProps) => {
   const [failedImages, setFailedImages] = useState<Set<string | number>>(new Set());
+  const [selectedImage, setSelectedImage] = useState<GalleryImage | null>(null);
+  const clickStartPos = useRef<{ x: number; y: number } | null>(null);
 
   const gallery = useMemo(() => {
     const dataset = images?.length ? images : fallbackImages;
@@ -136,6 +215,47 @@ const DemoOne = ({ images, isLoading = false }: DemoOneProps) => {
     });
   }, []);
 
+  const handleImageMouseDown = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    if ('touches' in e) {
+      clickStartPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    } else {
+      clickStartPos.current = { x: e.clientX, y: e.clientY };
+    }
+  }, []);
+
+  const handleImageClick = useCallback((image: GalleryImage, e: React.MouseEvent | React.TouchEvent) => {
+    if (!clickStartPos.current) return;
+
+    let clientX: number, clientY: number;
+
+    if ('changedTouches' in e) {
+      clientX = e.changedTouches[0].clientX;
+      clientY = e.changedTouches[0].clientY;
+    } else {
+      clientX = e.clientX;
+      clientY = e.clientY;
+    }
+
+    const deltaX = Math.abs(clientX - clickStartPos.current.x);
+    const deltaY = Math.abs(clientY - clickStartPos.current.y);
+
+    // If mouse/touch moved less than 5px, consider it a click (not a drag)
+    if (deltaX < 5 && deltaY < 5) {
+      setSelectedImage(image);
+    }
+
+    clickStartPos.current = null;
+  }, []);
+
+  const handleVote = useCallback((imageId: string | number, voteType: 'up' | 'down') => {
+    console.log(`Voted ${voteType} for image:`, imageId);
+    // TODO: Implement API call to record vote
+  }, []);
+
+  const handleClosePopup = useCallback(() => {
+    setSelectedImage(null);
+  }, []);
+
   return (
     <div className="relative">
       <DraggableContainer
@@ -148,13 +268,22 @@ const DemoOne = ({ images, isLoading = false }: DemoOneProps) => {
               key={image.id}
               className="relative h-[13.5rem] w-36 md:h-96 md:w-64"
             >
-              <img
-                src={image.src}
-                alt={image.alt}
-                className="pointer-events-none absolute h-full w-full object-cover"
-                loading="lazy"
-                onError={() => handleImageError(image.id)}
-              />
+              <div
+                className="absolute inset-0 cursor-pointer touch-auto"
+                onMouseDown={handleImageMouseDown}
+                onClick={(e) => handleImageClick(image, e)}
+                onTouchStart={handleImageMouseDown}
+                onTouchEnd={(e) => handleImageClick(image, e)}
+              >
+                <img
+                  src={image.src}
+                  alt={image.alt}
+                  className="pointer-events-none absolute h-full w-full object-cover select-none"
+                  loading="lazy"
+                  onError={() => handleImageError(image.id)}
+                  draggable={false}
+                />
+              </div>
             </GridItem>
           ))}
         </GridBody>
@@ -164,6 +293,14 @@ const DemoOne = ({ images, isLoading = false }: DemoOneProps) => {
         <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-[#fbf7f0]/95 text-center text-sm font-semibold text-[#1c201d]/80 backdrop-blur-sm">
           Loading community uploads…
         </div>
+      )}
+
+      {selectedImage && (
+        <VotePopup
+          image={selectedImage}
+          onClose={handleClosePopup}
+          onVote={handleVote}
+        />
       )}
     </div>
   );

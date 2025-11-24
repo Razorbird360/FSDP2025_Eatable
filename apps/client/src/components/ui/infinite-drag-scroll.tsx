@@ -27,8 +27,8 @@ const rowVariants = {
     opacity: 1,
     scale: 1,
     transition: {
-      delay: Math.random() + 1.5,
-      duration: 1.4,
+      delay: Math.random() * 0.3,
+      duration: 0.6,
       ease: cubicBezier(0.18, 0.71, 0.11, 1),
     },
   }),
@@ -49,10 +49,38 @@ export const DraggableContainer = ({
   const y = useMotionValue(0);
 
   const [isDragging, setIsDragging] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
   const handleIsDragging = () => setIsDragging(true);
   const handleIsNotDragging = () => setIsDragging(false);
 
   useEffect(() => {
+    const initializePosition = () => {
+      const container = ref.current;
+      if (!container) return;
+
+      const { width, height } = container.getBoundingClientRect();
+
+      // Initialize position to center content on screen
+      if (!isInitialized && width > 0 && height > 0) {
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+
+        // Center the grid on initial load
+        const initialX = Math.min(0, (viewportWidth - width) / 2);
+        const initialY = Math.min(0, (viewportHeight - height) / 2);
+
+        x.set(initialX);
+        y.set(initialY);
+        setIsInitialized(true);
+      }
+    };
+
+    // Try to initialize immediately
+    initializePosition();
+
+    // Also try after a short delay in case content is still loading
+    const timer = setTimeout(initializePosition, 100);
+
     const container = ref.current?.getBoundingClientRect();
     if (!container) return;
 
@@ -78,21 +106,40 @@ export const DraggableContainer = ({
       }
     };
 
+    const handleResize = () => {
+      // Ensure content stays visible on resize
+      const currentX = x.get();
+      const currentY = y.get();
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+
+      // Adjust if content has moved too far off screen
+      if (currentX < -(width - viewportWidth / 2)) {
+        x.set(Math.min(0, (viewportWidth - width) / 2));
+      }
+      if (currentY < -(height - viewportHeight / 2)) {
+        y.set(Math.min(0, (viewportHeight - height) / 2));
+      }
+    };
+
     window.addEventListener('wheel', handleWheelScroll);
+    window.addEventListener('resize', handleResize);
     return () => {
+      clearTimeout(timer);
       xDrag();
       yDrag();
       window.removeEventListener('wheel', handleWheelScroll);
+      window.removeEventListener('resize', handleResize);
     };
-  }, [x, y, isDragging]);
+  }, [x, y, isDragging, isInitialized]);
 
   return (
     <GridVariantContext.Provider value={variant}>
-      <div className="h-dvh overflow-hidden bg-[#fbf7f0]">
-        <motion.div className="h-dvh overflow-hidden">
+      <div className="h-screen overflow-hidden bg-[#fbf7f0] touch-none">
+        <motion.div className="h-screen overflow-hidden">
           <motion.div
             className={cn(
-              'grid h-fit w-fit cursor-grab grid-cols-[repeat(2,1fr)] bg-[#fbf7f0] active:cursor-grabbing will-change-transform',
+              'grid h-fit w-fit cursor-grab grid-cols-[repeat(2,1fr)] bg-[#fbf7f0] active:cursor-grabbing will-change-transform touch-none',
               className,
             )}
             drag
@@ -103,9 +150,13 @@ export const DraggableContainer = ({
               restDelta: 0,
               bounceStiffness: 0,
             }}
+            dragElastic={0}
             onMouseDown={handleIsDragging}
             onMouseUp={handleIsNotDragging}
             onMouseLeave={handleIsNotDragging}
+            onTouchStart={handleIsDragging}
+            onTouchEnd={handleIsNotDragging}
+            onTouchCancel={handleIsNotDragging}
             style={{ x, y }}
             ref={ref}
           >
