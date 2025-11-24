@@ -17,6 +17,7 @@
     "format": "prettier --write \"**/*.{js,jsx,json,md}\""
   },
   "devDependencies": {
+    "@playwright/test": "^1.56.1",
     "prettier": "^3.1.0"
   },
   "engines": {

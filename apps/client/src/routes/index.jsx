@@ -16,6 +16,9 @@ import OrderCompleted from "../features/payment/OrderCompleted";
 
 import StallGallery from '../features/stalls/components/StallGallery';
 
+import RequireRole from '../components/RequireRole';
+import StallSetupPage from '../features/stalls/pages/StallSetupPage';
+import StallManagementPage from '../features/stalls/pages/StallManagementPage';
 
 import Onboarding from "../features/photos/components/Onboarding";
 import PhotoUpload from "../features/photos/components/PhotoUpload";
@@ -60,7 +63,23 @@ function AppRoutes() {
           <Route path="/orderSummary" element={<OrderSummaryPage />} />
           <Route path="/profile" element={<ProfilePage />} />
 
-          {/* TODO: Add more protected routes: profile, upload photo, etc */}
+          {/* Hawker-only routes */}
+          <Route
+            path="/stall/setup"
+            element={
+              <RequireRole role="hawker" verified={true}>
+                <StallSetupPage />
+              </RequireRole>
+            }
+          />
+          <Route
+            path="/stall/manage/:stallId"
+            element={
+              <RequireRole role="hawker" verified={true}>
+                <StallManagementPage />
+              </RequireRole>
+            }
+          />
 
           {/* upload routes */}
           <Route element={<PhotoUploadLayout />}>

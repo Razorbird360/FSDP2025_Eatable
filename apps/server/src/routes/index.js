@@ -8,6 +8,7 @@ import hawkerCentresRoutes from './hawker-centres.routes.js';
 import cartRoutes from './cart.routes.js';
 import orderRoutes from './order.routes.js';
 import netsRoutes from '../services/payment.service.js';
+import verificationRoutes from './verification.routes.js';
 
 const router = Router();
 
@@ -24,5 +25,6 @@ router.use('/hawker-centres', hawkerCentresRoutes);
 router.use('/cart', cartRoutes);
 router.use('/orders', orderRoutes);
 router.use('/nets-qr', netsRoutes);
+router.use('/verification', verificationRoutes);
 
 export default router;
