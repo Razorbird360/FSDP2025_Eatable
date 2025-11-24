@@ -27,6 +27,7 @@ const navIcons = [
 
 const mobileNavItems = [
   ...navIcons,
+  { label: 'Profile', icon: profilePlaceholder, href: '/profile' },
   { label: 'Orders', icon: ordersIcon, href: '/orders' },
   { label: 'My Collection', icon: collectionIcon, href: '/my-collection' },
 ];
@@ -187,18 +188,7 @@ export default function Navbar() {
           <div className="flex shrink-0 items-center gap-3">
             {status === 'authenticated' && (
               <>
-                <IconAction
-                  icon={ordersIcon}
-                  label="Orders"
-                  secondaryLabel="View past orders"
-                  to="/orders"
-                />
-                <IconAction
-                  icon={collectionIcon}
-                  label="My Collection"
-                  secondaryLabel="View favourites, uploads and reports"
-                  to="/my-collection"
-                />
+
                 <IconAction icon={cartIcon} label="Cart" badge={count} onClick={openCart} />
               </>
             )}

@@ -12,6 +12,7 @@ import LoginPage from '../features/auth/LoginPage';
 import ProfilePage from '../pages/ProfilePage';
 import OrderSummaryPage from "../pages/OrderSummaryPage";
 import MyCollectionPage from '../pages/MyCollectionPage';
+import FavouritesPage from '../pages/FavouritesPage';
 import OrdersPage from '../pages/OrdersPage';
 import {
   VouchersPage,
@@ -61,6 +62,7 @@ function AppRoutes() {
         {/* Payment Pages */}
         <Route path="/ordercompleted/:orderid" element={<OrderCompleted />} />
         <Route path="/makepayment/:orderid" element={<MakePayment />} />
+        <Route path="/orderSummary" element={<OrderSummaryPage />} />
 
         {/* Protected pages (requires login) */}
         <Route element={<ProtectedLayout />}>
@@ -69,6 +71,7 @@ function AppRoutes() {
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/orders" element={<OrdersPage />} />
             <Route path="/my-collection" element={<MyCollectionPage />} />
+            <Route path="/favourites" element={<FavouritesPage />} />
             <Route path="/vouchers" element={<VouchersPage />} />
             <Route path="/achievements" element={<AchievementsPage />} />
             <Route path="/settings" element={<SettingsPage />} />

@@ -1,20 +1,9 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useOutletContext } from "react-router-dom";
 import { supabase } from "../lib/supabase";
-import {
-  FiUser,
-  FiClock,
-  FiUploadCloud,
-  FiHeart,
-  FiGift,
-  FiAward,
-  FiSettings,
-  FiBriefcase,
-  FiHelpCircle
-} from "react-icons/fi";
 
 export default function ProfilePage() {
-  const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { profile, setProfile, loading } = useOutletContext();
   const [saving, setSaving] = useState(false);
 
   // ---------------------------
@@ -24,39 +13,6 @@ export default function ProfilePage() {
     const session = await supabase.auth.getSession();
     return session.data.session?.access_token;
   }
-
-  // ---------------------------
-  //   Load profile from backend
-  // ---------------------------
-  useEffect(() => {
-    async function loadProfile() {
-      setLoading(true);
-
-      const token = await getToken();
-      if (!token) {
-        console.error("No auth token found.");
-        return;
-      }
-
-      try {
-        const res = await fetch("http://localhost:3000/api/profile", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        const data = await res.json();
-        console.log("PROFILE LOADED FROM API:", data);
-        setProfile(data);
-      } catch (error) {
-        console.error("Error loading profile:", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadProfile();
-  }, []);
 
   // ---------------------------
   //   Update Profile
@@ -80,6 +36,7 @@ export default function ProfilePage() {
       console.log("UPDATE RESPONSE:", data);
 
       alert("Profile updated!");
+      // profile state is already updated via setProfile (controlled inputs)
     } catch (error) {
       console.error("Error updating profile:", error);
       alert("Failed to update profile.");
@@ -91,22 +48,9 @@ export default function ProfilePage() {
   if (loading) return <div className="p-10 text-center">Loading profile...</div>;
   if (!profile) return <div className="p-10 text-center">Profile not found.</div>;
 
-  const displayName = profile.display_name || `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || "User";
-  const email = profile.email || "No email";
-  const initials = displayName.charAt(0).toUpperCase();
-
   return (
     <>
-      {/* Header Card */}
-      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 flex items-center gap-6">
-        <div className="w-20 h-20 rounded-full bg-[#6B6BCE] flex items-center justify-center text-white text-3xl font-medium shadow-sm">
-          {initials}
-        </div>
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">{displayName}</h1>
-          <p className="text-gray-500 text-sm">{email}</p>
-        </div>
-      </div>
+      {/* Header Card REMOVED (now in ProfileLayout) */}
 
       {/* Form Section */}
       <div className="bg-white rounded-xl p-8 shadow-sm relative">

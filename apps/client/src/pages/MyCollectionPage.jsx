@@ -1,14 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import api from '../lib/api';
-import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import UpvoteIcon from '../features/stalls/assets/upvote.svg';
 import DownvoteIcon from '../features/stalls/assets/downvote.svg';
 
 const MyCollectionPage = () => {
-    const [activeTab, setActiveTab] = useState('upvoted');
-    const [voteFilter, setVoteFilter] = useState('upvote'); // 'upvote' or 'downvote'
-    const [favourites, setFavourites] = useState([]);
+    const [activeTab, setActiveTab] = useState('uploads');
     const [uploads, setUploads] = useState([]);
     const [reportedItems, setReportedItems] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -16,9 +13,6 @@ const MyCollectionPage = () => {
 
     // Auth state
     const [currentUserId, setCurrentUserId] = useState(null);
-
-    // Voting state
-    const [relations, setRelations] = useState([]);
 
     // Notification state
     const [notice, setNotice] = useState(null);
@@ -48,10 +42,7 @@ const MyCollectionPage = () => {
             setLoading(true);
             setError(null);
             try {
-                if (activeTab === 'upvoted') {
-                    const response = await api.get('/media/getVotes');
-                    setFavourites(response.data.votes || []);
-                } else if (activeTab === 'uploads') {
+                if (activeTab === 'uploads') {
                     const response = await api.get('/media/my-uploads');
                     setUploads(response.data.uploads || []);
                 } else if (activeTab === 'reported') {
@@ -69,35 +60,7 @@ const MyCollectionPage = () => {
         fetchData();
     }, [activeTab]);
 
-    // Fetch user's votes
-    useEffect(() => {
-        async function fetchVotes() {
-            try {
-                if (!currentUserId) {
-                    setRelations([]);
-                    return;
-                }
-
-                const res = await api.get(`/media/getVotes`);
-                const data = res.data;
-
-                const normalizedRelations =
-                    (data.votes || []).map((v) => ({
-                        userId: data.userId,
-                        uploadId: v.uploadId,
-                        value: v.vote === 1 ? 1 : 0,
-                    })) ?? [];
-
-                setRelations(normalizedRelations);
-            } catch (err) {
-                console.error(err);
-            }
-        }
-
-        fetchVotes();
-    }, [currentUserId]);
-
-    // Fetch user's existing reports
+    // Fetch user's existing reports (to know what we reported, if needed for UI state)
     useEffect(() => {
         async function fetchReports() {
             try {
@@ -118,136 +81,9 @@ const MyCollectionPage = () => {
         fetchReports();
     }, [currentUserId]);
 
-    // Vote helpers
-    const voteMap = React.useMemo(() => {
-        const map = new Map();
-        relations.forEach((r) => map.set(`${r.userId}::${r.uploadId}`, r.value));
-        return map;
-    }, [relations]);
-
-    const getVoteValue = (id) =>
-        currentUserId ? voteMap.get(`${currentUserId}::${id}`) : undefined;
-
     const showNotice = (msg) => {
         setNotice(msg);
         setTimeout(() => setNotice(null), 3000);
-    };
-
-    const updateCounts = (id, upDelta, downDelta) => {
-        setFavourites((prev) =>
-            prev.map((fav) =>
-                fav.uploadId === id
-                    ? {
-                        ...fav,
-                        upload: {
-                            ...fav.upload,
-                            upvoteCount: Math.max(0, (fav.upload.upvoteCount || 0) + upDelta),
-                            downvoteCount: Math.max(0, (fav.upload.downvoteCount || 0) + downDelta),
-                        },
-                    }
-                    : fav
-            )
-        );
-    };
-
-    const handleUpvote = async (id) => {
-        if (!currentUserId) {
-            showNotice('Please log in to vote on photos.');
-            return;
-        }
-
-        const val = getVoteValue(id);
-
-        if (val === 1) {
-            try {
-                const res = await api.delete(`/media/removeupvote/${id}`);
-                if (res.status < 200 || res.status >= 300) {
-                    throw new Error(`Server responded ${res.status}`);
-                }
-
-                updateCounts(id, -1, 0);
-                setRelations((prev) =>
-                    prev.filter(
-                        (r) => !(r.userId === currentUserId && r.uploadId === id)
-                    )
-                );
-            } catch (err) {
-                console.error(err);
-                showNotice('Failed to update upvote on server.');
-            }
-            return;
-        }
-
-        if (val === 0) {
-            showNotice('You cannot upvote a picture you already downvoted.');
-            return;
-        }
-
-        try {
-            const res = await api.post(`/media/upvote/${id}`);
-            if (res.status < 200 || res.status >= 300) {
-                throw new Error(`Server responded ${res.status}`);
-            }
-
-            updateCounts(id, +1, 0);
-            setRelations((prev) => [
-                ...prev,
-                { userId: currentUserId, uploadId: id, value: 1 },
-            ]);
-        } catch (err) {
-            console.error(err);
-            showNotice('Failed to update upvote on server.');
-        }
-    };
-
-    const handleDownvote = async (id) => {
-        if (!currentUserId) {
-            showNotice('Please log in to vote on photos.');
-            return;
-        }
-
-        const val = getVoteValue(id);
-
-        if (val === 0) {
-            try {
-                const res = await api.delete(`/media/removedownvote/${id}`);
-                if (res.status < 200 || res.status >= 300) {
-                    throw new Error(`Server responded ${res.status}`);
-                }
-
-                updateCounts(id, 0, -1);
-                setRelations((prev) =>
-                    prev.filter(
-                        (r) => !(r.userId === currentUserId && r.uploadId === id)
-                    )
-                );
-            } catch (err) {
-                console.error(err);
-                showNotice('Failed to update downvote on server.');
-            }
-            return;
-        }
-
-        if (val === 1) {
-            showNotice('You cannot downvote a picture you already upvoted.');
-            return;
-        }
-
-        try {
-            const res = await api.post(`/media/downvote/${id}`);
-            if (res.status < 200 || res.status >= 300) {
-                throw new Error(`Server responded ${res.status}`);
-            }
-
-            updateCounts(id, 0, +1);
-            setRelations((prev) => [
-                ...prev,
-                { userId: currentUserId, uploadId: id, value: 0 },
-            ]);
-        } catch (err) {
-            console.error(err);
-            showNotice('Failed to update downvote on server.');
-        }
     };
 
     // Report Actions
@@ -328,23 +164,10 @@ const MyCollectionPage = () => {
 
     return (
         <div className="bg-white rounded-xl border border-gray-100 p-8 shadow-sm">
-            <h1 className="text-xl font-bold mb-6 text-gray-900">My Collection</h1>
+            <h1 className="text-xl font-bold mb-6 text-gray-900">Upload History</h1>
 
             {/* Tabs */}
             <div className="flex gap-2 mb-6 md:mb-8 border-b border-[#E7EEE7] overflow-x-auto">
-                <button
-                    onClick={() => setActiveTab('upvoted')}
-                    className={`pb-3 px-2 md:px-4 text-xs md:text-base font-semibold transition-all relative whitespace-nowrap ${activeTab === 'upvoted'
-                        ? 'text-[#21421B]'
-                        : 'text-[#4A554B] hover:text-[#1C201D]'
-                        }`}
-                >
-                    My Votes
-                    {activeTab === 'upvoted' && (
-                        <span className="absolute bottom-0 left-0 w-full h-0.5 bg-[#21421B] rounded-t-full" />
-                    )}
-                </button>
-
                 <button
                     onClick={() => setActiveTab('uploads')}
                     className={`pb-3 px-2 md:px-4 text-xs md:text-base font-semibold transition-all relative whitespace-nowrap ${activeTab === 'uploads'
@@ -372,36 +195,6 @@ const MyCollectionPage = () => {
                 </button>
             </div>
 
-            {/* Vote Filter Toggle (only show in upvoted tab) */}
-            {activeTab === 'upvoted' && (
-                <div className="flex gap-2 mb-6">
-                    <button
-                        onClick={() => setVoteFilter('upvote')}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${voteFilter === 'upvote'
-                            ? 'bg-emerald-100 text-emerald-800 border-2 border-emerald-600'
-                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                            }`}
-                    >
-                        <span className="flex items-center gap-2">
-                            <img src={UpvoteIcon} alt="Upvotes" className="h-4 w-4" />
-                            Upvoted
-                        </span>
-                    </button>
-                    <button
-                        onClick={() => setVoteFilter('downvote')}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${voteFilter === 'downvote'
-                            ? 'bg-rose-100 text-rose-800 border-2 border-rose-600'
-                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                            }`}
-                    >
-                        <span className="flex items-center gap-2">
-                            <img src={DownvoteIcon} alt="Downvotes" className="h-4 w-4" />
-                            Downvoted
-                        </span>
-                    </button>
-                </div>
-            )}
-
             {/* Content */}
             <div className="min-h-[300px]">
                 {loading ? (
@@ -410,129 +203,6 @@ const MyCollectionPage = () => {
                     </div>
                 ) : error ? (
                     <div className="text-center py-12 text-red-500">{error}</div>
-                ) : activeTab === 'upvoted' ? (
-                    favourites.filter(vote => vote.vote === (voteFilter === 'upvote' ? 1 : -1)).length > 0 ? (
-                        <div className="grid grid-cols-3 gap-2 md:gap-6">
-                            {favourites.filter(vote => vote.vote === (voteFilter === 'upvote' ? 1 : -1)).map((vote) => {
-                                const voteVal = getVoteValue(vote.uploadId);
-                                return (
-                                    <div
-                                        key={vote.uploadId}
-                                        className="group relative bg-white rounded-2xl border border-[#E7EEE7] overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer"
-                                        onClick={() => setPopupItem(vote)}
-                                    >
-                                        <div className="aspect-square bg-gray-100 relative">
-                                            <img
-                                                src={vote.upload.imageUrl}
-                                                alt={vote.upload.caption || 'Food image'}
-                                                className="w-full h-full object-cover group-hover:scale-110 duration-500"
-                                            />
-
-                                            {/* Vote count pill */}
-                                            <div className="absolute top-3 left-3 bg-black/50 backdrop-blur px-3 py-1 rounded-full text-white opacity-0 group-hover:opacity-100 duration-200 text-sm flex items-center gap-4">
-                                                <span className="flex items-center gap-1">
-                                                    <img src={UpvoteIcon} alt="Upvotes" className="h-6 w-6 invert" />
-                                                    {vote.upload.upvoteCount || 0}
-                                                </span>
-                                                <span className="flex items-center gap-1">
-                                                    <img
-                                                        src={DownvoteIcon}
-                                                        alt="Downvotes"
-                                                        className="h-6 w-6 invert translate-y-[3px]"
-                                                    />
-                                                    {vote.upload.downvoteCount || 0}
-                                                </span>
-                                            </div>
-
-                                            {/* Upvote button */}
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleUpvote(vote.uploadId);
-                                                }}
-                                                className={`absolute bottom-3 left-3
-                                                    flex items-center gap-2 px-2 py-1
-                                                    rounded-full text-white text-sm
-                                                    backdrop-blur border border-white/10 shadow
-                                                    transition-all duration-200 overflow-hidden
-                                                    w-[34px] hover:w-[110px]
-                                                    ${voteVal === 1
-                                                        ? 'bg-emerald-700/70'
-                                                        : 'bg-black/50 hover:bg-black/70'
-                                                    }
-                                                    ${voteVal === 1
-                                                        ? 'opacity-100'
-                                                        : 'opacity-0 group-hover:opacity-100'
-                                                    }`}
-                                            >
-                                                <img
-                                                    src={UpvoteIcon}
-                                                    alt="Upvote"
-                                                    className="h-6 w-6 invert"
-                                                />
-                                                <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                                                    Upvote
-                                                </span>
-                                            </button>
-
-                                            {/* Downvote button */}
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleDownvote(vote.uploadId);
-                                                }}
-                                                className={`absolute bottom-3 right-3
-                                                    flex items-center gap-2 px-2 py-1
-                                                    rounded-full text-white text-sm
-                                                    backdrop-blur border border-white/10 shadow
-                                                    transition-all duration-200 overflow-hidden
-                                                    w-[34px] hover:w-[120px]
-                                                    ${voteVal === 0
-                                                        ? 'bg-rose-700/70'
-                                                        : 'bg-black/50 hover:bg-black/70'
-                                                    }
-                                                    ${voteVal === 0
-                                                        ? 'opacity-100'
-                                                        : 'opacity-0 group-hover:opacity-100'
-                                                    }`}
-                                            >
-                                                <img
-                                                    src={DownvoteIcon}
-                                                    alt="Downvote"
-                                                    className="h-6 w-6 invert translate-y-[3px]"
-                                                />
-                                                <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                                                    Downvote
-                                                </span>
-                                            </button>
-                                        </div>
-                                        <div className="p-4">
-                                            <h3 className="font-semibold text-[#1C201D] mb-1 truncate">
-                                                {vote.upload.menuItem.name}
-                                            </h3>
-                                            <p className="text-sm text-[#4A554B] truncate">
-                                                {vote.upload.menuItem.stall.name}
-                                            </p>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    ) : (
-                        <div className="flex flex-col items-center justify-center py-16 bg-[#F8FDF3] rounded-2xl border border-dashed border-[#E7EEE7]">
-                            <div className="w-16 h-16 bg-[#EFF8EE] rounded-full flex items-center justify-center mb-4">
-                                <svg className="w-8 h-8 text-[#21421B]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                                </svg>
-                            </div>
-                            <h3 className="text-lg font-semibold text-[#1C201D] mb-2">
-                                {voteFilter === 'upvote' ? 'No upvoted dishes yet' : 'No downvoted dishes yet'}
-                            </h3>
-                            <p className="text-[#4A554B]">
-                                {voteFilter === 'upvote' ? 'Dishes you upvote will appear here' : 'Dishes you downvote will appear here'}
-                            </p>
-                        </div>
-                    )
                 ) : activeTab === 'uploads' ? (
                     uploads.length > 0 ? (
                         <div className="grid grid-cols-3 gap-2 md:gap-6">
@@ -644,7 +314,7 @@ const MyCollectionPage = () => {
                     onClick={() => setPopupItem(null)}
                 >
                     <div
-                        className="relative bg-white rounded-xl max-w-3xl w-full overflow-hidden shadow-2xl"
+                        className="relative bg-white rounded-xl max-w-2xl w-full overflow-hidden shadow-2xl"
                         onClick={(e) => e.stopPropagation()}
                     >
                         <button
@@ -792,7 +462,7 @@ const MyCollectionPage = () => {
                     onClick={() => setUploadPopupItem(null)}
                 >
                     <div
-                        className="relative bg-white rounded-xl max-w-3xl w-full overflow-hidden shadow-2xl"
+                        className="relative bg-white rounded-xl max-w-2xl w-full overflow-hidden shadow-2xl"
                         onClick={(e) => e.stopPropagation()}
                     >
                         <button
@@ -808,54 +478,45 @@ const MyCollectionPage = () => {
                             className="w-full max-h-[70vh] object-cover"
                         />
 
-                        <div className="p-4 flex flex-col gap-3">
+                        <div className="p-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                             <div className="flex flex-col gap-1">
                                 <div className="flex items-center gap-2 text-lg font-semibold text-gray-800">
                                     {uploadPopupItem.caption || uploadPopupItem.menuItem.name}
                                 </div>
-                                <p className="text-sm text-gray-600">
-                                    {uploadPopupItem.menuItem.stall.name}
-                                </p>
+                                <div className="text-xs text-gray-500">
+                                    Uploaded by <span className="font-medium">{uploadPopupItem.user?.displayName || 'You'}</span>
+                                </div>
                             </div>
 
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-10 font-medium text-gray-700">
+                            <div className="flex flex-col items-start md:flex-row md:items-center md:gap-6 gap-1">
+                                <div className="font-medium text-gray-700 flex items-center gap-10">
                                     <span className="flex items-center gap-1">
-                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7" />
-                                        </svg>
-                                        {uploadPopupItem._count?.votes || 0} votes
+                                        <img
+                                            src={UpvoteIcon}
+                                            alt="Upvotes"
+                                            className="h-6 w-6"
+                                        />
+                                        {uploadPopupItem.upvoteCount || 0}
                                     </span>
-                                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${uploadPopupItem.validationStatus === 'approved' ? 'bg-green-100 text-green-800' :
-                                        uploadPopupItem.validationStatus === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                                            'bg-red-100 text-red-800'
-                                        }`}>
-                                        {uploadPopupItem.validationStatus.charAt(0).toUpperCase() + uploadPopupItem.validationStatus.slice(1)}
+                                    <span className="flex items-center gap-1">
+                                        <img
+                                            src={DownvoteIcon}
+                                            alt="Downvotes"
+                                            className="h-6 w-6 translate-y-[3px]"
+                                        />
+                                        {uploadPopupItem.downvoteCount || 0}
                                     </span>
                                 </div>
 
                                 <button
                                     onClick={handleDeleteUpload}
-                                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors duration-200"
+                                    className="text-[11px] md:text-xs mx-5 px-2.5 py-1 rounded-full border whitespace-nowrap border-red-400 text-red-600 hover:bg-red-50"
                                 >
                                     Delete Upload
                                 </button>
                             </div>
                         </div>
                     </div>
-                </div>
-            )}
-
-            {/* Notification Bar */}
-            {notice && (
-                <div
-                    className="
-                        fixed bottom-4 left-1/2 -translate-x-1/2
-                        bg-rose-600 text-white px-6 py-3 rounded-xl shadow-lg
-                        z-[9999] text-sm font-medium
-                    "
-                >
-                    {notice}
                 </div>
             )}
         </div>

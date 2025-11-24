@@ -3,12 +3,12 @@ import prisma from '../lib/prisma.js';
 
 export const moderationService = {
   /**
-* Create a new content report
-* @param {Object} params
-* @param {string} params.uploadId - ID of the media upload being reported
-* @param {string} params.reporterId - ID of the user submitting the report
-* @param {string} params.reason - Reason text for the report
-*/
+   * Create a new content report
+   * @param {Object} params
+   * @param {string} params.uploadId - ID of the media upload being reported
+   * @param {string} params.reporterId - ID of the user submitting the report
+   * @param {string} params.reason - Reason text for the report
+   */
   async createReport({ uploadId, reporterId, reason, details = null }) {
     // Optional: verify upload exists
     const upload = await prisma.mediaUpload.findUnique({
@@ -34,13 +34,16 @@ export const moderationService = {
       throw err;
     }
 
-
     const report = await prisma.contentReport.create({
       data: {
-        uploadId,
-        reporterId,
         reason,
-        details,
+        details: details || "",
+        upload: {
+          connect: { id: uploadId },
+        },
+        reporter: {
+          connect: { id: reporterId },
+        },
       },
     });
 
@@ -74,7 +77,6 @@ export const moderationService = {
       }
     });
   },
-
 
   async deleteReport(reportId, userId) {
     const report = await prisma.contentReport.findUnique({
