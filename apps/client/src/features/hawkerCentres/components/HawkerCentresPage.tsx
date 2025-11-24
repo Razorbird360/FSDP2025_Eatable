@@ -17,6 +17,7 @@ const HawkerCentresPage = () => {
     (centre) => Array.isArray(centre.stalls) && centre.stalls.length > 0
   );
   const hasMore = displayLimit < hawkerCentres.length;
+  console.log('HawkerCentresPage centresWithStalls:', centresWithStalls);
 
   const loadMore = () => {
     setDisplayLimit((prev) => prev + 3);

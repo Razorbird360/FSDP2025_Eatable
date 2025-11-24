@@ -61,13 +61,13 @@ model MenuItem {
   stallId      String         @map("stall_id") @db.Uuid
   name         String
   description  String?
-  imageUrl     String?        @map("image_url")
   priceCents   Int            @map("price_cents")
   category     String?
   prepTimeMins Int?           @map("prep_time_mins")
   isActive     Boolean        @default(true) @map("is_active")
   createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+  imageUrl     String?        @map("image_url")
   mediaUploads MediaUpload[]
   stall        Stall          @relation(fields: [stallId], references: [id], onDelete: Cascade)
   orderItems   OrderItem[]
@@ -83,7 +83,6 @@ model MediaUpload {
   menuItemId        String            @map("menu_item_id") @db.Uuid
   userId            String            @map("user_id") @db.Uuid
   imageUrl          String            @map("image_url")
-  aspectRatio       String?           @map("aspect_ratio")
   caption           String?
   validationStatus  String            @default("pending") @map("validation_status")
   rejectionReason   String?           @map("rejection_reason")
@@ -95,6 +94,7 @@ model MediaUpload {
   voteScore         Int               @default(0) @map("vote_score")
   createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  aspectRatio       String?           @map("aspect_ratio")
   reports           ContentReport[]
   votes             MediaUploadVote[]
   menuItem          MenuItem          @relation(fields: [menuItemId], references: [id], onDelete: Cascade)

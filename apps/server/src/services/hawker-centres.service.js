@@ -126,7 +126,7 @@ async function getRandomStallsBySlug(slug, limit = 3) {
       id: stall.id,
       name: stall.name,
       cuisineType: stall.cuisineType,
-      imageUrl,
+      imageUrl: stall.image_url,
       menuItemCount: stall._count.menuItems
     };
   });

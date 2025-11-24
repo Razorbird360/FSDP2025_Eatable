@@ -27,5 +27,14 @@ export const orderController = {
         } catch (err) {
             next(err); // let your global error handler deal with it
         }
-    }
+    },
+
+      async getMyOrders(req, res, next) {
+        try {
+          const orders = await orderService.getByUserId(req.user.id);
+          res.json({ orders });
+        } catch (error) {
+          next(error);
+        }
+      },
 };
