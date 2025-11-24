@@ -55,6 +55,20 @@ export const stallsController = {
       res.json(gallery);
     } catch (error) {
       next(error);
-    } 
+    }
+  },
+
+  async getMyStall(req, res, next) {
+    try {
+      const stalls = await stallsService.findByOwnerId(req.user.id);
+
+      if (stalls.length === 0) {
+        return res.status(200).json(null);
+      }
+
+      res.status(200).json(stalls[0]); // Return first stall
+    } catch (error) {
+      next(error);
+    }
   },
 };

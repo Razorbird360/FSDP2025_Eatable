@@ -16,6 +16,29 @@ export const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
  */
 export const storageService = {
   /**
+   * Convenience helper to compress + upload an image buffer in one shot.
+   * Used by verification/media flows.
+   */
+  async uploadImage({
+    buffer,
+    bucket,
+    fileName = null,
+    aspectRatio = 'square',
+    contentType = 'image/jpeg',
+  }) {
+    if (!Buffer.isBuffer(buffer) || buffer.length === 0) {
+      throw new Error('Invalid image buffer provided');
+    }
+    if (!bucket) {
+      throw new Error('Bucket is required');
+    }
+
+    const compressed = await this.compressImage(buffer, aspectRatio);
+    const path = fileName ?? this.generateFilePath('uploads', 'images', 'jpg');
+
+    return this.uploadFile(bucket, path, compressed, contentType);
+  },
+  /**
    * Compress image to JPEG with aspect-ratio aware sizing
    * Supports square (1:1) and rectangle (16:9) formats
    * @param {Buffer} imageBuffer - Original image buffer

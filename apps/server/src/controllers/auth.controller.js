@@ -42,8 +42,22 @@ export const authController = {
           username: req.user.user_metadata?.username ?? null,
           displayName: req.user.user_metadata?.display_name ?? null,
           role: req.user.app_metadata?.role ?? 'user',
+          verified: false,
+          hasStall: false,
+          stallId: null,
           isSynced: false,
         });
+      }
+
+      // Fetch owned stalls for hawkers
+      let hasStall = false;
+      let stallId = null;
+
+      if (profile.role === 'hawker') {
+        const { stallsService } = await import('../services/stalls.service.js');
+        const ownedStalls = await stallsService.findByOwnerId(req.user.id);
+        hasStall = ownedStalls.length > 0;
+        stallId = ownedStalls[0]?.id ?? null;
       }
 
       res.status(200).json({
@@ -52,6 +66,9 @@ export const authController = {
         username: profile.username,
         displayName: profile.displayName,
         role: profile.role,
+        verified: profile.verified ?? false,
+        hasStall,
+        stallId,
         isSynced: true,
       });
     } catch (error) {
@@ -76,14 +93,14 @@ export const authController = {
         });
       }
 
-      const { username, displayName } = req.validatedBody;
+      const { username, displayName, role = 'user' } = req.validatedBody;
 
       const user = await userService.createUser({
         id: req.user.id,
         email: req.user.email,
         username,
         displayName,
-        role: 'user',
+        role: role, // Use the role from request (either 'user' or 'hawker')
       });
 
       res.status(201).json({

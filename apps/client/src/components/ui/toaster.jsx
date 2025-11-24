@@ -9,7 +9,7 @@ import {
 } from "@chakra-ui/react";
 
 export const toaster = createToaster({
-  placement: "top",
+  placement: "bottom-end",
   overlap: false,
   pauseOnPageIdle: true,
 });
@@ -20,24 +20,21 @@ export function Toaster() {
       {(toast) => (
         <ToastRoot
           key={toast.id}
-          className="mb-3 flex items-start gap-3 rounded-2xl bg-[#121212] px-4 py-3 text-white shadow-2xl"
+          className="mb-2 flex min-w-[220px] items-start gap-2 rounded-xl bg-[#1d1d1d]/95 px-3 py-2 text-white shadow-lg"
         >
           <ToastIndicator className="mt-0.5 text-green-300" />
           <div className="flex-1">
             {toast.title && (
-              <ToastTitle className="text-sm font-semibold">
+              <ToastTitle className="text-xs font-semibold">
                 {toast.title}
               </ToastTitle>
             )}
             {toast.description && (
-              <ToastDescription className="text-xs text-gray-200">
+              <ToastDescription className="text-[11px] text-gray-300">
                 {toast.description}
               </ToastDescription>
             )}
           </div>
-          <ToastCloseTrigger className="ml-2 text-xs font-medium text-gray-300 hover:text-white">
-            Close
-          </ToastCloseTrigger>
         </ToastRoot>
       )}
     </ChakraToaster>

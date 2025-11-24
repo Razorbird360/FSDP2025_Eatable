@@ -4,6 +4,7 @@ import ProtectedLayout from '../layouts/ProtectedLayout';
 import HomePage from '../pages/HomePage';
 import ProfileLayout from '../layouts/ProfileLayout';
 import AboutPage from '../pages/AboutPage';
+import CommunityPage from '../pages/CommunityPage';
 import HawkerCentresPage from '../features/hawkerCentres/components/HawkerCentresPage';
 import HawkerPage from '../features/hawkerPage/components/hawkerpage.jsx';
 import StallEmenu from "../features/menu/components/StallEmenu"
@@ -27,6 +28,9 @@ import OrderCompleted from "../features/payment/OrderCompleted";
 
 import StallGallery from '../features/stalls/components/StallGallery';
 
+import RequireRole from '../components/RequireRole';
+import StallSetupPage from '../features/stalls/pages/StallSetupPage';
+import StallManagementPage from '../features/stalls/pages/StallManagementPage';
 
 import Onboarding from "../features/photos/components/Onboarding";
 import PhotoUpload from "../features/photos/components/PhotoUpload";
@@ -56,6 +60,7 @@ function AppRoutes() {
         <Route path="/hawker-centres/:hawkerId" element={<HawkerPage />} />
 
         <Route path="/about" element={<AboutPage />} />
+        <Route path="/community" element={<CommunityPage />} />
         <Route path="/stalls/:stallId" element={<StallEmenu />} />
         <Route path="/stalls/:stallId/gallery" element={<StallGallery />} />
 
@@ -79,7 +84,23 @@ function AppRoutes() {
             <Route path="/help" element={<HelpPage />} />
           </Route>
 
-          {/* TODO: Add more protected routes: profile, upload photo, etc */}
+          {/* Hawker-only routes */}
+          <Route
+            path="/stall/setup"
+            element={
+              <RequireRole role="hawker" verified={true}>
+                <StallSetupPage />
+              </RequireRole>
+            }
+          />
+          <Route
+            path="/stall/manage/:stallId"
+            element={
+              <RequireRole role="hawker" verified={true}>
+                <StallManagementPage />
+              </RequireRole>
+            }
+          />
 
           {/* upload routes */}
           <Route element={<PhotoUploadLayout />}>

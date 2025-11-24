@@ -7,3 +7,4 @@ tensorflow==2.15.0
 # or pytorch: torch==2.1.0 torchvision==0.16.0
 requests==2.31.0
 python-dotenv==1.0.0
+opencv-python==4.10.0.84
