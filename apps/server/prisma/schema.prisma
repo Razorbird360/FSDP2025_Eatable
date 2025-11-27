@@ -33,6 +33,8 @@ model User {
   ownedStalls             Stall[]
   user_cart               user_cart[]
   favorites               UserFavorite[]
+  userVouchers            UserVoucher[]
+  discounts_charges       discounts_charges[]
 
   @@map("users")
 }
@@ -223,6 +225,38 @@ model discounts_charges {
   type        String?
   orderId     String?  @db.Uuid
   amountCents Float?   @db.Real
-  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  orders      Order?   @relation(fields: [orderId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String?       @map("user_id") @db.Uuid
+  userVoucherId   String?       @map("user_voucher_id") @db.Uuid
+  orders          Order?        @relation(fields: [orderId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  user            User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userVoucher     UserVoucher?  @relation(fields: [userVoucherId], references: [id], onDelete: SetNull)
+}
+
+model ExistingVoucher {
+  id             String        @id @default(uuid()) @db.Uuid
+  code           String        @unique
+  description    String?
+  discountAmount Int           @default(0) @map("discount_amount")
+  discountType   String        @default("fixed") @map("discount_type")
+  minSpend       Int           @default(0) @map("min_spend")
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  userVouchers   UserVoucher[]
+
+  @@map("existing_vouchers")
+}
+
+model UserVoucher {
+  id        String          @id @default(uuid()) @db.Uuid
+  userId    String          @map("user_id") @db.Uuid
+  voucherId String          @map("voucher_id") @db.Uuid
+  isUsed    Boolean         @default(false) @map("is_used")
+  createdAt DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  voucher   ExistingVoucher @relation(fields: [voucherId], references: [id], onDelete: Cascade)
+  discounts_charges discounts_charges[]
+
+  @@map("user_vouchers")
 }

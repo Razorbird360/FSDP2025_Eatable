@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import api from '../../../lib/api';
 import logo_full from '../../../assets/logo/logo_full.png';
 import qrImg from '../../../assets/logo/QrPlaceholder.png';
 import locationImg from '../../../assets/logo/LocationIcon.png';
@@ -45,11 +46,34 @@ export default function OrderDetailsModal({ order, onClose }) {
         }
     }
 
+    const [voucherInfo, setVoucherInfo] = useState(null);
+
     // Calculate totals
-    const subtotal = orderItems?.reduce((sum, item) => sum + (item.unitCents * item.quantity), 0) / 100 || 0;
+    const subtotal = orderItems?.reduce((sum, item) => sum + item.unitCents, 0) / 100 || 0;
     const serviceFee = discounts_charges?.find(dc => dc.type === 'fee')?.amountCents / 100 || 0;
+    const voucherDiscount = discounts_charges?.find(dc => dc.type === 'voucher');
+    const voucherApplied = voucherDiscount?.amountCents / 100 || 0;
     // If totalCents is available use it, otherwise calculate
-    const total = totalCents ? totalCents / 100 : (subtotal + serviceFee);
+    const total = totalCents ? totalCents / 100 : (subtotal + serviceFee - voucherApplied);
+
+    // Fetch voucher info if there's a voucher discount
+    useEffect(() => {
+        async function fetchVoucherInfo() {
+            if (voucherDiscount?.userVoucherId) {
+                try {
+                    const vouchersRes = await api.get('/vouchers/user');
+                    const allVouchers = vouchersRes.data;
+                    const usedVoucher = allVouchers.find(v => v.userVoucherId === voucherDiscount.userVoucherId);
+                    if (usedVoucher) {
+                        setVoucherInfo(usedVoucher);
+                    }
+                } catch (err) {
+                    console.error("Failed to fetch voucher info:", err);
+                }
+            }
+        }
+        fetchVoucherInfo();
+    }, [voucherDiscount?.userVoucherId]);
 
     const displayOrderNumber = orderId && orderId.length > 24
         ? `${orderId.slice(0, 8)}-${orderId.slice(-4)}`
@@ -198,7 +222,7 @@ export default function OrderDetailsModal({ order, onClose }) {
                                         </div>
                                     </div>
                                     <div className="text-black text-base font-medium leading-5">
-                                        $ {((item.unitCents * item.quantity) / 100).toFixed(2)}
+                                        $ {(item.unitCents / 100).toFixed(2)}
                                     </div>
                                 </div>
                             ))
@@ -217,7 +241,14 @@ export default function OrderDetailsModal({ order, onClose }) {
                             <span>Service Fees</span>
                             <span>$ {serviceFee.toFixed(2)}</span>
                         </div>
-                        {/* Placeholder for voucher if needed */}
+                        {voucherApplied > 0 && (
+                            <div className="flex justify-between">
+                                <span>
+                                    Applied Voucher {voucherInfo && `(${voucherInfo.code})`}
+                                </span>
+                                <span className="text-green-600">- $ {voucherApplied.toFixed(2)}</span>
+                            </div>
+                        )}
                     </div>
 
                     <div className="w-full h-px bg-zinc-400" />

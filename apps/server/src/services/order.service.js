@@ -105,6 +105,42 @@ export const orderService = {
                 });
             }
 
+            // 4a.1) Check for pending voucher discount
+            const pendingVoucherDiscount = await tx.discounts_charges.findFirst({
+                where: {
+                    userId: userId,
+                    type: 'voucher',
+                    orderId: null,
+                },
+            });
+
+            if (pendingVoucherDiscount) {
+                // Link discount to order
+                await tx.discounts_charges.update({
+                    where: { id: pendingVoucherDiscount.id },
+                    data: { orderId: order.id },
+                });
+
+                // Update order total
+                const discountAmount = pendingVoucherDiscount.amountCents || 0;
+                await tx.order.update({
+                    where: { id: order.id },
+                    data: {
+                        totalCents: {
+                            decrement: discountAmount,
+                        },
+                    },
+                });
+
+                // Mark the UserVoucher as used
+                if (pendingVoucherDiscount.userVoucherId) {
+                    await tx.userVoucher.update({
+                        where: { id: pendingVoucherDiscount.userVoucherId },
+                        data: { isUsed: true },
+                    });
+                }
+            }
+
             // 4b) Create order items for each cart row
             await Promise.all(
                 cart.map((cartRow) => {

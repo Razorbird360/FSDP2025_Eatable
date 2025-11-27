@@ -51,6 +51,7 @@ export default function OrderCompletedModal({ onClose, orderId }) {
   const [orderError, setOrderError] = useState(null);
   const [orderMeta, setOrderMeta] = useState(null);
   const [orderInfo, setOrderInfo] = useState(null);
+  const [voucherInfo, setVoucherInfo] = useState(null);
 
   const handleClose = () => {
     if (onClose) onClose();
@@ -82,6 +83,21 @@ export default function OrderCompletedModal({ onClose, orderId }) {
         setItems(itemsArr.map(mapOrderItem));
         setOrderMeta(stallWrapper || null);
         setOrderInfo(infoObj || null);
+
+        // Fetch voucher info if there's a voucher discount
+        const voucherDiscount = infoObj?.discounts_charges?.find(dc => dc.type === "voucher");
+        if (voucherDiscount?.userVoucherId) {
+          try {
+            const vouchersRes = await api.get('/vouchers/user');
+            const allVouchers = vouchersRes.data;
+            const usedVoucher = allVouchers.find(v => v.userVoucherId === voucherDiscount.userVoucherId);
+            if (usedVoucher) {
+              setVoucherInfo(usedVoucher);
+            }
+          } catch (err) {
+            console.error("Failed to fetch voucher info:", err);
+          }
+        }
       } catch (err) {
         console.error(err);
         setOrderError("Failed to load order details.");
@@ -138,10 +154,13 @@ export default function OrderCompletedModal({ onClose, orderId }) {
 
   /** PRICES / TOTALS */
   const subtotal = items.reduce((sum, item) => sum + item.price, 0);
-  const voucherApplied = 0.0; // keep static for now (or wire to backend later)
 
   // Extract service fee from orderInfo.discounts_charges where type === "fee"
   const serviceFee = orderInfo?.discounts_charges?.find(dc => dc.type === "fee")?.amountCents / 100 || 0;
+
+  // Extract voucher discount from orderInfo.discounts_charges where type === "voucher"
+  const voucherDiscount = orderInfo?.discounts_charges?.find(dc => dc.type === "voucher");
+  const voucherApplied = voucherDiscount?.amountCents / 100 || 0;
 
   // Use backend total as the source of truth
   const total = orderInfo?.totalCents != null ? orderInfo.totalCents / 100 : subtotal + serviceFee - voucherApplied;
@@ -301,7 +320,7 @@ export default function OrderCompletedModal({ onClose, orderId }) {
                   </div>
                   <div className="text-black text-base font-medium leading-5">
                     ${" "}
-                    {(item.price * item.qty).toFixed(2)}
+                    {item.price.toFixed(2)}
                   </div>
                 </div>
               ))
@@ -321,10 +340,14 @@ export default function OrderCompletedModal({ onClose, orderId }) {
               <span>Service Fees</span>
               <span>$ {serviceFee.toFixed(2)}</span>
             </div>
-            <div className="flex justify-between">
-              <span>Applied Voucher</span>
-              <span>- $ {voucherApplied.toFixed(2)}</span>
-            </div>
+            {voucherApplied > 0 && (
+              <div className="flex justify-between">
+                <span>
+                  Applied Voucher {voucherInfo && `(${voucherInfo.code})`}
+                </span>
+                <span className="text-green-600">- $ {voucherApplied.toFixed(2)}</span>
+              </div>
+            )}
           </div>
 
           {/* Divider above TOTAL line */}
