@@ -9,21 +9,29 @@ class VoucherService {
       const userVouchers = await prisma.userVoucher.findMany({
         where: {
           userId: userId,
-          isUsed: false,
         },
         include: {
           voucher: true,
         },
       });
 
-      // Flatten the structure to return a list of vouchers with usage info if needed,
-      // or just the voucher details. For now, returning the combined object.
-      return userVouchers.map(uv => ({
-        ...uv.voucher,
-        userVoucherId: uv.id,
-        isUsed: uv.isUsed,
-        acquiredAt: uv.createdAt
-      }));
+      const now = new Date();
+
+      // Flatten the structure to return a list of vouchers with usage info and expiry status
+      return userVouchers.map(uv => {
+        const expiryDate = uv.expiryDate || uv.voucher.expiryDate;
+        const isExpired = expiryDate ? new Date(expiryDate) < now : false;
+
+        return {
+          ...uv.voucher,
+          userVoucherId: uv.id,
+          isUsed: uv.isUsed,
+          used: uv.isUsed, // Add 'used' field for frontend compatibility
+          expiryDate: expiryDate, // Prefer UserVoucher expiry, fallback to voucher
+          isExpired: isExpired, // Calculated on backend based on server time
+          acquiredAt: uv.createdAt
+        };
+      });
     } catch (error) {
       throw new Error(`Error fetching user vouchers: ${error.message}`);
     }

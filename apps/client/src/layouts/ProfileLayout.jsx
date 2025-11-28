@@ -65,9 +65,9 @@ export default function ProfileLayout() {
     const initials = getInitials(profile);
 
     return (
-        <div className="flex min-h-[calc(100vh-64px)] bg-[#F8FDF3]">
+        <div className="flex flex-col md:flex-row min-h-[calc(100vh-64px)] bg-[#F8FDF3]">
             <ProfileSidebar />
-            <main className="flex-1 p-8 bg-[#F8FDF3]">
+            <main className="flex-1 p-4 md:p-8 bg-[#F8FDF3]">
                 <div className="max-w-4xl mx-auto space-y-6">
 
                     {/* Header Card - Only show if not loading and profile exists */}

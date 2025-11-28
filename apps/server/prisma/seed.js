@@ -2239,6 +2239,7 @@ async function main() {
       discountAmount: 500, // cents
       discountType: "fixed",
       minSpend: 1000, // cents
+      expiryDate: new Date('2025-12-31'), // Valid until end of 2025
     },
     {
       code: "YUMMY10",
@@ -2246,6 +2247,7 @@ async function main() {
       discountAmount: 10, // percentage
       discountType: "percentage",
       minSpend: 2000,
+      expiryDate: new Date('2025-06-30'), // Valid until mid-2025
     },
     {
       code: "BIGFEAST",
@@ -2253,6 +2255,15 @@ async function main() {
       discountAmount: 800,
       discountType: "fixed",
       minSpend: 3000,
+      expiryDate: new Date('2024-12-31'), // Expired (for testing)
+    },
+    {
+      code: "NEWUSER",
+      description: "$3 off for new users",
+      discountAmount: 300,
+      discountType: "fixed",
+      minSpend: 500,
+      expiryDate: new Date('2026-01-31'), // Valid for a long time
     }
   ];
 
@@ -2265,7 +2276,8 @@ async function main() {
       data: {
         userId: specificUserId, // Use the ID directly
         voucherId: voucher.id,
-        isUsed: false,
+        isUsed: v.code === "YUMMY10", // Mark YUMMY10 as used for testing
+        expiryDate: v.expiryDate, // Copy expiry date to user voucher
       }
     });
     console.log(`Assigned voucher ${v.code} to user.`);

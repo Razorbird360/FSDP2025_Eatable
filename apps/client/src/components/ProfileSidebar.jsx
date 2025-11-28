@@ -20,7 +20,7 @@ export default function ProfileSidebar() {
         return (
             <Link
                 to={to}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${active
+                className={`flex-shrink-0 md:w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${active
                     ? "bg-[#E7F3E6] text-[#21421B]"
                     : "text-gray-600 hover:bg-gray-50"
                     }`}
@@ -32,24 +32,26 @@ export default function ProfileSidebar() {
     };
 
     return (
-        <aside className="w-64 bg-white border-r border-gray-100 flex flex-col py-6 sticky top-16 h-[calc(100vh-64px)]">
-            <div className="px-6 mb-8">
+        <aside className="w-full md:w-64 bg-white border-b md:border-r border-gray-100 flex flex-row md:flex-col py-2 md:py-6 sticky top-16 z-10 md:h-[calc(100vh-64px)] overflow-x-auto md:overflow-visible no-scrollbar">
+            <div className="hidden md:block px-6 mb-8">
                 <img src={logoFull} alt="Eatable" className="h-8" />
             </div>
 
-            <nav className="flex-1 px-3 space-y-1">
-                <SidebarItem icon={FiUser} label="Profile" to="/profile" />
-                <SidebarItem icon={FiClock} label="Order History" to="/orders" />
-                <SidebarItem icon={FiUploadCloud} label="Uploads History" to="/my-collection" />
-                <SidebarItem icon={FiHeart} label="Favourites" to="/favourites" />
-                <SidebarItem icon={FiGift} label="Vouchers" to="/vouchers" />
-                <SidebarItem icon={FiAward} label="Achievements" to="/achievements" />
-            </nav>
+            <div className="flex flex-row md:flex-col md:w-full px-2 md:px-0">
+                <nav className="flex flex-row md:flex-col md:px-3 space-x-2 md:space-x-0 md:space-y-1">
+                    <SidebarItem icon={FiUser} label="Profile" to="/profile" />
+                    <SidebarItem icon={FiClock} label="Order History" to="/orders" />
+                    <SidebarItem icon={FiUploadCloud} label="Uploads History" to="/my-collection" />
+                    <SidebarItem icon={FiHeart} label="Favourites" to="/favourites" />
+                    <SidebarItem icon={FiGift} label="Vouchers" to="/vouchers" />
+                    <SidebarItem icon={FiAward} label="Achievements" to="/achievements" />
+                </nav>
 
-            <div className="px-3 mt-6 pt-6 border-t border-gray-100 space-y-1">
-                <SidebarItem icon={FiSettings} label="Settings" to="/settings" />
-                <SidebarItem icon={FiBriefcase} label="For Business" to="/business" />
-                <SidebarItem icon={FiHelpCircle} label="Help Center" to="/help" />
+                <div className="flex flex-row md:flex-col md:px-3 md:mt-6 md:pt-6 border-l md:border-l-0 md:border-t border-gray-100 space-x-2 md:space-x-0 md:space-y-1 ml-2 md:ml-0 pl-2 md:pl-0">
+                    <SidebarItem icon={FiSettings} label="Settings" to="/settings" />
+                    <SidebarItem icon={FiBriefcase} label="For Business" to="/business" />
+                    <SidebarItem icon={FiHelpCircle} label="Help Center" to="/help" />
+                </div>
             </div>
         </aside>
     );
