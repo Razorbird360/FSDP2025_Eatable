@@ -46,8 +46,6 @@ export default function OrderDetailsModal({ order, onClose }) {
         }
     }
 
-    const [voucherInfo, setVoucherInfo] = useState(null);
-
     // Calculate totals
     const subtotal = orderItems?.reduce((sum, item) => sum + item.unitCents, 0) / 100 || 0;
     const serviceFee = discounts_charges?.find(dc => dc.type === 'fee')?.amountCents / 100 || 0;
@@ -56,24 +54,8 @@ export default function OrderDetailsModal({ order, onClose }) {
     // If totalCents is available use it, otherwise calculate
     const total = totalCents ? totalCents / 100 : (subtotal + serviceFee - voucherApplied);
 
-    // Fetch voucher info if there's a voucher discount
-    useEffect(() => {
-        async function fetchVoucherInfo() {
-            if (voucherDiscount?.userVoucherId) {
-                try {
-                    const vouchersRes = await api.get('/vouchers/user');
-                    const allVouchers = vouchersRes.data;
-                    const usedVoucher = allVouchers.find(v => v.userVoucherId === voucherDiscount.userVoucherId);
-                    if (usedVoucher) {
-                        setVoucherInfo(usedVoucher);
-                    }
-                } catch (err) {
-                    console.error("Failed to fetch voucher info:", err);
-                }
-            }
-        }
-        fetchVoucherInfo();
-    }, [voucherDiscount?.userVoucherId]);
+    // Extract voucher info directly from the nested relation
+    const voucherInfo = voucherDiscount?.userVoucher?.voucher;
 
     const displayOrderNumber = orderId && orderId.length > 24
         ? `${orderId.slice(0, 8)}-${orderId.slice(-4)}`

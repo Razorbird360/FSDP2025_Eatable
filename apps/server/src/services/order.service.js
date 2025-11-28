@@ -132,6 +132,9 @@ export const orderService = {
                     },
                 });
 
+                // Update local order object to reflect the change
+                order.totalCents -= discountAmount;
+
                 // Mark the UserVoucher as used
                 if (pendingVoucherDiscount.userVoucherId) {
                     await tx.userVoucher.update({
@@ -206,6 +209,15 @@ export const orderService = {
             include: {
                 stall: {
                     select: { id: true, name: true, image_url: true },
+                },
+                discounts_charges: {
+                    include: {
+                        userVoucher: {
+                            include: {
+                                voucher: true
+                            }
+                        }
+                    }
                 },
                 orderItems: {
                     include: {

@@ -6,6 +6,7 @@ const prisma = new PrismaClient();
 async function main() {
   // --- Optional: clean tables in FK-safe order if you're reseeding ---
 
+  await prisma.discounts_charges.deleteMany();
   await prisma.userVoucher.deleteMany();
   await prisma.existingVoucher.deleteMany();
   await prisma.mediaUploadVote.deleteMany();
@@ -20,6 +21,7 @@ async function main() {
   await prisma.hawkerCentre.deleteMany();
   await prisma.user.deleteMany();
   await prisma.system_configuration.deleteMany();
+
 
   // --- Seed some users for uploads ---
 
