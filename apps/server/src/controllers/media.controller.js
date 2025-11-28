@@ -56,7 +56,28 @@ export const mediaController = {
         return res.status(404).json({ error: 'Menu item not found' });
       }
 
-      // 4. Determine requested aspect ratio (defaults to square)
+      // 4. AI Validation - Verify dish matches the menu item
+      try {
+        const dishName = menuItem.name;
+        const validationResult = await aiValidationService.validateFoodSpecific(
+          req.file.buffer,
+          dishName
+        );
+
+        if (validationResult.is_match === 0) {
+          return res.status(400).json({
+            error: 'Image validation failed',
+            message: `This image does not appear to contain ${dishName}. Please upload a photo of the correct dish.`,
+            dish_name: dishName
+          });
+        }
+      } catch (validationError) {
+        console.error('AI validation error during upload:', validationError);
+        // Continue with upload even if validation fails (graceful degradation)
+        // In production, you might want to fail the upload instead
+      }
+
+      // 5. Determine requested aspect ratio (defaults to square)
       const normalizedAspect = (requestedAspect || 'square').toString().toLowerCase();
       const allowedAspects = ['square', 'rectangle'];
       if (!allowedAspects.includes(normalizedAspect)) {
@@ -65,20 +86,20 @@ export const mediaController = {
         });
       }
 
-      // 5. Compress image
+      // 6. Compress image
       const compressed_buffer = await storageService.compressImage(
         req.file.buffer,
         normalizedAspect
       );
 
-      // 6. Generate file path
+      // 7. Generate file path
       const file_path = storageService.generateFilePath(
         menuItem.stallId,
         menuItemId,
         'jpg'
       );
 
-      // 7. Upload to Supabase Storage
+      // 8. Upload to Supabase Storage
       const image_url = await storageService.uploadFile(
         BUCKET_NAME,
         file_path,
@@ -86,7 +107,7 @@ export const mediaController = {
         'image/jpeg'
       );
 
-      // 8. Save to database
+      // 9. Save to database
       const upload = await mediaService.create({
         menuItemId,
         userId: req.user.id,
@@ -95,7 +116,7 @@ export const mediaController = {
         aspectRatio: normalizedAspect,
       });
 
-      // 9. Return success
+      // 10. Return success
       res.status(201).json({
         message: 'Image uploaded successfully',
         upload,

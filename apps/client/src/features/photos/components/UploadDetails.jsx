@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../../lib/api";
 import { usePhotoUpload } from "../context/PhotoUploadContext";
+import ValidationModal from "../../../components/ValidationModal";
 
 export default function UploadDetails() {
   const navigate = useNavigate();
@@ -23,6 +24,10 @@ export default function UploadDetails() {
   const [description, setDescription] = useState("");
   const [submitError, setSubmitError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Validation states
+  const [validationStatus, setValidationStatus] = useState(null);
+  const [validationMessage, setValidationMessage] = useState("");
 
   useEffect(() => {
     if (!photoFile) {
@@ -107,6 +112,8 @@ export default function UploadDetails() {
 
     setSubmitError(null);
     setIsSubmitting(true);
+    setValidationStatus("validating");
+    setValidationMessage(`Verifying this is ${selectedDish?.name || "the correct dish"}...`);
 
     try {
       const formData = new FormData();
@@ -126,24 +133,50 @@ export default function UploadDetails() {
 
       await api.post("/media/upload", formData, {
         headers: { "Content-Type": "multipart/form-data" },
+        timeout: 35000, // 35 seconds to account for AI validation
       });
 
-      clearPhotoData();
-      setCaption("");
-      setDescription("");
-      navigate("/home", {
-        replace: true,
-        state: { photoUploaded: true },
-      });
+      // Success
+      setValidationStatus("success");
+      setValidationMessage("Upload successful!");
+
+      setTimeout(() => {
+        clearPhotoData();
+        setCaption("");
+        setDescription("");
+        navigate("/home", {
+          replace: true,
+          state: { photoUploaded: true },
+        });
+      }, 1500);
     } catch (error) {
-      setSubmitError(
-        error.response?.data?.error ||
-          error.message ||
-          "Failed to upload photo. Please try again."
-      );
+      // Check if it's a validation error (400 with specific message)
+      if (error.response?.status === 400 && error.response?.data?.message) {
+        setValidationStatus("error");
+        setValidationMessage(error.response.data.message);
+      } else {
+        setValidationStatus(null);
+        setSubmitError(
+          error.response?.data?.error ||
+            error.message ||
+            "Failed to upload photo. Please try again."
+        );
+      }
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleRetry = () => {
+    // Navigate back to photo upload to retake
+    setValidationStatus(null);
+    setValidationMessage("");
+    navigate("/photo-upload");
+  };
+
+  const handleCloseValidation = () => {
+    setValidationStatus(null);
+    setValidationMessage("");
   };
 
   return (
@@ -316,6 +349,21 @@ export default function UploadDetails() {
           </div>
         </div>
       </div>
+
+      {/* Validation Modal */}
+      <ValidationModal
+        isOpen={validationStatus !== null}
+        status={
+          validationStatus === "validating"
+            ? "loading"
+            : validationStatus === "success"
+              ? "success"
+              : "error"
+        }
+        message={validationMessage}
+        onRetry={handleRetry}
+        onClose={handleCloseValidation}
+      />
     </main>
   );
 }
