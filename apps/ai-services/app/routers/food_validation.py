@@ -1,5 +1,5 @@
 import os
-from fastapi import APIRouter, HTTPException, UploadFile, File
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 import google.generativeai as genai
 from dotenv import load_dotenv
 from PIL import Image
@@ -86,6 +86,68 @@ async def validate_generic_food(image: UploadFile = File(...)):
         return {
             "is_food": is_food,
             "message": message
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error processing image: {str(e)}"
+        )
+
+
+@router.post("/validate-specific")
+async def validate_specific_dish(
+    image: UploadFile = File(...),
+    dish_name: str = Form(...)
+):
+    """
+    Specific dish validation endpoint.
+    Validates if the uploaded image contains the specified dish.
+
+    Args:
+        image: The uploaded image file
+        dish_name: The name of the dish to validate against
+
+    Returns:
+        - is_match: 1 if the dish matches, 0 if not
+        - message: Description of the result
+    """
+    if model is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Gemini AI service is not configured. Please check GEMINI_API_KEY."
+        )
+
+    try:
+        # Read the uploaded image
+        image_data = await image.read()
+        img = Image.open(io.BytesIO(image_data))
+
+        # Prepare the prompt for Gemini
+        prompt = f"Does this image contain {dish_name}? Respond with only 1 for yes or 0 for no."
+
+        # Generate response from Gemini
+        response = model.generate_content([prompt, img])
+
+        # Parse the response
+        result_text = response.text.strip()
+
+        # Extract 1 or 0 from response
+        if "1" in result_text:
+            is_match = 1
+            message = f"Image matches the dish: {dish_name}"
+        elif "0" in result_text:
+            is_match = 0
+            message = f"Image does not match the dish: {dish_name}"
+        else:
+            # Fallback: if response is unclear, default to 0
+            is_match = 0
+            message = f"Unable to determine if image matches {dish_name}. AI response: {result_text}"
+
+        return {
+            "is_match": is_match,
+            "message": message,
+            "dish_name": dish_name
         }
 
     except Exception as e:
