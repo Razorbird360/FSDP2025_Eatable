@@ -2,11 +2,37 @@ import { mediaService } from '../services/media.service.js';
 import { menuService } from '../services/menu.service.js';
 import { storageService } from '../services/storage.service.js';
 import { userService } from '../services/user.service.js';
+import { aiValidationService } from '../services/ai-validation.service.js';
 
 const BUCKET_NAME = 'food-images';
 const VALID_STATUSES = ['pending', 'approved', 'rejected'];
 
 export const mediaController = {
+  /**
+   * Validate if image contains food (generic check)
+   * POST /api/media/validate-generic
+   */
+  async validateGeneric(req, res, next) {
+    try {
+      // 1. Validate file exists (from Multer)
+      if (!req.file) {
+        return res.status(400).json({ error: 'No image file provided' });
+      }
+
+      // 2. Call AI validation service
+      const result = await aiValidationService.validateFoodGeneric(req.file.buffer);
+
+      // 3. Return validation result
+      res.json(result);
+    } catch (error) {
+      console.error('Generic validation error:', error);
+      res.status(500).json({
+        error: 'Failed to validate image',
+        message: error.message
+      });
+    }
+  },
+
   /**
    * Upload image for a menu item
    * POST /api/media/upload
