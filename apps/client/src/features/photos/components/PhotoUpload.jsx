@@ -2,12 +2,22 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import switchIcon from "../../../assets/PhotoUpload/switch.svg";
 import { usePhotoUpload } from "../context/PhotoUploadContext";
+import ValidationModal from "../../../components/ValidationModal";
 
 export default function PhotoUpload() {
   const navigate = useNavigate();
   const videoRef = useRef(null);
   const fileInputRef = useRef(null);
-  const { previewUrl, aspectRatio: storedAspectRatio, setPhotoData } = usePhotoUpload();
+  const {
+    previewUrl,
+    aspectRatio: storedAspectRatio,
+    setPhotoData,
+    validatePhoto,
+    validationStatus,
+    validationMessage,
+    resetValidation,
+    clearPhotoData,
+  } = usePhotoUpload();
 
   const [stream, setStream] = useState(null);
   const [cameraError, setCameraError] = useState(null);
@@ -133,6 +143,17 @@ export default function PhotoUpload() {
       const preview = URL.createObjectURL(file);
       setPhotoData({ file, previewUrl: preview, aspectRatio });
       setCameraError(null);
+
+      // Validate the captured photo
+      const result = await validatePhoto(file);
+      if (result.success) {
+        // Auto-close success modal and navigate after a short delay
+        setTimeout(() => {
+          resetValidation();
+          navigate("/upload-details");
+        }, 1500);
+      }
+      // If validation fails, modal will show error with retry button
     } catch (error) {
       setCameraError(error.message || "Failed to capture photo");
     }
@@ -142,17 +163,38 @@ export default function PhotoUpload() {
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = (event) => {
+  const handleFileChange = async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     const preview = URL.createObjectURL(file);
     setPhotoData({ file, previewUrl: preview, aspectRatio });
     event.target.value = "";
+
+    // Validate the uploaded photo
+    const result = await validatePhoto(file);
+    if (result.success) {
+      // Auto-close success modal and navigate after a short delay
+      setTimeout(() => {
+        resetValidation();
+        navigate("/upload-details");
+      }, 1500);
+    }
+    // If validation fails, modal will show error with retry button
   };
 
   const stopPreview = () => {
     setPhotoData({ file: null, previewUrl: null });
+  };
+
+  const handleRetry = () => {
+    // Clear photo and reset validation to allow user to retake/reupload
+    clearPhotoData();
+    resetValidation();
+  };
+
+  const handleCloseValidation = () => {
+    resetValidation();
   };
 
   const switchCamera = () => {
@@ -598,6 +640,21 @@ export default function PhotoUpload() {
           </aside>
         </div>
       </div>
+
+      {/* Validation Modal */}
+      <ValidationModal
+        isOpen={validationStatus !== null}
+        status={
+          validationStatus === "validating"
+            ? "loading"
+            : validationStatus === "success"
+              ? "success"
+              : "error"
+        }
+        message={validationMessage}
+        onRetry={handleRetry}
+        onClose={handleCloseValidation}
+      />
     </main>
   );
 }
