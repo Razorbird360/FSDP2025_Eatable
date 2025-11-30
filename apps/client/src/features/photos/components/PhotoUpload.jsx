@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import switchIcon from "../../../assets/PhotoUpload/switch.svg";
 import { usePhotoUpload } from "../context/PhotoUploadContext";
 import ValidationModal from "../../../components/ValidationModal";
+import { toaster } from "../../../components/ui/toaster";
 
 export default function PhotoUpload() {
   const navigate = useNavigate();
@@ -146,14 +147,34 @@ export default function PhotoUpload() {
 
       // Validate the captured photo
       const result = await validatePhoto(file);
+
       if (result.success) {
-        // Auto-close success modal and navigate after a short delay
+        // Show success toast
+        toaster.create({
+          title: "Food detected!",
+          description: "Your photo looks great. Proceeding to details...",
+          type: "success",
+          duration: 3000,
+        });
+
+        // Navigate after a short delay
         setTimeout(() => {
           resetValidation();
           navigate("/upload-details");
-        }, 1500);
+        }, 1000);
+      } else {
+        // Show error toast
+        toaster.create({
+          title: "No food detected",
+          description: result.message || "Please upload a photo of food.",
+          type: "error",
+          duration: 5000,
+        });
+
+        // Clear photo and reset
+        resetValidation();
+        clearPhotoData();
       }
-      // If validation fails, modal will show error with retry button
     } catch (error) {
       setCameraError(error.message || "Failed to capture photo");
     }
@@ -173,28 +194,44 @@ export default function PhotoUpload() {
 
     // Validate the uploaded photo
     const result = await validatePhoto(file);
+
     if (result.success) {
-      // Auto-close success modal and navigate after a short delay
+      // Show success toast
+      toaster.create({
+        title: "Food detected!",
+        description: "Your photo looks great. Proceeding to details...",
+        type: "success",
+        duration: 3000,
+      });
+
+      // Navigate after a short delay
       setTimeout(() => {
         resetValidation();
         navigate("/upload-details");
-      }, 1500);
+      }, 1000);
+    } else {
+      // Show error toast
+      toaster.create({
+        title: "No food detected",
+        description: result.message || "Please upload a photo of food.",
+        type: "error",
+        duration: 5000,
+      });
+
+      // Clear photo and reset
+      resetValidation();
+      clearPhotoData();
     }
-    // If validation fails, modal will show error with retry button
   };
 
   const stopPreview = () => {
     setPhotoData({ file: null, previewUrl: null });
   };
 
-  const handleRetry = () => {
-    // Clear photo and reset validation to allow user to retake/reupload
+  const handleCancelValidation = () => {
+    // Cancel validation and clear photo
+    resetValidation();
     clearPhotoData();
-    resetValidation();
-  };
-
-  const handleCloseValidation = () => {
-    resetValidation();
   };
 
   const switchCamera = () => {
@@ -535,7 +572,6 @@ export default function PhotoUpload() {
               />
             </div>
 
-            {/* Mobile: Upload Photo Button */}
             <button
               type="button"
               onClick={handleUploadClick}
@@ -564,7 +600,6 @@ export default function PhotoUpload() {
               </div>
             </button>
 
-            {/* Mobile: Next Button */}
             <button
               type="button"
               onClick={() => navigate("/upload-details")}
@@ -641,19 +676,10 @@ export default function PhotoUpload() {
         </div>
       </div>
 
-      {/* Validation Modal */}
       <ValidationModal
-        isOpen={validationStatus !== null}
-        status={
-          validationStatus === "validating"
-            ? "loading"
-            : validationStatus === "success"
-              ? "success"
-              : "error"
-        }
+        isOpen={validationStatus === "validating"}
         message={validationMessage}
-        onRetry={handleRetry}
-        onClose={handleCloseValidation}
+        onCancel={handleCancelValidation}
       />
     </main>
   );

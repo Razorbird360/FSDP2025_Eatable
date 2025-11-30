@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import api from "../../../lib/api";
 import { usePhotoUpload } from "../context/PhotoUploadContext";
 import ValidationModal from "../../../components/ValidationModal";
+import { toaster } from "../../../components/ui/toaster";
 
 export default function UploadDetails() {
   const navigate = useNavigate();
@@ -136,9 +137,14 @@ export default function UploadDetails() {
         timeout: 35000, // 35 seconds to account for AI validation
       });
 
-      // Success
-      setValidationStatus("success");
-      setValidationMessage("Upload successful!");
+      // Success - show toast
+      setValidationStatus(null);
+      toaster.create({
+        title: "Upload successful!",
+        description: "Your photo has been posted successfully.",
+        type: "success",
+        duration: 3000,
+      });
 
       setTimeout(() => {
         clearPhotoData();
@@ -148,14 +154,24 @@ export default function UploadDetails() {
           replace: true,
           state: { photoUploaded: true },
         });
-      }, 1500);
+      }, 1000);
     } catch (error) {
+      setValidationStatus(null);
+
       // Check if it's a validation error (400 with specific message)
       if (error.response?.status === 400 && error.response?.data?.message) {
-        setValidationStatus("error");
-        setValidationMessage(error.response.data.message);
+        toaster.create({
+          title: "Validation failed",
+          description: error.response.data.message,
+          type: "error",
+          duration: 5000,
+        });
+
+        // Navigate back to photo upload after showing toast
+        setTimeout(() => {
+          navigate("/photo-upload");
+        }, 1500);
       } else {
-        setValidationStatus(null);
         setSubmitError(
           error.response?.data?.error ||
             error.message ||
@@ -167,16 +183,11 @@ export default function UploadDetails() {
     }
   };
 
-  const handleRetry = () => {
-    // Navigate back to photo upload to retake
+  const handleCancelValidation = () => {
+    // Cancel upload validation
     setValidationStatus(null);
     setValidationMessage("");
-    navigate("/photo-upload");
-  };
-
-  const handleCloseValidation = () => {
-    setValidationStatus(null);
-    setValidationMessage("");
+    setIsSubmitting(false);
   };
 
   return (
@@ -350,19 +361,11 @@ export default function UploadDetails() {
         </div>
       </div>
 
-      {/* Validation Modal */}
+      {/* Validation Modal - Only shows during loading */}
       <ValidationModal
-        isOpen={validationStatus !== null}
-        status={
-          validationStatus === "validating"
-            ? "loading"
-            : validationStatus === "success"
-              ? "success"
-              : "error"
-        }
+        isOpen={validationStatus === "validating"}
         message={validationMessage}
-        onRetry={handleRetry}
-        onClose={handleCloseValidation}
+        onCancel={handleCancelValidation}
       />
     </main>
   );
