@@ -1,4 +1,4 @@
-import { Button, Spinner, VStack, Text } from "@chakra-ui/react";
+import { Button, VStack, Text } from "@chakra-ui/react";
 
 /**
  * Minimal validation modal - only shows during loading
@@ -24,18 +24,9 @@ export default function ValidationModal({
         onClick={(e) => e.stopPropagation()}
       >
         <VStack gap={4}>
-          <Spinner
-            size="xl"
-            color="green.600"
-            borderWidth="4px"
-            css={{
-              animation: "spin 0.8s linear infinite",
-              "@keyframes spin": {
-                "0%": { transform: "rotate(0deg)" },
-                "100%": { transform: "rotate(360deg)" }
-              }
-            }}
-          />
+          <div className="spinner-container">
+            <div className="spinner"></div>
+          </div>
           <Text fontSize="lg" fontWeight="medium" color="gray.700">
             {message || "Validating image..."}
           </Text>
@@ -52,6 +43,33 @@ export default function ValidationModal({
           )}
         </VStack>
       </div>
+      <style>{`
+        .spinner-container {
+          width: 64px;
+          height: 64px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .spinner {
+          width: 56px;
+          height: 56px;
+          border: 4px solid #d1fae5;
+          border-top-color: #059669;
+          border-radius: 50%;
+          animation: spinner-rotate 0.8s linear infinite;
+        }
+
+        @keyframes spinner-rotate {
+          0% {
+            transform: rotate(0deg);
+          }
+          100% {
+            transform: rotate(360deg);
+          }
+        }
+      `}</style>
     </div>
   );
 }

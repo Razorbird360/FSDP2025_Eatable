@@ -137,24 +137,15 @@ export default function UploadDetails() {
         timeout: 35000, // 35 seconds to account for AI validation
       });
 
-      // Success - show toast
+      // Success - clear state and navigate
       setValidationStatus(null);
-      toaster.create({
-        title: "Upload successful!",
-        description: "Your photo has been posted successfully.",
-        type: "success",
-        duration: 3000,
+      clearPhotoData();
+      setCaption("");
+      setDescription("");
+      navigate("/home", {
+        replace: true,
+        state: { photoUploaded: true },
       });
-
-      setTimeout(() => {
-        clearPhotoData();
-        setCaption("");
-        setDescription("");
-        navigate("/home", {
-          replace: true,
-          state: { photoUploaded: true },
-        });
-      }, 1000);
     } catch (error) {
       setValidationStatus(null);
 
