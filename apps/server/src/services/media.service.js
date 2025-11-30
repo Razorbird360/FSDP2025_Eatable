@@ -4,7 +4,7 @@ import prisma from '../lib/prisma.js';
  * MediaUpload table CRUD operations
  * Follows the pattern of menu.service.js, stalls.service.js, user.service.js
  */
-const ALLOWED_UPDATE_FIELDS = ['caption', 'validationStatus', 'rejectionReason'];
+const ALLOWED_UPDATE_FIELDS = ['caption', 'validationStatus'];
 
 const sanitizeUpdateData = (data = {}) => {
   const safeData = {};
