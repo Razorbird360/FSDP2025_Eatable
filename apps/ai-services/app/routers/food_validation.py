@@ -68,20 +68,17 @@ async def validate_generic_food(image: UploadFile = File(...)):
         # Generate response from Gemini
         response = model.generate_content([prompt, img])
 
-        # Parse the response
+        # Parse the response strictly
         result_text = response.text.strip()
 
-        # Extract 1 or 0 from response
-        if "1" in result_text:
-            is_food = 1
-            message = "Food detected in the image"
-        elif "0" in result_text:
-            is_food = 0
-            message = "No food detected in the image"
-        else:
-            # Fallback: if response is unclear, default to 0
-            is_food = 0
-            message = f"Unable to determine if food is present. AI response: {result_text}"
+        if result_text not in {"0", "1"}:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Unexpected AI response format: '{result_text}'"
+            )
+
+        is_food = int(result_text)
+        message = "Food detected in the image" if is_food == 1 else "No food detected in the image"
 
         return {
             "is_food": is_food,
@@ -129,20 +126,21 @@ async def validate_specific_dish(
         # Generate response from Gemini
         response = model.generate_content([prompt, img])
 
-        # Parse the response
+        # Parse the response strictly
         result_text = response.text.strip()
 
-        # Extract 1 or 0 from response
-        if "1" in result_text:
-            is_match = 1
-            message = f"Image matches the dish: {dish_name}"
-        elif "0" in result_text:
-            is_match = 0
-            message = f"Image does not match the dish: {dish_name}"
-        else:
-            # Fallback: if response is unclear, default to 0
-            is_match = 0
-            message = f"Unable to determine if image matches {dish_name}. AI response: {result_text}"
+        if result_text not in {"0", "1"}:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Unexpected AI response format: '{result_text}'"
+            )
+
+        is_match = int(result_text)
+        message = (
+            f"Image matches the dish: {dish_name}"
+            if is_match == 1
+            else f"Image does not match the dish: {dish_name}"
+        )
 
         return {
             "is_match": is_match,
