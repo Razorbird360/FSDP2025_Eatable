@@ -57,6 +57,7 @@ export const mediaController = {
       }
 
       // 4. AI Validation - Verify dish matches the menu item
+      let validationStatus = 'pending';
       try {
         const dishName = menuItem.name;
         const validationResult = await aiValidationService.validateFoodSpecific(
@@ -71,6 +72,9 @@ export const mediaController = {
             dish_name: dishName
           });
         }
+
+        // AI matched: mark as approved
+        validationStatus = 'approved';
       } catch (validationError) {
         console.error('AI validation error during upload:', validationError);
         // Continue with upload even if validation fails (graceful degradation)
@@ -114,6 +118,7 @@ export const mediaController = {
         imageUrl: image_url,
         caption: caption || null,
         aspectRatio: normalizedAspect,
+        validationStatus,
       });
 
       // 10. Return success
