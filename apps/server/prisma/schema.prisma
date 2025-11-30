@@ -87,8 +87,6 @@ model MediaUpload {
   imageUrl          String            @map("image_url")
   caption           String?
   validationStatus  String            @default("pending") @map("validation_status")
-  rejectionReason   String?           @map("rejection_reason")
-  aiConfidenceScore Float?            @map("ai_confidence_score")
   reviewedAt        DateTime?         @map("reviewed_at") @db.Timestamptz(6)
   reviewedBy        String?           @map("reviewed_by") @db.Uuid
   upvoteCount       Int               @default(0) @map("upvote_count")
