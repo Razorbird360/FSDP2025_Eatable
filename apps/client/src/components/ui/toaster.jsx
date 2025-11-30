@@ -1,9 +1,9 @@
+/* eslint-disable react-refresh/only-export-components */
 import {
   Toaster as ChakraToaster,
   ToastRoot,
   ToastTitle,
   ToastDescription,
-  ToastCloseTrigger,
   ToastIndicator,
   createToaster,
 } from "@chakra-ui/react";

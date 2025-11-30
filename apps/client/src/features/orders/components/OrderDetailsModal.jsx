@@ -1,4 +1,3 @@
-import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import logo_full from '../../../assets/logo/logo_full.png';
 import qrImg from '../../../assets/logo/QrPlaceholder.png';

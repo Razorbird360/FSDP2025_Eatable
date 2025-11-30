@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import { useState, useRef } from 'react';
 
 export default function Tooltip({ label, secondaryLabel, secondaryDelay = 1000, children, className = '' }) {
     const [isVisible, setIsVisible] = useState(false);

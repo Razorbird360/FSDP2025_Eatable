@@ -37,7 +37,7 @@ export default function PhotoUpload() {
     if (storedAspectRatio && storedAspectRatio !== aspectRatio) {
       setAspectRatioState(storedAspectRatio);
     }
-  }, [storedAspectRatio]);
+  }, [storedAspectRatio, aspectRatio]);
 
   useEffect(() => {
     let mounted = true;
