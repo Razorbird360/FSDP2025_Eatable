@@ -132,10 +132,29 @@ export default function UploadDetails() {
         formData.append("caption", combinedCaption);
       }
 
-      await api.post("/media/upload", formData, {
+      const res = await api.post("/media/upload", formData, {
         headers: { "Content-Type": "multipart/form-data" },
         timeout: 35000, // 35 seconds to account for AI validation
       });
+
+      const serverStatus = res.data?.upload?.validationStatus || "pending";
+
+      if (serverStatus !== "approved") {
+        toaster.create({
+          title: "Upload received but not approved",
+          description:
+            "Our reviewers will take a closer look. You can check back later.",
+          type: "warning",
+          duration: 5000,
+        });
+      } else {
+        toaster.create({
+          title: "Photo approved",
+          description: "Your photo passed AI validation.",
+          type: "success",
+          duration: 3500,
+        });
+      }
 
       // Success - clear state and navigate
       setValidationStatus(null);

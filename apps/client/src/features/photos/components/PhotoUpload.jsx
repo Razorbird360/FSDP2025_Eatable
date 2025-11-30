@@ -67,11 +67,11 @@ export default function PhotoUpload() {
           return;
         }
 
-        if (stream) {
-          stream.getTracks().forEach((track) => track.stop());
-        }
-
-        setStream(mediaStream);
+        // Stop any existing stream before replacing
+        setStream((prev) => {
+          prev?.getTracks().forEach((track) => track.stop());
+          return mediaStream;
+        });
 
         if (videoRef.current) {
           videoRef.current.srcObject = mediaStream;
@@ -101,11 +101,17 @@ export default function PhotoUpload() {
 
     return () => {
       mounted = false;
+    };
+  }, [selectedCameraId]);
+
+  // Ensure the active stream is stopped on unmount or when replaced
+  useEffect(() => {
+    return () => {
       if (stream) {
         stream.getTracks().forEach((track) => track.stop());
       }
     };
-  }, [selectedCameraId]);
+  }, [stream]);
 
   const handleTakePhoto = async () => {
     if (!videoRef.current) {
