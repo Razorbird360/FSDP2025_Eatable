@@ -1,5 +1,6 @@
 import FormData from 'form-data';
 import axios from 'axios';
+import { fileTypeFromBuffer } from 'file-type';
 
 const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://localhost:8000';
 
@@ -10,11 +11,19 @@ export const aiValidationService = {
    * @returns {Promise<{is_food: number, message: string}>}
    */
   async validateFoodGeneric(imageBuffer) {
+    if (!imageBuffer || !Buffer.isBuffer(imageBuffer) || imageBuffer.length === 0) {
+      throw new Error('Invalid image buffer provided');
+    }
+
     try {
+      const detected = await fileTypeFromBuffer(imageBuffer);
+      const contentType = detected?.mime || 'application/octet-stream';
+      const ext = detected?.ext || 'jpg';
+
       const formData = new FormData();
       formData.append('image', imageBuffer, {
-        filename: 'image.jpg',
-        contentType: 'image/jpeg',
+        filename: `image.${ext}`,
+        contentType,
       });
 
       const response = await axios.post(
@@ -40,11 +49,22 @@ export const aiValidationService = {
    * @returns {Promise<{is_match: number, message: string, dish_name: string}>}
    */
   async validateFoodSpecific(imageBuffer, dishName) {
+    if (!imageBuffer || !Buffer.isBuffer(imageBuffer) || imageBuffer.length === 0) {
+      throw new Error('Invalid image buffer provided');
+    }
+    if (!dishName || typeof dishName !== 'string' || dishName.trim().length === 0) {
+      throw new Error('Invalid dish name provided');
+    }
+
     try {
+      const detected = await fileTypeFromBuffer(imageBuffer);
+      const contentType = detected?.mime || 'application/octet-stream';
+      const ext = detected?.ext || 'jpg';
+
       const formData = new FormData();
       formData.append('image', imageBuffer, {
-        filename: 'image.jpg',
-        contentType: 'image/jpeg',
+        filename: `image.${ext}`,
+        contentType,
       });
       formData.append('dish_name', dishName);
 

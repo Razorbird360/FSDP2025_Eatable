@@ -4,6 +4,7 @@ import google.generativeai as genai
 from dotenv import load_dotenv
 from PIL import Image
 import io
+import asyncio
 
 # Load environment variables
 load_dotenv()
@@ -58,15 +59,42 @@ async def validate_generic_food(image: UploadFile = File(...)):
         )
 
     try:
+        # Validate size (max 10MB)
+        MAX_IMAGE_SIZE = 10 * 1024 * 1024
+        image.file.seek(0, 2)
+        file_size = image.file.tell()
+        image.file.seek(0)
+        if file_size > MAX_IMAGE_SIZE:
+            raise HTTPException(
+                status_code=413,
+                detail=f"Image size exceeds maximum allowed size of {MAX_IMAGE_SIZE} bytes"
+            )
+
         # Read the uploaded image
         image_data = await image.read()
         img = Image.open(io.BytesIO(image_data))
+
+        # Validate image format
+        if img.format not in {"JPEG", "PNG", "WEBP", "GIF"}:
+            raise HTTPException(
+                status_code=415,
+                detail=f"Unsupported image format: {img.format}"
+            )
 
         # Prepare the prompt for Gemini
         prompt = "Is there food visible in this image? Respond with only 1 for yes or 0 for no."
 
         # Generate response from Gemini
-        response = model.generate_content([prompt, img])
+        try:
+            response = model.generate_content(
+                [prompt, img],
+                request_options={"timeout": 30}
+            )
+        except asyncio.TimeoutError:
+            raise HTTPException(
+                status_code=504,
+                detail="AI validation timed out"
+            )
 
         # Parse the response strictly
         result_text = response.text.strip()
@@ -119,15 +147,55 @@ async def validate_specific_dish(
         )
 
     try:
+        # Validate and sanitize dish_name
+        if not dish_name or len(dish_name.strip()) == 0:
+            raise HTTPException(
+                status_code=422,
+                detail="dish_name cannot be empty"
+            )
+        if len(dish_name) > 100:
+            raise HTTPException(
+                status_code=422,
+                detail="dish_name exceeds maximum length of 100 characters"
+            )
+        sanitized_dish_name = dish_name.strip().replace('\n', ' ').replace('\r', ' ')
+
+        # Validate size (max 10MB)
+        MAX_IMAGE_SIZE = 10 * 1024 * 1024
+        image.file.seek(0, 2)
+        file_size = image.file.tell()
+        image.file.seek(0)
+        if file_size > MAX_IMAGE_SIZE:
+            raise HTTPException(
+                status_code=413,
+                detail=f"Image size exceeds maximum allowed size of {MAX_IMAGE_SIZE} bytes"
+            )
+
         # Read the uploaded image
         image_data = await image.read()
         img = Image.open(io.BytesIO(image_data))
 
+        # Validate image format
+        if img.format not in {"JPEG", "PNG", "WEBP", "GIF"}:
+            raise HTTPException(
+                status_code=415,
+                detail=f"Unsupported image format: {img.format}"
+            )
+
         # Prepare the prompt for Gemini
-        prompt = f"Does this image contain {dish_name}? Respond with only 1 for yes or 0 for no."
+        prompt = f"Does this image contain {sanitized_dish_name}? Respond with only 1 for yes or 0 for no."
 
         # Generate response from Gemini
-        response = model.generate_content([prompt, img])
+        try:
+            response = model.generate_content(
+                [prompt, img],
+                request_options={"timeout": 30}
+            )
+        except asyncio.TimeoutError:
+            raise HTTPException(
+                status_code=504,
+                detail="AI validation timed out"
+            )
 
         # Parse the response strictly
         result_text = response.text.strip()
