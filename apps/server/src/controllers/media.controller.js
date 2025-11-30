@@ -77,8 +77,9 @@ export const mediaController = {
         validationStatus = 'approved';
       } catch (validationError) {
         console.error('AI validation error during upload:', validationError);
-        // Continue with upload even if validation fails (graceful degradation)
-        // In production, you might want to fail the upload instead
+        return res.status(503).json({
+          error: 'Image validation unavailable. Please try again shortly.',
+        });
       }
 
       // 5. Determine requested aspect ratio (defaults to square)
