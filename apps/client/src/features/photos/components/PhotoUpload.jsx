@@ -163,11 +163,8 @@ export default function PhotoUpload() {
           duration: 3000,
         });
 
-        // Navigate after a short delay
-        setTimeout(() => {
-          resetValidation();
-          navigate("/upload-details");
-        }, 1000);
+        // Clear validation state; user can proceed with Next button
+        resetValidation();
       } else {
         // Show error toast
         toaster.create({
@@ -210,11 +207,8 @@ export default function PhotoUpload() {
         duration: 3000,
       });
 
-      // Navigate after a short delay
-      setTimeout(() => {
-        resetValidation();
-        navigate("/upload-details");
-      }, 1000);
+      // Clear validation state; user can proceed with Next button
+      resetValidation();
     } else {
       // Show error toast
       toaster.create({

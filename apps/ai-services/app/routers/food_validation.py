@@ -85,6 +85,9 @@ async def validate_generic_food(image: UploadFile = File(...)):
             "message": message
         }
 
+    except HTTPException:
+        # Pass through explicit HTTP exceptions (e.g., bad AI response format)
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=500,
@@ -148,6 +151,9 @@ async def validate_specific_dish(
             "dish_name": dish_name
         }
 
+    except HTTPException:
+        # Pass through explicit HTTP exceptions (e.g., bad AI response format)
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=500,
