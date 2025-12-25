@@ -10,6 +10,7 @@ async function main() {
   await prisma.contentReport.deleteMany();
   await prisma.mediaUpload.deleteMany();
   await prisma.orderItem.deleteMany();
+  await prisma.discounts_charges.deleteMany();
   await prisma.order.deleteMany();
   await prisma.userFavorite.deleteMany();
   await prisma.user_cart.deleteMany();
