@@ -58,7 +58,9 @@ export default function OrderSummary() {
     setLoadingVouchers(true);
     try {
       const res = await api.get('/vouchers/user');
-      setVouchers(res.data);
+      // Filter out used vouchers so they don't appear in the list
+      const availableVouchers = res.data.filter(v => !v.isUsed && !v.used);
+      setVouchers(availableVouchers);
     } catch (err) {
       console.error("Failed to fetch vouchers:", err);
     } finally {
