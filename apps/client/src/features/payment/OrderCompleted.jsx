@@ -52,11 +52,6 @@ export default function OrderCompletedModal({ onClose, orderId }) {
   const [orderMeta, setOrderMeta] = useState(null);
   const [orderInfo, setOrderInfo] = useState(null);
 
-  const handleClose = () => {
-    if (onClose) onClose();
-    else navigate(-1);
-  };
-
   useEffect(() => {
     async function fetchOrder() {
       if (!orderId) return;

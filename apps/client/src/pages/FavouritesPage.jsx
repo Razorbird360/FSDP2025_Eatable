@@ -17,6 +17,7 @@ const FavouritesPage = () => {
     const [relations, setRelations] = useState([]);
 
     // Notification state
+    // eslint-disable-next-line no-unused-vars
     const [notice, setNotice] = useState(null);
 
     // Popup state

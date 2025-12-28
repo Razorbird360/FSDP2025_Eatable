@@ -2,11 +2,37 @@ import { mediaService } from '../services/media.service.js';
 import { menuService } from '../services/menu.service.js';
 import { storageService } from '../services/storage.service.js';
 import { userService } from '../services/user.service.js';
+import { aiValidationService } from '../services/ai-validation.service.js';
 
 const BUCKET_NAME = 'food-images';
 const VALID_STATUSES = ['pending', 'approved', 'rejected'];
 
 export const mediaController = {
+  /**
+   * Validate if image contains food (generic check)
+   * POST /api/media/validate-generic
+   */
+  async validateGeneric(req, res, next) {
+    try {
+      // 1. Validate file exists (from Multer)
+      if (!req.file) {
+        return res.status(400).json({ error: 'No image file provided' });
+      }
+
+      // 2. Call AI validation service
+      const result = await aiValidationService.validateFoodGeneric(req.file.buffer);
+
+      // 3. Return validation result
+      res.json(result);
+    } catch (error) {
+      console.error('Generic validation error:', error);
+      res.status(500).json({
+        error: 'Failed to validate image',
+        message: error.message
+      });
+    }
+  },
+
   /**
    * Upload image for a menu item
    * POST /api/media/upload
@@ -30,7 +56,33 @@ export const mediaController = {
         return res.status(404).json({ error: 'Menu item not found' });
       }
 
-      // 4. Determine requested aspect ratio (defaults to square)
+      // 4. AI Validation - Verify dish matches the menu item
+      let validationStatus = 'pending';
+      try {
+        const dishName = menuItem.name;
+        const validationResult = await aiValidationService.validateFoodSpecific(
+          req.file.buffer,
+          dishName
+        );
+
+        if (validationResult.is_match === 0) {
+          return res.status(400).json({
+            error: 'Image validation failed',
+            message: `This image does not appear to contain ${dishName}. Please upload a photo of the correct dish.`,
+            dish_name: dishName
+          });
+        }
+
+        // AI matched: mark as approved
+        validationStatus = 'approved';
+      } catch (validationError) {
+        console.error('AI validation error during upload:', validationError);
+        return res.status(503).json({
+          error: 'Image validation unavailable. Please try again shortly.',
+        });
+      }
+
+      // 5. Determine requested aspect ratio (defaults to square)
       const normalizedAspect = (requestedAspect || 'square').toString().toLowerCase();
       const allowedAspects = ['square', 'rectangle'];
       if (!allowedAspects.includes(normalizedAspect)) {
@@ -39,20 +91,20 @@ export const mediaController = {
         });
       }
 
-      // 5. Compress image
+      // 6. Compress image
       const compressed_buffer = await storageService.compressImage(
         req.file.buffer,
         normalizedAspect
       );
 
-      // 6. Generate file path
+      // 7. Generate file path
       const file_path = storageService.generateFilePath(
         menuItem.stallId,
         menuItemId,
         'jpg'
       );
 
-      // 7. Upload to Supabase Storage
+      // 8. Upload to Supabase Storage
       const image_url = await storageService.uploadFile(
         BUCKET_NAME,
         file_path,
@@ -60,16 +112,17 @@ export const mediaController = {
         'image/jpeg'
       );
 
-      // 8. Save to database
+      // 9. Save to database
       const upload = await mediaService.create({
         menuItemId,
         userId: req.user.id,
         imageUrl: image_url,
         caption: caption || null,
         aspectRatio: normalizedAspect,
+        validationStatus,
       });
 
-      // 9. Return success
+      // 10. Return success
       res.status(201).json({
         message: 'Image uploaded successfully',
         upload,
