@@ -98,8 +98,9 @@ function HomePage() {
     const previousBodyOverflow = body.style.overflow;
 
     const updateScrollLock = () => {
-      const lockScroll = window.matchMedia("(min-width: 768px)").matches;
-      if (lockScroll) {
+      const isDesktop = window.matchMedia("(min-width: 768px)").matches;
+      if (isDesktop) {
+        // On desktop, prevent body scroll but allow section to scroll if needed
         html.style.overflow = "hidden";
         body.style.overflow = "hidden";
       } else {
@@ -134,10 +135,10 @@ function HomePage() {
   };
 
   return (
-    <section className="box-border flex w-full flex-col items-center gap-6 px-4 pt-0 pb-6 max-[430px]:gap-5 max-[430px]:px-3.5 sm:px-8 md:px-0 md:pt-0 md:pb-0 md:flex-row md:gap-0 md:min-h-[calc(100vh-4rem)] md:items-stretch bg-[#FBF7F0]">
+    <section className="box-border flex w-full flex-col items-center gap-6 px-4 pt-0 pb-6 max-[430px]:gap-5 max-[430px]:px-3.5 sm:px-8 md:px-0 md:pt-0 md:pb-0 md:flex-row md:gap-0 md:h-[calc(100vh-4rem)] md:items-center md:justify-center md:overflow-y-auto bg-[#FBF7F0]">
 
       {/* left column */}
-      <div className="w-[90vw] max-w-[24rem] rounded-lg px-4 py-4 max-[430px]:w-[88vw] max-[430px]:max-w-[22rem] max-[430px]:px-3 md:w-[38vw] lg:w-[36vw] xl:w-[34vw] 2xl:w-[34vw] md:max-w-none md:py-6 md:pl-[4vw] md:pr-3 xl:py-8 xl:pl-[4.75vw] xl:pr-4 2xl:py-10 2xl:pl-[5.5vw] 2xl:pr-[5.5vw] flex h-full flex-col items-start">
+      <div className="w-[90vw] max-w-[24rem] rounded-lg px-4 py-4 max-[430px]:w-[88vw] max-[430px]:max-w-[22rem] max-[430px]:px-3 md:w-[38vw] lg:w-[36vw] xl:w-[34vw] 2xl:w-[34vw] md:max-w-none md:py-6 md:pl-[4vw] md:pr-3 xl:py-8 xl:pl-[4.75vw] xl:pr-4 2xl:py-10 2xl:pl-[5.5vw] 2xl:pr-[5.5vw] flex flex-col items-start md:justify-center md:flex-shrink-0">
         <img
           src={logo_full}
           alt="eatable logo"
@@ -291,7 +292,7 @@ function HomePage() {
       </div>
 
       {/* middle column */}
-      <div className="flex flex-col items-center md:w-[36vw] md:py-4 xl:py-6 2xl:py-10">
+      <div className="flex flex-col items-center md:w-[36vw] md:py-4 xl:py-6 2xl:py-10 md:justify-center md:flex-shrink-0">
         <div className="md:hidden">
           <HeroAdvertisement />
           <div className="grid w-[90vw] max-w-[24rem] grid-cols-3 gap-x-3 mt-6 gap-y-3 max-[430px]:w-[88vw] max-[430px]:max-w-[22rem] max-[430px]:gap-x-2 max-[430px]:gap-y-2">
@@ -431,7 +432,7 @@ function HomePage() {
       </div>
 
       {/* right column */}
-      <div className="w-[90vw] max-w-[24rem] max-[430px]:w-[88vw] max-[430px]:max-w-[22rem] md:w-[32vw] md:max-w-none md:pr-[4.5vw] md:pl-4 md:flex md:flex-col md:justify-center md:min-h-[calc(100vh-4.5rem)] xl:min-h-[calc(100vh-3.5rem)] 2xl:min-h-[calc(100vh-2rem)]">
+      <div className="w-[90vw] max-w-[24rem] max-[430px]:w-[88vw] max-[430px]:max-w-[22rem] md:w-[32vw] md:max-w-none md:pr-[4.5vw] md:pl-4 md:flex md:flex-col md:justify-center md:flex-shrink-0">
         <div className="hidden md:flex md:flex-col w-full mb-16" style={{ maxHeight: "22rem" }}>
           <div className="flex items-start justify-between mb-3">
             <div>
