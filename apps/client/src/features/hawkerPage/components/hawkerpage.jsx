@@ -4,7 +4,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import arrowRight from "../../../assets/hawker/arrow-right.svg";
 import locationIcon from "../../../assets/hawker/location.svg";
 import Filters from "../../hawkerCentres/components/Filters";
-import FiltersMobile from "../../hawkerCentres/components/FiltersMobile"; // ⬅️ NEW
+import FiltersMobile from "../../hawkerCentres/components/FiltersMobile";
 import api from "../../../lib/api";
 
 const fallbackHeroImg =
@@ -128,7 +128,8 @@ function StallCard({ stall }) {
 
 const HawkerCentreDetailPage = () => {
   const { hawkerId } = useParams();
-  const [activeTab, setActiveTab] = useState("dishes"); // "stalls" | "dishes"
+  const navigate = useNavigate(); // 1. Initialize navigate hook
+  const [activeTab, setActiveTab] = useState("dishes");
 
   // Centre info from /info/:hawkerId + some UI-only fields
   const [centre, setCentre] = useState({
@@ -179,13 +180,6 @@ const HawkerCentreDetailPage = () => {
             (s) => s.id === dish.stallId
           );
 
-          const topUpload =
-            Array.isArray(dish.mediaUploads) && dish.mediaUploads.length > 0
-              ? dish.mediaUploads[0]
-              : null;
-
-          console.log(dish);
-
           return {
             ...dish,
             stallId: dish.stallId,
@@ -196,7 +190,7 @@ const HawkerCentreDetailPage = () => {
               typeof dish.priceCents === "number"
                 ? dish.priceCents / 100
                 : 0,
-            imageUrl: dish.mediaUploads[0].imageUrl || fallbackDishImg,
+            imageUrl: dish.mediaUploads?.[0]?.imageUrl || fallbackDishImg,
             orders: dish.orders ?? null,
           };
         });
@@ -208,7 +202,7 @@ const HawkerCentreDetailPage = () => {
           ...prev,
           ...info,
           stallCount: mappedStalls.length,
-          openCount: mappedStalls.length, // placeholder: treat all as open
+          openCount: mappedStalls.length,
         }));
       } catch (err) {
         console.error("[HawkerCentreDetailPage] Failed to load data", err);
@@ -329,8 +323,14 @@ const HawkerCentreDetailPage = () => {
           </div>
         </div>
 
-        {/* CTA */}
-        <button className="inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-medium rounded-full bg-brand text-white w-max hover:bg-brand/90 transition-colors">
+        {/* CTA - 2. Connect View on Map button */}
+        <button
+          onClick={() => {
+            const id = centre.id || hawkerId;
+            navigate(`/hawker-centres/map?centreId=${encodeURIComponent(id)}`);
+          }}
+          className="inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-medium rounded-full bg-brand text-white w-max hover:bg-brand/90 transition-colors"
+        >
           <span className="inline-flex h-4 w-4 items-center justify-center rounded border border-white/60 text-[9px]">
             <svg
               viewBox="0 0 24 24"
