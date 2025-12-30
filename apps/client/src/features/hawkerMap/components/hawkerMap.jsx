@@ -1,24 +1,21 @@
-import { useState, useMemo, useEffect, useRef } from "react"
+import { useState, useMemo, useEffect, useRef, useCallback } from "react"
 import hawkerIcon from "../../../assets/icons/hawker-featured.png"
 import { useSearchParams, useNavigate } from "react-router-dom"
-import {
-  GoogleMap,
-  Marker,
-  OverlayView,
-  useLoadScript
-} from "@react-google-maps/api"
-import { useHawkerCentres } from "../../hawkerCentres/hooks/useHawkerCentres"
+import { GoogleMap, Marker, OverlayView, useLoadScript } from "@react-google-maps/api"
+import { useHawkerCentres } from "../hooks/hawkerMap"
 
-const containerStyle = { width: "100%", height: "100%" }
+
+const containerStyle = { width: "100%", height: "100dvh" }
 const libraries = ["places", "marker"]
 
-// Helper: Formats the image URL. 
-// If your backend needs a prefix (like 'http://localhost:3000/'), add it here.
+const CURRENT_LOC_OPTION = {
+  description: "📍 Current location",
+  place_id: "CURRENT_LOCATION_ID"
+}
+
 function getImageUrl(imagePath) {
-  if (!imagePath) return null;
-  // Example: if (imagePath.startsWith("http")) return imagePath;
-  // Example: return `http://localhost:8080/${imagePath}`;
-  return imagePath; 
+  if (!imagePath) return null
+  return imagePath
 }
 
 function buildModeSummary(route) {
@@ -65,59 +62,78 @@ function CustomAdvancedMarker({ map, position, title, content, zIndex, onClick }
       if (clickListener) clickListener.remove()
       marker.map = null
     }
-  }, [map, position?.lat, position?.lng, title, zIndex, content, onClick])
+  }, [map, position, position?.lat, position?.lng, title, zIndex, content, onClick])
 
   return null
 }
 
-function HawkerCentreMarker({ map, centre, isSelected, isMain, zoom, onClick }) {
-  if (!centre) return null
-  const lat = Number(centre.latitude)
-  const lng = Number(centre.longitude)
-  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null
+// Stable Marker Component
+function HawkerCentreMarker({ map, centre, isSelected, isMain, zoom, onMarkerClick }) {
+  // compute values without hooks (safe even if centre is null)
+  const lat = Number(centre?.latitude);
+  const lng = Number(centre?.longitude);
+  const hasValidPos = Number.isFinite(lat) && Number.isFinite(lng);
 
-  const LABEL_ZOOM_THRESHOLD = 11
-  const showLabel = isMain || isSelected || (zoom ?? 0) >= LABEL_ZOOM_THRESHOLD
+  const LABEL_ZOOM_THRESHOLD = 11;
+  const showLabel = Boolean(centre) && (isMain || isSelected || (zoom ?? 0) >= LABEL_ZOOM_THRESHOLD);
 
-  const wrapper = document.createElement("div")
-  wrapper.className = "relative flex items-center justify-center"
-  wrapper.style.width = "16px"
-  wrapper.style.height = "16px"
+  // hooks must be called unconditionally
+  const handleClick = useCallback(() => {
+    if (!centre) return;
+    onMarkerClick?.(centre);
+  }, [onMarkerClick, centre]);
 
-  const icon = document.createElement("img")
-  icon.src = hawkerIcon
-  icon.style.width = "30px"
-  icon.style.height = "30px"
-  icon.style.position = "absolute"
-  icon.style.left = "50%"
-  icon.style.top = "50%"
-  icon.style.transform = "translate(-50%, -50%)"
-  wrapper.appendChild(icon)
+  const content = useMemo(() => {
+    // return null safely when we cannot build content
+    if (!centre) return null;
+    if (typeof document === "undefined") return null;
 
-  if (showLabel) {
-    const label = document.createElement("div")
-    label.className =
-      "rounded-full px-3 py-1 text-[11px] font-semibold shadow-md border border-white whitespace-nowrap " +
-      (isSelected ? "bg-orange-500 text-white" : "bg-green-600 text-white")
-    label.textContent = centre.name
-    label.style.position = "absolute"
-    label.style.left = "18px"
-    label.style.top = "50%"
-    label.style.transform = "translateY(-50%)"
-    wrapper.appendChild(label)
-  }
+    const wrapper = document.createElement("div");
+    wrapper.className = "hawker-marker relative flex items-center justify-center";
+    wrapper.style.width = "16px";
+    wrapper.style.height = "16px";
+
+    const icon = document.createElement("img");
+    icon.src = hawkerIcon;
+    icon.style.width = "30px";
+    icon.style.height = "30px";
+    icon.style.position = "absolute";
+    icon.style.left = "50%";
+    icon.style.top = "50%";
+    icon.style.transform = "translate(-50%, -50%)";
+    wrapper.appendChild(icon);
+
+    if (showLabel) {
+      const label = document.createElement("div");
+      label.className =
+        "hawker-label rounded-full px-3 py-1 text-[11px] font-semibold shadow-md border border-white whitespace-nowrap " +
+        (isSelected ? "bg-orange-500 text-white" : "bg-green-600 text-white");
+      label.textContent = centre.name || "";
+      label.style.position = "absolute";
+      label.style.left = "18px";
+      label.style.top = "50%";
+      label.style.transform = "translateY(-50%)";
+      wrapper.appendChild(label);
+    }
+
+    return wrapper;
+  }, [centre, showLabel, isSelected]);
+
+  // now it is safe to return conditionally (after hooks)
+  if (!centre || !hasValidPos) return null;
 
   return (
     <CustomAdvancedMarker
       map={map}
       position={{ lat, lng }}
       title={centre.name}
-      content={wrapper}
+      content={content || undefined}
       zIndex={isSelected ? 3000 : isMain ? 2500 : 1000}
-      onClick={onClick}
+      onClick={handleClick}
     />
-  )
+  );
 }
+
 
 export default function HawkerMap() {
   const { hawkerCentres: centres = [], loading: isLoading } = useHawkerCentres()
@@ -131,53 +147,81 @@ export default function HawkerMap() {
   const centreIdFromUrl = searchParams.get("centreId")
   const navigate = useNavigate()
 
-  const [searchText, setSearchText] = useState("")
-  const [selected, setSelected] = useState(null)
-  const [mapInstance, setMapInstance] = useState(null)
+  // Map state
+  const [center, setCenter] = useState({ lat: 1.3521, lng: 103.8198 })
   const [zoom, setZoom] = useState(12)
+  const [mapInstance, setMapInstance] = useState(null)
 
+  // Side menu state
+  const [panelSelected, setPanelSelected] = useState(null)
+
+  // Popup state
+  const [popupSelected, setPopupSelected] = useState(null)
+  const [showPopup, setShowPopup] = useState(false)
+  const [popupPos, setPopupPos] = useState(null)
+  const [activeImageIndex, setActiveImageIndex] = useState(0)
+
+  // Search UI
+  const [searchText, setSearchText] = useState("")
+  const [isSearchDirty, setIsSearchDirty] = useState(false)
+
+  // Travel / directions
   const [travelMode, setTravelMode] = useState("DRIVING")
-  
-  // "activeDirections" is what is drawn on the map (The Blue Line)
   const [activeDirections, setActiveDirections] = useState(null)
-  
-  // "previewDistance" is used just for the popup text (The "13.5km" text)
-  const [previewDistance, setPreviewDistance] = useState("")
-  
   const [directionsError, setDirectionsError] = useState("")
   const [isRouting, setIsRouting] = useState(false)
 
+  // Preview distance
+  const [previewDistance, setPreviewDistance] = useState("")
+
+  // Location
   const [userLocation, setUserLocation] = useState(null)
   const [isLocating, setIsLocating] = useState(false)
   const [locationError, setLocationError] = useState("")
 
+  // Transit route UI
   const [selectedRouteIndex, setSelectedRouteIndex] = useState(0)
   const [showRouteDetails, setShowRouteDetails] = useState(true)
   const [isTransitChoosingRoute, setIsTransitChoosingRoute] = useState(true)
 
+  // Origin search
   const [originText, setOriginText] = useState("")
   const [originSuggestions, setOriginSuggestions] = useState([])
   const [originLocation, setOriginLocation] = useState(null)
 
-  const [isSearchDirty, setIsSearchDirty] = useState(false)
   const [hasInitialCentered, setHasInitialCentered] = useState(false)
-
-  const [showPopup, setShowPopup] = useState(false)
-  const [popupPos, setPopupPos] = useState(null)
 
   const directionsRendererInstanceRef = useRef(null)
   const mapWrapRef = useRef(null)
 
-  const clearDirections = () => {
+  const forceMapResize = useCallback(map => {
+    if (!map || !window.google?.maps?.event) return
+    requestAnimationFrame(() => {
+      window.google.maps.event.trigger(map, "resize")
+      requestAnimationFrame(() => {
+        window.google.maps.event.trigger(map, "resize")
+        const c = map.getCenter()
+        if (c) map.setCenter(c)
+      })
+    })
+  }, [])
+
+  const clearDirections = useCallback(() => {
     setActiveDirections(null)
     setDirectionsError("")
     setSelectedRouteIndex(0)
     setShowRouteDetails(true)
     setIsTransitChoosingRoute(true)
-  }
+
+    const r = directionsRendererInstanceRef.current
+    if (r) {
+      r.setDirections({ routes: [] }) // hard clear polyline
+      r.setMap(null)
+    }
+  }, [])
 
   const focusedCentre = useMemo(
-    () => centres.find(c => c.id === centreIdFromUrl),
+    () => centres.find(c => String(c.id) === String(centreIdFromUrl)),
     [centres, centreIdFromUrl]
   )
 
@@ -186,24 +230,17 @@ export default function HawkerMap() {
   const matchingCentres = useMemo(() => {
     if (!searchText.trim()) return []
     const q = searchText.toLowerCase()
-    return centres.filter(c => c.name.toLowerCase().includes(q))
+    return centres.filter(c => (c.name || "").toLowerCase().includes(q))
   }, [centres, searchText])
 
-  // Filter routes for the map line
-  const displayedDirections = useMemo(() => {
-    if (!activeDirections || !activeDirections.routes || !activeDirections.routes[selectedRouteIndex]) {
-      return null
-    }
-    return {
-      ...activeDirections,
-      routes: [activeDirections.routes[selectedRouteIndex]]
-    }
-  }, [activeDirections, selectedRouteIndex])
-
-  // ✅ 1. PREVIEW DISTANCE CALCULATION
-  // When 'selected' changes, we silently calculate distance WITHOUT drawing the line.
+  // Reset gallery index when popup changes
   useEffect(() => {
-    if (!window.google?.maps || !selected) {
+    setActiveImageIndex(0)
+  }, [popupSelected])
+
+  // Calculate preview distance (crow flies / simple driving query) for the popup
+  useEffect(() => {
+    if (!window.google?.maps || !popupSelected) {
       setPreviewDistance("")
       return
     }
@@ -214,54 +251,55 @@ export default function HawkerMap() {
       return
     }
 
-    const dest = {
-      lat: Number(selected.latitude),
-      lng: Number(selected.longitude)
+    const dest = { lat: Number(popupSelected.latitude), lng: Number(popupSelected.longitude) }
+    if (!Number.isFinite(dest.lat) || !Number.isFinite(dest.lng)) {
+      setPreviewDistance("")
+      return
     }
 
-    // Use DirectionsService (Reliable) instead of DistanceMatrix (Legacy/Error prone)
     const service = new window.google.maps.DirectionsService()
     service.route(
       {
         origin,
         destination: dest,
-        travelMode: window.google.maps.TravelMode.DRIVING // Default to driving for preview
+        travelMode: window.google.maps.TravelMode.DRIVING
       },
       (result, status) => {
-        if (status === "OK" && result.routes?.[0]?.legs?.[0]) {
+        if (status === "OK" && result?.routes?.[0]?.legs?.[0]) {
           const leg = result.routes[0].legs[0]
-          // e.g. "13.5 km"
           setPreviewDistance(leg.distance?.text || "")
         } else {
           setPreviewDistance("")
         }
       }
     )
-  }, [selected, originLocation, userLocation])
+  }, [popupSelected, originLocation, userLocation])
 
-  // ✅ 2. MANUAL RENDERER (Ghost Line Fix)
+  // RENDER DIRECTIONS ON MAP
   useEffect(() => {
     if (!mapInstance || !window.google?.maps) return
 
     if (!directionsRendererInstanceRef.current) {
       directionsRendererInstanceRef.current = new window.google.maps.DirectionsRenderer({
         suppressMarkers: true,
-        preserveViewport: true,
+        preserveViewport: true // We handle bounds manually in runRoute
       })
     }
 
     const renderer = directionsRendererInstanceRef.current
 
-    if (displayedDirections) {
-      renderer.setMap(mapInstance)
-      renderer.setDirections(displayedDirections)
-      renderer.setRouteIndex(0)
-    } else {
-      renderer.setMap(null)
-    }
-  }, [mapInstance, displayedDirections])
+    // Always detach + clear first to prevent stale polyline
+    renderer.setDirections({ routes: [] })
+    renderer.setMap(null)
 
-  // Initial Center
+    if (activeDirections) {
+      renderer.setMap(mapInstance)
+      renderer.setDirections(activeDirections)
+      renderer.setRouteIndex(selectedRouteIndex)
+    }
+  }, [mapInstance, activeDirections, selectedRouteIndex])
+
+  // Initial centering logic
   useEffect(() => {
     if (!mapInstance || hasInitialCentered || !baseCentre) return
 
@@ -272,68 +310,99 @@ export default function HawkerMap() {
 
     mapInstance.setCenter(target)
     mapInstance.setZoom(14)
+    setCenter(target)
     setZoom(14)
     setHasInitialCentered(true)
-  }, [mapInstance, baseCentre, hasInitialCentered])
 
-  // Grey Map Fix
+    forceMapResize(mapInstance)
+  }, [mapInstance, baseCentre, hasInitialCentered, forceMapResize])
+
+  // Resize observer
   useEffect(() => {
     if (!mapInstance || !mapWrapRef.current) return
 
-    const observer = new ResizeObserver(() => {
-      if (window.google?.maps?.event) {
-        window.google.maps.event.trigger(mapInstance, "resize")
-        const c = mapInstance.getCenter()
-        if (c) mapInstance.setCenter(c)
-      }
-    })
-
+    const observer = new ResizeObserver(() => forceMapResize(mapInstance))
     observer.observe(mapWrapRef.current)
     return () => observer.disconnect()
-  }, [mapInstance])
+  }, [mapInstance, forceMapResize])
 
-  // Initial URL load
+  // URL sync logic
   useEffect(() => {
     if (!focusedCentre) return
 
-    setSelected(focusedCentre)
+    setPanelSelected(focusedCentre)
     setSearchText(focusedCentre.name)
     setIsSearchDirty(false)
 
     const lat = Number(focusedCentre.latitude)
     const lng = Number(focusedCentre.longitude)
+
     if (Number.isFinite(lat) && Number.isFinite(lng)) {
-      setPopupPos({ lat, lng })
-      setShowPopup(true)
+      const pos = { lat, lng }
+      setCenter(pos)
+      setZoom(14)
+
+      setPopupSelected(focusedCentre)
+      setPopupPos(pos)
+      setShowPopup(false)
+    } else {
+      setPopupSelected(null)
+      setPopupPos(null)
+      setShowPopup(false)
     }
 
     clearDirections()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [focusedCentre])
+  }, [focusedCentre, clearDirections])
 
-  const handleSelectCentre = (centre, updateInput = true) => {
-    setSelected(centre)
-    
-    // Only update search bar if clicked from list (updateInput=true).
-    // If clicked on map, keep search bar as is.
-    if (updateInput) {
-      setSearchText(centre.name)
-    }
-    
-    setIsSearchDirty(false)
+  const handleMarkerClick = useCallback(centre => {
+    setPopupSelected(centre)
 
     const lat = Number(centre.latitude)
     const lng = Number(centre.longitude)
     if (Number.isFinite(lat) && Number.isFinite(lng)) {
-      setPopupPos({ lat, lng })
+      const pos = { lat, lng }
+      setPopupPos(pos)
       setShowPopup(true)
     } else {
       setPopupPos(null)
       setShowPopup(false)
     }
+  }, [])
 
-    // Clear the blue line when picking a new place, until they click "Get Directions"
-    clearDirections()
+  const handleSelectCentreFromList = useCallback(
+    centre => {
+      setPanelSelected(centre)
+      setPopupSelected(centre)
+      setSearchText(centre.name)
+      setIsSearchDirty(false)
+
+      const lat = Number(centre.latitude)
+      const lng = Number(centre.longitude)
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        const pos = { lat, lng }
+        setPopupPos(pos)
+        setShowPopup(true)
+
+        if (mapInstance) {
+          mapInstance.panTo(pos)
+          mapInstance.setZoom(15)
+        }
+      } else {
+        setPopupPos(null)
+        setShowPopup(false)
+      }
+
+      clearDirections()
+    },
+    [clearDirections, mapInstance]
+  )
+
+  // Origin Handlers
+  const handleOriginFocus = () => {
+    if (originText === "Current location" || originText === "📍 Detecting location...") {
+      setOriginText("")
+    }
+    setOriginSuggestions([CURRENT_LOC_OPTION])
   }
 
   const handleOriginChange = e => {
@@ -341,8 +410,13 @@ export default function HawkerMap() {
     setOriginText(value)
     setOriginLocation(null)
 
-    if (!value.trim() || !window.google?.maps?.places) {
-      setOriginSuggestions([])
+    if (!value.trim()) {
+      setOriginSuggestions([CURRENT_LOC_OPTION])
+      return
+    }
+
+    if (!window.google?.maps?.places) {
+      setOriginSuggestions([CURRENT_LOC_OPTION])
       return
     }
 
@@ -358,59 +432,87 @@ export default function HawkerMap() {
     }
 
     service.getPlacePredictions(request, (predictions, status) => {
-      if (status !== "OK" || !predictions) {
-        setOriginSuggestions([])
-        return
-      }
-      setOriginSuggestions(predictions)
+      const googleResults = status === "OK" && predictions ? predictions : []
+      setOriginSuggestions([CURRENT_LOC_OPTION, ...googleResults])
     })
   }
 
   const handleSelectOriginSuggestion = prediction => {
-    setOriginText(prediction.description)
-    setOriginSuggestions([])
+    if (prediction.place_id === CURRENT_LOC_OPTION.place_id) {
+      setOriginText("📍 Detecting location...")
+      setOriginSuggestions([])
 
-    if (!window.google?.maps) return
+      if (!navigator.geolocation) {
+        setLocationError("Geolocation not supported.")
+        setOriginText("")
+        return
+      }
 
-    const placesService = new window.google.maps.places.PlacesService(
-      mapInstance || document.createElement("div")
-    )
-
-    placesService.getDetails(
-      { placeId: prediction.place_id, fields: ["geometry"] },
-      (place, status) => {
-        if (status === "OK" && place?.geometry?.location) {
-          const loc = {
-            lat: place.geometry.location.lat(),
-            lng: place.geometry.location.lng()
-          }
-          setOriginLocation(loc)
+      setIsLocating(true)
+      navigator.geolocation.getCurrentPosition(
+        position => {
+          const loc = { lat: position.coords.latitude, lng: position.coords.longitude }
           setUserLocation(loc)
+          setOriginLocation(loc)
+          setOriginText("Current location")
+          setIsLocating(false)
 
           if (mapInstance) {
             mapInstance.panTo(loc)
             mapInstance.setZoom(15)
             setZoom(15)
           }
+        },
+        () => {
+          setIsLocating(false)
+          setOriginText("")
+          setLocationError("Unable to get location.")
+        }
+      )
+      return
+    }
+
+    setOriginText(prediction.description)
+    setOriginSuggestions([])
+
+    if (!window.google?.maps) return
+
+    const placesService = new window.google.maps.places.PlacesService(mapInstance || document.createElement("div"))
+
+    placesService.getDetails({ placeId: prediction.place_id, fields: ["geometry"] }, (place, status) => {
+      if (status === "OK" && place?.geometry?.location) {
+        const loc = { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() }
+        setOriginLocation(loc)
+        setUserLocation(loc)
+        setCenter(loc)
+
+        if (mapInstance) {
+          mapInstance.panTo(loc)
+          mapInstance.setZoom(15)
+          setZoom(15)
         }
       }
-    )
+    })
   }
 
-  const runRoute = origin => {
-    if (!selected || !window.google) return
+  const runRoute = (origin, destCentre) => {
+    const target = destCentre || panelSelected
+    if (!target || !window.google) return
 
     setIsRouting(true)
     setDirectionsError("")
-    // NOTE: clearDirections clears 'activeDirections', removing the blue line
     clearDirections()
+
+    const dest = { lat: Number(target.latitude), lng: Number(target.longitude) }
+    if (!Number.isFinite(dest.lat) || !Number.isFinite(dest.lng)) {
+      setIsRouting(false)
+      setDirectionsError("Destination has invalid coordinates.")
+      return
+    }
 
     const request = {
       origin,
-      destination: {
-        lat: Number(selected.latitude),
-        lng: Number(selected.longitude)
-      },
+      destination: dest,
       travelMode: window.google.maps.TravelMode[travelMode]
     }
 
@@ -418,22 +520,16 @@ export default function HawkerMap() {
       request.provideRouteAlternatives = true
       request.transitOptions = {
         departureTime: new Date(),
-        modes: [
-          window.google.maps.TransitMode.BUS,
-          window.google.maps.TransitMode.RAIL
-        ]
+        modes: [window.google.maps.TransitMode.BUS, window.google.maps.TransitMode.RAIL]
       }
     }
 
     const service = new window.google.maps.DirectionsService()
-
     service.route(request, (result, status) => {
       setIsRouting(false)
 
-      if (status === "OK" && result && typeof result === "object" && Array.isArray(result.routes)) {
-        // ✅ Sets the active route, which draws the blue line
+      if (status === "OK" && result && Array.isArray(result.routes)) {
         setActiveDirections(result)
-        
         if (travelMode === "TRANSIT") setIsTransitChoosingRoute(true)
 
         if (mapInstance && result.routes?.[0]?.bounds) {
@@ -441,26 +537,28 @@ export default function HawkerMap() {
         }
       } else {
         setActiveDirections(null)
-        setDirectionsError(
-          "Could not find a route – try another mode or move the map."
-        )
+        setDirectionsError("Could not find a route – try another mode or move the map.")
       }
     })
   }
 
-  const handleGetDirections = () => {
-    if (!selected || !mapInstance) return
+  const handleGetDirectionsFromPopup = () => {
+    if (!popupSelected || !mapInstance) return
 
-    // ✅ Update Input Text ONLY when Get Directions is clicked
-    setSearchText(selected.name)
+    setShowPopup(false)
+    setPanelSelected(popupSelected)
+    setSearchText(popupSelected.name)
+    setIsSearchDirty(false)
+
+    clearDirections()
 
     if (originLocation) {
-      runRoute(originLocation)
+      runRoute(originLocation, popupSelected)
       return
     }
 
     if (userLocation) {
-      runRoute(userLocation)
+      runRoute(userLocation, popupSelected)
       if (!originText) setOriginText("Current location")
       return
     }
@@ -475,26 +573,22 @@ export default function HawkerMap() {
 
     navigator.geolocation.getCurrentPosition(
       position => {
-        const loc = {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude
-        }
+        const loc = { lat: position.coords.latitude, lng: position.coords.longitude }
         setUserLocation(loc)
         setOriginLocation(loc)
         setOriginText("Current location")
         setIsLocating(false)
 
+        setCenter(loc)
         mapInstance.panTo(loc)
         mapInstance.setZoom(15)
         setZoom(15)
 
-        runRoute(loc)
+        runRoute(loc, popupSelected)
       },
       () => {
         setIsLocating(false)
-        setLocationError(
-          "Unable to get your location. Check browser permissions."
-        )
+        setLocationError("Unable to get your location. Check browser permissions.")
       }
     )
   }
@@ -505,48 +599,83 @@ export default function HawkerMap() {
     setIsSearchDirty(true)
   }
 
+  const stallImages = useMemo(() => {
+    if (!popupSelected?.stalls || !Array.isArray(popupSelected.stalls)) return []
+
+    const pickImage = stall =>
+      stall?.image ||
+      stall?.imageUrl ||
+      stall?.image_url ||
+      stall?.photo ||
+      stall?.photoUrl ||
+      stall?.photo_url ||
+      stall?.thumbnail ||
+      stall?.thumbnailUrl ||
+      stall?.thumbnail_url ||
+      null
+
+    return popupSelected.stalls
+      .map(s => pickImage(s))
+      .filter(Boolean)
+      .slice(0, 5)
+      .map(p => getImageUrl(p))
+  }, [popupSelected])
+
+  // Navigation handlers (CLAMPED)
+  const handleNextImage = (e) => {
+    e.stopPropagation()
+    setActiveImageIndex((prev) => Math.min(prev + 1, stallImages.length - 1))
+  }
+
+  const handlePrevImage = (e) => {
+    e.stopPropagation()
+    setActiveImageIndex((prev) => Math.max(prev - 1, 0))
+  }
+
+  // Navigation state checks
+  const hasImages = stallImages.length > 0
+  const hasPrev = hasImages && activeImageIndex > 0
+  const hasNext = hasImages && activeImageIndex < stallImages.length - 1
+
   const currentRoute = activeDirections?.routes?.[selectedRouteIndex] || null
   const currentLeg = currentRoute?.legs?.[0] || null
-
-  // ✅ 3. GET STALL IMAGES FROM BACKEND DATA
-  const stallImages = useMemo(() => {
-    if (!selected || !selected.stalls || !Array.isArray(selected.stalls)) return []
-    return selected.stalls
-      .filter(s => s.image) // Only take stalls that have an image property
-      .slice(0, 3)          // Take top 3
-      .map(s => getImageUrl(s.image)) // Format URL
-  }, [selected])
+  const heroImage = stallImages[activeImageIndex] || stallImages[0] || null
 
   if (!isLoaded) return <div className="p-6">Loading map…</div>
   if (isLoading) return <div className="p-6">Loading hawker centres…</div>
 
   const upvotes =
-    selected?.upvotes ??
-    selected?.upvoteCount ??
-    selected?.upvote_count ??
-    selected?.likes ??
+    panelSelected?.upvotes ??
+    panelSelected?.upvoteCount ??
+    panelSelected?.upvote_count ??
+    panelSelected?.likes ??
     0
 
+  const POPUP_WIDTH = 280
+  const MARKER_HEIGHT = 30
+  const GAP = 12
+  const POPUP_HEIGHT = 260
+
   return (
-    <div className="w-full min-h-screen bg-[#F6FBF2]">
+    <div className={`w-full min-h-screen bg-[#F6FBF2] ${showPopup ? "popup-open" : ""}`}>
+      <style>
+        {`
+          .popup-open .hawker-label {
+            opacity: 0;
+            transition: opacity 120ms ease;
+          }
+        `}
+      </style>
+
       <div className="relative w-full h-[100dvh]">
         <div ref={mapWrapRef} className="absolute inset-0">
           <GoogleMap
             mapContainerStyle={containerStyle}
-            defaultCenter={{ lat: 1.3521, lng: 103.8198 }}
-            defaultZoom={12}
+            center={center}
+            zoom={zoom}
             onLoad={map => {
               setMapInstance(map)
-              const z = map.getZoom()
-              if (typeof z === "number") setZoom(z)
-
-              setTimeout(() => {
-                if (map) {
-                  window.google.maps.event.trigger(map, "resize")
-                  const currentCenter = map.getCenter()
-                  if (currentCenter) map.setCenter(currentCenter)
-                }
-              }, 200)
+              forceMapResize(map)
             }}
             onZoomChanged={() => {
               if (!mapInstance) return
@@ -560,14 +689,7 @@ export default function HawkerMap() {
               mapTypeControl: false,
               fullscreenControl: false,
               streetViewControl: false,
-              clickableIcons: false,
-              styles: [
-                {
-                  featureType: "transit.station.rail",
-                  elementType: "labels.icon",
-                  stylers: [{ visibility: "off" }]
-                }
-              ]
+              clickableIcons: false
             }}
           >
             {userLocation && (
@@ -578,30 +700,34 @@ export default function HawkerMap() {
               />
             )}
 
+            {/* Stable Mapping Handler */}
             {mapInstance &&
               centres.map(c => (
                 <HawkerCentreMarker
                   key={c.id}
                   map={mapInstance}
                   centre={c}
-                  isSelected={selected?.id === c.id}
+                  isSelected={panelSelected?.id === c.id}
                   isMain={focusedCentre?.id === c.id}
                   zoom={zoom}
-                  onClick={() => handleSelectCentre(c, false)}
+                  onMarkerClick={handleMarkerClick}
                 />
               ))}
 
-            {/* ✅ REDESIGNED POPUP WINDOW */}
-            {selected && showPopup && popupPos && (
+            {popupSelected && showPopup && popupPos && (
               <OverlayView
                 position={popupPos}
                 mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
-                getPixelPositionOffset={() => ({ x: -140, y: -260 })}
+                getPixelPositionOffset={() => ({
+                  x: -(POPUP_WIDTH / 2),
+                  y: -(POPUP_HEIGHT + MARKER_HEIGHT + GAP)
+                })}
               >
                 <div
                   style={{
-                    width: 280,
+                    width: POPUP_WIDTH,
                     borderRadius: 12,
+                    zIndex: 5000,
                     overflow: "hidden",
                     boxShadow: "0 4px 25px rgba(0,0,0,0.25)",
                     background: "white",
@@ -628,7 +754,7 @@ export default function HawkerMap() {
                       fontSize: 18,
                       lineHeight: "28px",
                       cursor: "pointer",
-                      zIndex: 10,
+                      zIndex: 30, // Higher than dots
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center"
@@ -638,46 +764,185 @@ export default function HawkerMap() {
                     ×
                   </button>
 
-                  {/* Stall Images (Top 3) */}
-                  <div style={{ display: "flex", height: 130, width: "100%", background: "#f3f4f6" }}>
-                    {stallImages.length > 0 ? (
-                      stallImages.map((img, idx) => (
-                        <div key={idx} style={{ flex: 1, borderRight: idx < stallImages.length - 1 ? "1px solid white" : "none" }}>
-                          <img 
-                            src={img} 
-                            alt="Stall" 
-                            style={{ width: "100%", height: "100%", objectFit: "cover" }} 
+                  {/* CAROUSEL IMAGE AREA */}
+                  <div
+                    style={{
+                      height: 150,
+                      width: "100%",
+                      backgroundColor: "#e5e7eb",
+                      position: "relative",
+                      overflow: "hidden"
+                    }}
+                  >
+                    {/* Main Image Layer */}
+                    <div
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        backgroundImage: heroImage ? `url(${heroImage})` : "none",
+                        backgroundSize: "cover",
+                        backgroundPosition: "center",
+                        transition: "background-image 0.3s ease-in-out"
+                      }}
+                    />
+
+                    {!heroImage && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          inset: 0,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: "#9ca3af",
+                          fontSize: 40
+                        }}
+                      >
+                        🏪
+                      </div>
+                    )}
+
+                    {/* Gradient Overlay for text/dots legibility */}
+                    <div
+                      style={{
+                        position: "absolute",
+                        inset: 0,
+                        background: "linear-gradient(to bottom, rgba(0,0,0,0) 60%, rgba(0,0,0,0.5) 100%)",
+                        pointerEvents: "none"
+                      }}
+                    />
+
+                    {/* ARROWS - show only when valid */}
+                    {hasPrev && (
+                      <button
+                        type="button"
+                        onClick={handlePrevImage}
+                        style={{
+                          position: "absolute",
+                          left: 8,
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          width: 24,
+                          height: 24,
+                          borderRadius: "50%",
+                          background: "rgba(255,255,255,0.8)",
+                          border: "none",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: 16,
+                          color: "#333",
+                          paddingBottom: 2,
+                          zIndex: 20
+                        }}
+                        aria-label="Previous image"
+                      >
+                        ‹
+                      </button>
+                    )}
+
+                    {hasNext && (
+                      <button
+                        type="button"
+                        onClick={handleNextImage}
+                        style={{
+                          position: "absolute",
+                          right: 8,
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          width: 24,
+                          height: 24,
+                          borderRadius: "50%",
+                          background: "rgba(255,255,255,0.8)",
+                          border: "none",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: 16,
+                          color: "#333",
+                          paddingBottom: 2,
+                          zIndex: 20
+                        }}
+                        aria-label="Next image"
+                      >
+                        ›
+                      </button>
+                    )}
+
+                    {/* PAGINATION DOTS - Only show if > 1 image */}
+                    {stallImages.length > 1 && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          bottom: 10,
+                          left: 0,
+                          right: 0,
+                          display: "flex",
+                          justifyContent: "center",
+                          gap: 6,
+                          zIndex: 20
+                        }}
+                      >
+                        {stallImages.map((_, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setActiveImageIndex(idx)
+                            }}
+                            style={{
+                              width: 6,
+                              height: 6,
+                              borderRadius: "50%",
+                              background: idx === activeImageIndex ? "#FFFFFF" : "rgba(255,255,255,0.5)",
+                              border: "none",
+                              padding: 0,
+                              cursor: "pointer",
+                              transition: "background 0.2s"
+                            }}
                           />
-                        </div>
-                      ))
-                    ) : (
-                      // Fallback if no stall images found in backend data
-                      <div style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "#e5e7eb", color: "#9ca3af" }}>
-                        <span style={{ fontSize: 40 }}>🏪</span>
+                        ))}
                       </div>
                     )}
                   </div>
 
-                  {/* Info Section */}
                   <div style={{ padding: "12px 16px" }}>
-                    <div style={{ fontSize: 16, fontWeight: 700, color: "#111827", lineHeight: "1.2", marginBottom: 6 }}>
-                      {selected.name}
+                    <div
+                      style={{
+                        fontSize: 16,
+                        fontWeight: 700,
+                        color: "#111827",
+                        lineHeight: "1.2",
+                        marginBottom: 6
+                      }}
+                    >
+                      {popupSelected.name}
                     </div>
 
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#4B5563", marginBottom: 14 }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                        fontSize: 13,
+                        color: "#4B5563",
+                        marginBottom: 14
+                      }}
+                    >
                       <span style={{ fontSize: 14 }}>🚗</span>
                       {previewDistance ? (
                         <span>{previewDistance} by car</span>
                       ) : (
-                        <span>
-                          {userLocation ? "Calculating..." : "Enter location for distance"}
-                        </span>
+                        <span>{userLocation ? "Calculating..." : "Enter location for distance"}</span>
                       )}
                     </div>
 
                     <button
                       type="button"
-                      onClick={handleGetDirections}
+                      onClick={handleGetDirectionsFromPopup}
                       disabled={isRouting || isLocating}
                       style={{
                         width: "100%",
@@ -692,11 +957,7 @@ export default function HawkerMap() {
                         opacity: isRouting || isLocating ? 0.7 : 1
                       }}
                     >
-                      {isLocating
-                        ? "Detecting location..."
-                        : isRouting
-                        ? "Finding route..."
-                        : "Get directions"}
+                      {isLocating ? "Detecting location..." : isRouting ? "Finding route..." : "Get directions"}
                     </button>
                   </div>
                 </div>
@@ -705,6 +966,7 @@ export default function HawkerMap() {
           </GoogleMap>
         </div>
 
+        {/* SIDE MENU */}
         <div className="absolute left-6 top-6 z-20 max-w-sm w-[430px] bg-white rounded-[24px] shadow-lg p-6">
           <div className="mb-4 flex items-center gap-2">
             <button
@@ -715,17 +977,12 @@ export default function HawkerMap() {
               ←
             </button>
             <h1 className="text-2xl font-bold text-[#21421B]">
-              Hawker map{" "}
-              <span className="text-xs font-normal text-gray-400">
-                ({centres.length} centres)
-              </span>
+              Hawker map <span className="text-xs font-normal text-gray-400">({centres.length} centres)</span>
             </h1>
           </div>
 
-          <div className="mb-3">
-            <label className="mb-1 block text-xs font-semibold text-gray-700">
-              Your location
-            </label>
+          <div className="mb-4">
+            <label className="mb-1 block text-xs font-semibold text-gray-700">Your location</label>
             <div className="relative">
               <input
                 type="text"
@@ -733,6 +990,7 @@ export default function HawkerMap() {
                 className="w-full rounded-xl border border-[#D1D5DB] px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#21421B]"
                 value={originText}
                 onChange={handleOriginChange}
+                onFocus={handleOriginFocus}
                 autoComplete="off"
               />
 
@@ -745,9 +1003,7 @@ export default function HawkerMap() {
                         className="flex w-full flex-col px-4 py-2 text-left hover:bg-[#F6FBF2]"
                         onClick={() => handleSelectOriginSuggestion(prediction)}
                       >
-                        <span className="text-sm text-gray-900">
-                          {prediction.description}
-                        </span>
+                        <span className="text-sm text-gray-900">{prediction.description}</span>
                       </button>
                     </li>
                   ))}
@@ -766,38 +1022,32 @@ export default function HawkerMap() {
               autoComplete="off"
             />
 
-            {isSearchDirty &&
-              searchText.trim() !== "" &&
-              matchingCentres.length > 0 && (
-                <ul className="absolute z-30 mt-1 max-h-60 w-full overflow-y-auto rounded-2xl border border-[#E5E7EB] bg-white shadow-lg">
-                  {matchingCentres.map(c => (
-                    <li key={c.id}>
-                      <button
-                        type="button"
-                        className="flex w-full flex-col px-4 py-2 text-left hover:bg-[#F6FBF2]"
-                        onClick={() => handleSelectCentre(c, true)}
-                      >
-                        <span className="text-sm font-semibold text-gray-900">
-                          {c.name}
-                        </span>
-                        <span className="text-xs text-gray-500">{c.address}</span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
+            {isSearchDirty && searchText.trim() !== "" && matchingCentres.length > 0 && (
+              <ul className="absolute z-30 mt-1 max-h-60 w-full overflow-y-auto rounded-2xl border border-[#E5E7EB] bg-white shadow-lg">
+                {matchingCentres.map(c => (
+                  <li key={c.id}>
+                    <button
+                      type="button"
+                      className="flex w-full flex-col px-4 py-2 text-left hover:bg-[#F6FBF2]"
+                      onClick={() => handleSelectCentreFromList(c)}
+                    >
+                      <span className="text-sm font-semibold text-gray-900">{c.name}</span>
+                      <span className="text-xs text-gray-500">{c.address}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
           <div className="mt-3 rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm">
-            {selected ? (
+            {panelSelected ? (
               <>
                 <div>
-                  <h2 className="text-base font-semibold text-gray-900">
-                    {selected.name}
-                  </h2>
-                  <p className="mt-1 text-sm text-gray-600">{selected.address}</p>
+                  <h2 className="text-base font-semibold text-gray-900">{panelSelected.name}</h2>
+                  <p className="mt-1 text-sm text-gray-600">{panelSelected.address}</p>
                   <p className="mt-1 text-xs text-gray-400">
-                    Lat {selected.latitude} Lng {selected.longitude}
+                    Lat {panelSelected.latitude} Lng {panelSelected.longitude}
                   </p>
                 </div>
 
@@ -827,38 +1077,36 @@ export default function HawkerMap() {
 
                 <button
                   type="button"
-                  onClick={handleGetDirections}
+                  onClick={() => {
+                    if (!panelSelected) return
+                    // Pass panelSelected explicit to avoid confusion
+                    if (originLocation) return runRoute(originLocation, panelSelected)
+                    if (userLocation) return runRoute(userLocation, panelSelected)
+                    setLocationError("Set your origin above, or allow location access.")
+                  }}
                   disabled={isRouting || isLocating}
                   className="mt-4 w-full rounded-xl bg-[#21421B] px-4 py-2 text-sm font-semibold text-white hover:bg-[#1a3416] disabled:opacity-60"
                 >
-                  {isLocating
-                    ? "Detecting your location…"
-                    : isRouting
-                    ? "Finding route…"
-                    : "Get directions"}
+                  {isRouting ? "Finding route…" : "Re-route to selected"}
                 </button>
 
-                {directionsError && (
-                  <p className="mt-2 text-xs text-red-500">{directionsError}</p>
-                )}
-                {locationError && (
-                  <p className="mt-1 text-xs text-red-500">{locationError}</p>
+                {directionsError && <p className="mt-2 text-xs text-red-500">{directionsError}</p>}
+                {locationError && <p className="mt-1 text-xs text-red-500">{locationError}</p>}
+
+                {Number.isFinite(upvotes) && upvotes > 0 && (
+                  <p className="mt-2 text-[11px] text-gray-500">👍 {upvotes} upvotes</p>
                 )}
 
-                {/* Directions Steps (Left Panel) */}
                 {travelMode === "TRANSIT" && activeDirections?.routes?.length > 0 && (
                   <div className="mt-4 border-t border-[#E5E7EB] pt-3">
                     {isTransitChoosingRoute ? (
                       <>
-                        <p className="text-xs font-semibold text-gray-700">
-                          Choose a route
-                        </p>
+                        <p className="text-xs font-semibold text-gray-700">Choose a route</p>
                         <div className="mt-2 max-h-40 space-y-2 overflow-auto pr-1">
                           {activeDirections.routes.map((route, idx) => {
                             const leg = route.legs?.[0]
                             if (!leg) return null
 
-                            const isActive = idx === selectedRouteIndex
                             const duration = leg.duration?.text
                             const distance = leg.distance?.text
                             const depart = leg.departure_time?.text
@@ -874,7 +1122,7 @@ export default function HawkerMap() {
                                   setIsTransitChoosingRoute(false)
                                 }}
                                 className={`flex w-full items-center justify-between rounded-xl border px-3 py-3 text-left text-xs min-h-[64px] ${
-                                  isActive
+                                  idx === selectedRouteIndex
                                     ? "border-[#21421B] bg-[#F6FBF2]"
                                     : "border-[#E5E7EB] bg-white"
                                 }`}
@@ -884,9 +1132,7 @@ export default function HawkerMap() {
                                     {duration} • {distance}
                                   </span>
                                   {modeSummary && (
-                                    <span className="mt-1 text-[11px] text-gray-600">
-                                      {modeSummary}
-                                    </span>
+                                    <span className="mt-1 text-[11px] text-gray-600">{modeSummary}</span>
                                   )}
                                 </div>
                                 {(depart || arrive) && (
@@ -913,16 +1159,13 @@ export default function HawkerMap() {
                             </button>
                             <div className="text-right text-xs text-gray-700">
                               <p className="font-medium">
-                                {currentLeg.duration?.text} •{" "}
-                                {currentLeg.distance?.text}
+                                {currentLeg.duration?.text} • {currentLeg.distance?.text}
                               </p>
-                              {currentLeg.departure_time?.text &&
-                                currentLeg.arrival_time?.text && (
-                                  <p className="text-[11px] text-gray-500">
-                                    {currentLeg.departure_time.text} –{" "}
-                                    {currentLeg.arrival_time.text}
-                                  </p>
-                                )}
+                              {currentLeg.departure_time?.text && currentLeg.arrival_time?.text && (
+                                <p className="text-[11px] text-gray-500">
+                                  {currentLeg.departure_time.text} – {currentLeg.arrival_time.text}
+                                </p>
+                              )}
                             </div>
                           </div>
 
@@ -930,10 +1173,7 @@ export default function HawkerMap() {
                             {currentLeg.steps.map((step, index) => (
                               <li key={index} className="flex gap-2 pb-3">
                                 <span className="mt-1 h-2 w-2 flex-shrink-0 rounded-full bg-[#21421B]" />
-                                <span>
-                                  {step.instructions.replace(/<[^>]+>/g, "")} (
-                                  {step.distance.text})
-                                </span>
+                                <span>{step.instructions.replace(/<[^>]+>/g, "")} ({step.distance.text})</span>
                               </li>
                             ))}
                           </ul>
@@ -963,10 +1203,7 @@ export default function HawkerMap() {
                         {currentLeg.steps.map((step, index) => (
                           <li key={index} className="flex gap-2 pb-3">
                             <span className="mt-1 h-2 w-2 flex-shrink-0 rounded-full bg-[#21421B]" />
-                            <span>
-                              {step.instructions.replace(/<[^>]+>/g, "")} (
-                              {step.distance.text})
-                            </span>
+                            <span>{step.instructions.replace(/<[^>]+>/g, "")} ({step.distance.text})</span>
                           </li>
                         ))}
                       </ul>
@@ -976,7 +1213,8 @@ export default function HawkerMap() {
               </>
             ) : (
               <p className="text-sm text-gray-600">
-                Tap a hawker icon on the map to see its details and route.
+                Use the search list to choose a centre, or click a marker to preview. The side menu only changes when
+                you tap “Get directions”.
               </p>
             )}
           </div>

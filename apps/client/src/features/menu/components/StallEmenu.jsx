@@ -494,7 +494,7 @@ export default function StallEmenu() {
               onClick={() =>
                 navigate(`/hawker-centres/map?centreId=${stall.hawkerCentreId}`)
               }
-              className="mt-2 inline-flex items-center rounded-lg bg-[#21421B] px-2.5 py-1.5 text-[11px] font-medium text-white hover:bg-[#21421B]/90"
+              className="mt-6 inline-flex items-center rounded-lg bg-[#21421B] px-2.5 py-1.5 text-[11px] font-medium text-white hover:bg-[#21421B]/90"
             >
               View on map
             </button>
