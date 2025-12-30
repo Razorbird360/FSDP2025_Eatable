@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../../lib/api";
 import { usePhotoUpload } from "../context/PhotoUploadContext";
+import ValidationModal from "../../../components/ValidationModal";
+import { toaster } from "../../../components/ui/toaster";
 
 export default function UploadDetails() {
   const navigate = useNavigate();
@@ -23,6 +25,10 @@ export default function UploadDetails() {
   const [description, setDescription] = useState("");
   const [submitError, setSubmitError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Validation states
+  const [validationStatus, setValidationStatus] = useState(null);
+  const [validationMessage, setValidationMessage] = useState("");
 
   useEffect(() => {
     if (!photoFile) {
@@ -107,6 +113,8 @@ export default function UploadDetails() {
 
     setSubmitError(null);
     setIsSubmitting(true);
+    setValidationStatus("validating");
+    setValidationMessage(`Verifying this is ${selectedDish?.name || "the correct dish"}...`);
 
     try {
       const formData = new FormData();
@@ -124,10 +132,32 @@ export default function UploadDetails() {
         formData.append("caption", combinedCaption);
       }
 
-      await api.post("/media/upload", formData, {
+      const res = await api.post("/media/upload", formData, {
         headers: { "Content-Type": "multipart/form-data" },
+        timeout: 35000, // 35 seconds to account for AI validation
       });
 
+      const serverStatus = res.data?.upload?.validationStatus || "pending";
+
+      if (serverStatus !== "approved") {
+        toaster.create({
+          title: "Upload received but not approved",
+          description:
+            "Our reviewers will take a closer look. You can check back later.",
+          type: "warning",
+          duration: 5000,
+        });
+      } else {
+        toaster.create({
+          title: "Photo approved",
+          description: "Your photo passed AI validation.",
+          type: "success",
+          duration: 3500,
+        });
+      }
+
+      // Success - clear state and navigate
+      setValidationStatus(null);
       clearPhotoData();
       setCaption("");
       setDescription("");
@@ -136,14 +166,38 @@ export default function UploadDetails() {
         state: { photoUploaded: true },
       });
     } catch (error) {
-      setSubmitError(
-        error.response?.data?.error ||
-          error.message ||
-          "Failed to upload photo. Please try again."
-      );
+      setValidationStatus(null);
+
+      // Check if it's a validation error (400 with specific message)
+      if (error.response?.status === 400 && error.response?.data?.message) {
+        toaster.create({
+          title: "Validation failed",
+          description: error.response.data.message,
+          type: "error",
+          duration: 5000,
+        });
+
+        // Navigate back to photo upload after showing toast
+        setTimeout(() => {
+          navigate("/photo-upload");
+        }, 1500);
+      } else {
+        setSubmitError(
+          error.response?.data?.error ||
+            error.message ||
+            "Failed to upload photo. Please try again."
+        );
+      }
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleCancelValidation = () => {
+    // Cancel upload validation
+    setValidationStatus(null);
+    setValidationMessage("");
+    setIsSubmitting(false);
   };
 
   return (
@@ -316,6 +370,13 @@ export default function UploadDetails() {
           </div>
         </div>
       </div>
+
+      {/* Validation Modal - Only shows during loading */}
+      <ValidationModal
+        isOpen={validationStatus === "validating"}
+        message={validationMessage}
+        onCancel={handleCancelValidation}
+      />
     </main>
   );
 }

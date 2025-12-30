@@ -38,8 +38,7 @@ export const stallsService = {
             // 1️⃣ Get TOP upload per menu item
             mediaUploads: {
               where: {
-                // optional: only approved uploads
-                //validationStatus: 'approved', //FOR DEMO PURPOSE, WE WILL RETRIEVE ALL UPLOADS AS THERE ISNT A WAY TO APPROVE UPLOADS YET (AWAITING AI SCANING MODERATION FEATURE)
+                validationStatus: 'approved',
               },
               orderBy: [
                 { upvoteCount: 'desc' },   // main sort: most upvotes
@@ -86,7 +85,7 @@ export const stallsService = {
           stallId: stallId, // shorthand `stallId` is also fine
           isActive: true,
         },
-        //validationStatus: 'approved', //FOR DEMO PURPOSE, WE WILL RETRIEVE ALL UPLOADS AS THERE ISNT A WAY TO APPROVE UPLOADS YET (AWAITING AI SCANING MODERATION FEATURE)
+        validationStatus: 'approved',
       },
       orderBy: {
         upvoteCount: 'desc', // or createdAt, etc.

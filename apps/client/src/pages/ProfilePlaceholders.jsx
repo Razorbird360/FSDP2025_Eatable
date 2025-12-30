@@ -1,4 +1,4 @@
-import React from "react";
+import React from 'react';
 
 const PlaceholderPage = ({ title, description }) => (
   <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100 min-h-[400px] flex flex-col items-center justify-center text-center">

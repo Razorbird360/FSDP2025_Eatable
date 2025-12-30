@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Box, Button, HStack, Text, VStack } from '@chakra-ui/react';
 import { toaster } from '../../../components/ui/toaster';
@@ -136,7 +137,7 @@ export default function VerificationModal({ isOpen, onClose, onSuccess: _onSucce
     workerRef.current = worker;
 
     const handleMessage = (event) => {
-      const { type, points, width, height, coverage } = event.data;
+      const { type, points, coverage } = event.data;
       if (type === 'ready') {
         workerReadyRef.current = true;
         if (imagePreviewValueRef.current) {

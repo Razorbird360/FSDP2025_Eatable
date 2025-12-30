@@ -1,9 +1,9 @@
+/* eslint-disable react-refresh/only-export-components */
 import {
   Toaster as ChakraToaster,
   ToastRoot,
   ToastTitle,
   ToastDescription,
-  ToastCloseTrigger,
   ToastIndicator,
   createToaster,
 } from "@chakra-ui/react";
@@ -20,7 +20,7 @@ export function Toaster() {
       {(toast) => (
         <ToastRoot
           key={toast.id}
-          className="mb-2 flex min-w-[220px] items-start gap-2 rounded-xl bg-[#1d1d1d]/95 px-3 py-2 text-white shadow-lg"
+          className="mb-2 flex min-w-[320px] max-w-[400px] items-start gap-2 rounded-xl bg-[#1d1d1d]/95 px-4 py-3 text-white shadow-lg"
         >
           <ToastIndicator className="mt-0.5 text-green-300" />
           <div className="flex-1">

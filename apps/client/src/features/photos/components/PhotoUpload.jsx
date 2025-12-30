@@ -2,12 +2,23 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import switchIcon from "../../../assets/PhotoUpload/switch.svg";
 import { usePhotoUpload } from "../context/PhotoUploadContext";
+import ValidationModal from "../../../components/ValidationModal";
+import { toaster } from "../../../components/ui/toaster";
 
 export default function PhotoUpload() {
   const navigate = useNavigate();
   const videoRef = useRef(null);
   const fileInputRef = useRef(null);
-  const { previewUrl, aspectRatio: storedAspectRatio, setPhotoData } = usePhotoUpload();
+  const {
+    previewUrl,
+    aspectRatio: storedAspectRatio,
+    setPhotoData,
+    validatePhoto,
+    validationStatus,
+    validationMessage,
+    resetValidation,
+    clearPhotoData,
+  } = usePhotoUpload();
 
   const [stream, setStream] = useState(null);
   const [cameraError, setCameraError] = useState(null);
@@ -26,7 +37,7 @@ export default function PhotoUpload() {
     if (storedAspectRatio && storedAspectRatio !== aspectRatio) {
       setAspectRatioState(storedAspectRatio);
     }
-  }, [storedAspectRatio]);
+  }, [storedAspectRatio, aspectRatio]);
 
   useEffect(() => {
     let mounted = true;
@@ -56,11 +67,11 @@ export default function PhotoUpload() {
           return;
         }
 
-        if (stream) {
-          stream.getTracks().forEach((track) => track.stop());
-        }
-
-        setStream(mediaStream);
+        // Stop any existing stream before replacing
+        setStream((prev) => {
+          prev?.getTracks().forEach((track) => track.stop());
+          return mediaStream;
+        });
 
         if (videoRef.current) {
           videoRef.current.srcObject = mediaStream;
@@ -90,11 +101,17 @@ export default function PhotoUpload() {
 
     return () => {
       mounted = false;
+    };
+  }, [selectedCameraId]);
+
+  // Ensure the active stream is stopped on unmount or when replaced
+  useEffect(() => {
+    return () => {
       if (stream) {
         stream.getTracks().forEach((track) => track.stop());
       }
     };
-  }, [selectedCameraId]);
+  }, [stream]);
 
   const handleTakePhoto = async () => {
     if (!videoRef.current) {
@@ -133,6 +150,34 @@ export default function PhotoUpload() {
       const preview = URL.createObjectURL(file);
       setPhotoData({ file, previewUrl: preview, aspectRatio });
       setCameraError(null);
+
+      // Validate the captured photo
+      const result = await validatePhoto(file);
+
+      if (result.success) {
+        // Show success toast
+        toaster.create({
+          title: "Food detected!",
+          description: "Your photo looks great. Proceeding to details...",
+          type: "success",
+          duration: 3000,
+        });
+
+        // Clear validation state; user can proceed with Next button
+        resetValidation();
+      } else {
+        // Show error toast
+        toaster.create({
+          title: "No food detected",
+          description: result.message || "Please upload a photo of food.",
+          type: "error",
+          duration: 5000,
+        });
+
+        // Clear photo and reset
+        resetValidation();
+        clearPhotoData();
+      }
     } catch (error) {
       setCameraError(error.message || "Failed to capture photo");
     }
@@ -142,17 +187,51 @@ export default function PhotoUpload() {
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = (event) => {
+  const handleFileChange = async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     const preview = URL.createObjectURL(file);
     setPhotoData({ file, previewUrl: preview, aspectRatio });
     event.target.value = "";
+
+    // Validate the uploaded photo
+    const result = await validatePhoto(file);
+
+    if (result.success) {
+      // Show success toast
+      toaster.create({
+        title: "Food detected!",
+        description: "Your photo looks great. Proceeding to details...",
+        type: "success",
+        duration: 3000,
+      });
+
+      // Clear validation state; user can proceed with Next button
+      resetValidation();
+    } else {
+      // Show error toast
+      toaster.create({
+        title: "No food detected",
+        description: result.message || "Please upload a photo of food.",
+        type: "error",
+        duration: 5000,
+      });
+
+      // Clear photo and reset
+      resetValidation();
+      clearPhotoData();
+    }
   };
 
   const stopPreview = () => {
     setPhotoData({ file: null, previewUrl: null });
+  };
+
+  const handleCancelValidation = () => {
+    // Cancel validation and clear photo
+    resetValidation();
+    clearPhotoData();
   };
 
   const switchCamera = () => {
@@ -493,7 +572,6 @@ export default function PhotoUpload() {
               />
             </div>
 
-            {/* Mobile: Upload Photo Button */}
             <button
               type="button"
               onClick={handleUploadClick}
@@ -522,7 +600,6 @@ export default function PhotoUpload() {
               </div>
             </button>
 
-            {/* Mobile: Next Button */}
             <button
               type="button"
               onClick={() => navigate("/upload-details")}
@@ -598,6 +675,12 @@ export default function PhotoUpload() {
           </aside>
         </div>
       </div>
+
+      <ValidationModal
+        isOpen={validationStatus === "validating"}
+        message={validationMessage}
+        onCancel={handleCancelValidation}
+      />
     </main>
   );
 }

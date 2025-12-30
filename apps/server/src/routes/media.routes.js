@@ -20,6 +20,13 @@ router.get('/user/:userId', authMiddleware, mediaController.getByUser);
 
 // Protected routes - require authentication
 router.post(
+  '/validate-generic',
+  authMiddleware,
+  upload.single('image'),
+  mediaController.validateGeneric
+);
+
+router.post(
   '/upload',
   authMiddleware,
   upload.single('image'),
