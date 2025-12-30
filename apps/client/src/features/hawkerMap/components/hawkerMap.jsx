@@ -62,7 +62,7 @@ function CustomAdvancedMarker({ map, position, title, content, zIndex, onClick }
       if (clickListener) clickListener.remove()
       marker.map = null
     }
-  }, [map, position?.lat, position?.lng, title, zIndex, content, onClick])
+  }, [map, position, position?.lat, position?.lng, title, zIndex, content, onClick])
 
   return null
 }
