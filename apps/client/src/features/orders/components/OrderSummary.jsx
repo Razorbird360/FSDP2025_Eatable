@@ -16,14 +16,7 @@ export default function OrderSummary() {
   const [loadingVouchers, setLoadingVouchers] = useState(false);
   const [selectedVoucher, setSelectedVoucher] = useState(null);
 
-  const {
-    items,
-    total: cartTotal,   // from CartContext useMemo
-    updateQty,
-    removeItem,          // optional, if you want a remove button
-    refreshCart,
-    closeCart,
-  } = useCart();
+  const { items, total: cartTotal, updateQty, closeCart, refreshCart } = useCart();
 
   // Stall name from first item in cart
   const stallName =

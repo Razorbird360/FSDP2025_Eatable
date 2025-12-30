@@ -15,11 +15,7 @@ export default function Onboarding() {
   const handlePopupClose = async (dontShow) => {
     if (dontShow) {
       try {
-        const res = await api.post("/media/skip-onboarding", { skip: true });
-
-        if (!res.ok) {
-          console.error("Failed to save skip flag", await res.text());
-        }
+        await api.post("/media/skip-onboarding", { skip: true });
       } catch (err) {
         console.error("Failed to save skip flag", err);
       }

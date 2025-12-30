@@ -4,11 +4,12 @@ import uvicorn
 
 from app.routers import health
 from app.routers import id_verification
+from app.routers import food_validation
 
 app = FastAPI(
     title="Eatable AI Service",
-    description="Identity verification and computer vision services",
-    version="1.1.0",
+    description="Identity verification, food validation, and computer vision services",
+    version="1.2.0",
 )
 
 app.add_middleware(
@@ -31,6 +32,7 @@ def root():
 
 app.include_router(health.router)
 app.include_router(id_verification.router)
+app.include_router(food_validation.router)
 
 
 if __name__ == "__main__":

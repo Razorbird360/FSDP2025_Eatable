@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Outlet } from 'react-router-dom';
 import { supabase } from "../lib/supabase";
 import ProfileSidebar from '../components/ProfileSidebar';
@@ -18,7 +18,7 @@ export default function ProfileLayout() {
     // ---------------------------
     //   Load profile from backend
     // ---------------------------
-    async function loadProfile() {
+    const loadProfile = useCallback(async () => {
         setLoading(true);
 
         const token = await getToken();
@@ -47,11 +47,11 @@ export default function ProfileLayout() {
         } finally {
             setLoading(false);
         }
-    }
+    }, []);
 
     useEffect(() => {
         loadProfile();
-    }, []);
+    }, [loadProfile]);
 
     // Helper to get initials
     const getInitials = (p) => {
