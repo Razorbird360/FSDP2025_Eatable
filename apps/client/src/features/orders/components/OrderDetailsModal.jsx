@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
+
 import { useNavigate } from 'react-router-dom';
-import api from '../../../lib/api';
 import logo_full from '../../../assets/logo/logo_full.png';
 import qrImg from '../../../assets/logo/QrPlaceholder.png';
 import locationImg from '../../../assets/logo/LocationIcon.png';
