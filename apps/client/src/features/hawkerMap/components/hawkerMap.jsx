@@ -2,7 +2,8 @@ import { useState, useMemo, useEffect, useRef, useCallback } from "react"
 import hawkerIcon from "../../../assets/icons/hawker-featured.png"
 import { useSearchParams, useNavigate } from "react-router-dom"
 import { GoogleMap, Marker, OverlayView, useLoadScript } from "@react-google-maps/api"
-import { useHawkerCentres } from "../../hawkerCentres/hooks/useHawkerCentres"
+import { useHawkerCentres } from "../hooks/hawkerMap"
+
 
 const containerStyle = { width: "100%", height: "100dvh" }
 const libraries = ["places", "marker"]
@@ -68,63 +69,71 @@ function CustomAdvancedMarker({ map, position, title, content, zIndex, onClick }
 
 // Stable Marker Component
 function HawkerCentreMarker({ map, centre, isSelected, isMain, zoom, onMarkerClick }) {
-  if (!centre) return null
-  const lat = Number(centre.latitude)
-  const lng = Number(centre.longitude)
-  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null
+  // compute values without hooks (safe even if centre is null)
+  const lat = Number(centre?.latitude);
+  const lng = Number(centre?.longitude);
+  const hasValidPos = Number.isFinite(lat) && Number.isFinite(lng);
 
-  const LABEL_ZOOM_THRESHOLD = 11
-  const showLabel = isMain || isSelected || (zoom ?? 0) >= LABEL_ZOOM_THRESHOLD
+  const LABEL_ZOOM_THRESHOLD = 11;
+  const showLabel = Boolean(centre) && (isMain || isSelected || (zoom ?? 0) >= LABEL_ZOOM_THRESHOLD);
 
-  // Stable click handler
+  // hooks must be called unconditionally
   const handleClick = useCallback(() => {
-    onMarkerClick?.(centre)
-  }, [onMarkerClick, centre])
+    if (!centre) return;
+    onMarkerClick?.(centre);
+  }, [onMarkerClick, centre]);
 
-  // Stable DOM content (only changes when label state changes)
   const content = useMemo(() => {
-    const wrapper = document.createElement("div")
-    wrapper.className = "hawker-marker relative flex items-center justify-center"
-    wrapper.style.width = "16px"
-    wrapper.style.height = "16px"
+    // return null safely when we cannot build content
+    if (!centre) return null;
+    if (typeof document === "undefined") return null;
 
-    const icon = document.createElement("img")
-    icon.src = hawkerIcon
-    icon.style.width = "30px"
-    icon.style.height = "30px"
-    icon.style.position = "absolute"
-    icon.style.left = "50%"
-    icon.style.top = "50%"
-    icon.style.transform = "translate(-50%, -50%)"
-    wrapper.appendChild(icon)
+    const wrapper = document.createElement("div");
+    wrapper.className = "hawker-marker relative flex items-center justify-center";
+    wrapper.style.width = "16px";
+    wrapper.style.height = "16px";
+
+    const icon = document.createElement("img");
+    icon.src = hawkerIcon;
+    icon.style.width = "30px";
+    icon.style.height = "30px";
+    icon.style.position = "absolute";
+    icon.style.left = "50%";
+    icon.style.top = "50%";
+    icon.style.transform = "translate(-50%, -50%)";
+    wrapper.appendChild(icon);
 
     if (showLabel) {
-      const label = document.createElement("div")
+      const label = document.createElement("div");
       label.className =
         "hawker-label rounded-full px-3 py-1 text-[11px] font-semibold shadow-md border border-white whitespace-nowrap " +
-        (isSelected ? "bg-orange-500 text-white" : "bg-green-600 text-white")
-      label.textContent = centre.name
-      label.style.position = "absolute"
-      label.style.left = "18px"
-      label.style.top = "50%"
-      label.style.transform = "translateY(-50%)"
-      wrapper.appendChild(label)
+        (isSelected ? "bg-orange-500 text-white" : "bg-green-600 text-white");
+      label.textContent = centre.name || "";
+      label.style.position = "absolute";
+      label.style.left = "18px";
+      label.style.top = "50%";
+      label.style.transform = "translateY(-50%)";
+      wrapper.appendChild(label);
     }
 
-    return wrapper
-  }, [centre.name, showLabel, isSelected])
+    return wrapper;
+  }, [centre, showLabel, isSelected]);
+
+  // now it is safe to return conditionally (after hooks)
+  if (!centre || !hasValidPos) return null;
 
   return (
     <CustomAdvancedMarker
       map={map}
       position={{ lat, lng }}
       title={centre.name}
-      content={content}
+      content={content || undefined}
       zIndex={isSelected ? 3000 : isMain ? 2500 : 1000}
       onClick={handleClick}
     />
-  )
+  );
 }
+
 
 export default function HawkerMap() {
   const { hawkerCentres: centres = [], loading: isLoading } = useHawkerCentres()
