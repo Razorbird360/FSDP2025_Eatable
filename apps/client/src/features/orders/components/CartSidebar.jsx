@@ -1,6 +1,5 @@
 import { useCart } from "./CartContext";
 import { useNavigate } from "react-router-dom";
-import api from "../../../lib/api";
 
 
 /* back arrow */
@@ -18,24 +17,9 @@ function BackIcon(props) {
 }
 
 /* small clock */
-function ClockIcon(props) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" {...props}>
-      <circle cx="12" cy="12" r="9" strokeWidth="2" />
-      <path
-        d="M12 7v5l3 2"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-
 export default function CartSidebar() {
   const navigate = useNavigate();
-  const { items, total, isOpen, closeCart, updateQty, removeItem, refreshCart } = useCart();
+  const { items, total, isOpen, closeCart, updateQty, removeItem } = useCart();
 
   const hasItems = items.length > 0;
   const first = hasItems ? items[0] : null;

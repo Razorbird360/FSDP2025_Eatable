@@ -10,14 +10,7 @@ export default function OrderSummary() {
     const [serviceFee, setServiceFee] = useState(0);
     const [loadingFee, setLoadingFee] = useState(true);
 
-  const {
-    items,
-    total: cartTotal,   // from CartContext useMemo
-    updateQty,
-    removeItem,          // optional, if you want a remove button
-    refreshCart,
-    closeCart,
-  } = useCart();
+  const { items, total: cartTotal, updateQty, closeCart, refreshCart } = useCart();
 
   // Stall name from first item in cart
   const stallName =

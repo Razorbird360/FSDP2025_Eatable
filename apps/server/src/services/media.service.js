@@ -4,7 +4,7 @@ import prisma from '../lib/prisma.js';
  * MediaUpload table CRUD operations
  * Follows the pattern of menu.service.js, stalls.service.js, user.service.js
  */
-const ALLOWED_UPDATE_FIELDS = ['caption', 'validationStatus', 'rejectionReason'];
+const ALLOWED_UPDATE_FIELDS = ['caption', 'validationStatus'];
 
 const sanitizeUpdateData = (data = {}) => {
   const safeData = {};
@@ -32,7 +32,14 @@ export const mediaService = {
    * @param {string} data.caption - Optional caption
    * @returns {Promise<Object>} Created MediaUpload record
    */
-  async create({ menuItemId, userId, imageUrl, caption = null, aspectRatio = null }) {
+  async create({
+    menuItemId,
+    userId,
+    imageUrl,
+    caption = null,
+    aspectRatio = null,
+    validationStatus = 'pending'
+  }) {
     return await prisma.mediaUpload.create({
       data: {
         menuItemId,
@@ -40,7 +47,7 @@ export const mediaService = {
         imageUrl,
         caption,
         aspectRatio,
-        validationStatus: 'pending',
+        validationStatus,
       },
       include: {
         menuItem: {

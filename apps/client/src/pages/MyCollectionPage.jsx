@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import api from '../lib/api';
 import { supabase } from '../lib/supabase';
 import UpvoteIcon from '../features/stalls/assets/upvote.svg';
@@ -15,6 +15,7 @@ const MyCollectionPage = () => {
     const [currentUserId, setCurrentUserId] = useState(null);
 
     // Notification state
+    // eslint-disable-next-line no-unused-vars
     const [notice, setNotice] = useState(null);
 
     // Popup state

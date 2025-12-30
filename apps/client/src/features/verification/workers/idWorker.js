@@ -1,3 +1,6 @@
+/* eslint-env worker */
+/* global cv */
+
 const CV_SCRIPT_URL = 'https://docs.opencv.org/4.x/opencv.js';
 
 let cvReady = false;
