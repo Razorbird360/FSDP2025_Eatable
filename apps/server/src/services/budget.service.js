@@ -26,11 +26,19 @@ export const budgetService = {
     });
 
     if (existing) {
+      // Check if budget or alert percent changed
+      const budgetChanged = existing.budgetCents !== budgetCents;
+      const alertChanged = existing.alertAtPercent !== alertAtPercent;
+      
+      // If settings changed, reset notification status to allow new alerts
+      const shouldResetNotification = budgetChanged || alertChanged;
+
       return prisma.userMonthlyBudget.update({
         where: { id: existing.id },
         data: {
           budgetCents,
-          alertAtPercent
+          alertAtPercent,
+          ...(shouldResetNotification ? { notifiedAlready: false } : {})
         }
       });
     }
@@ -41,8 +49,22 @@ export const budgetService = {
         year,
         month,
         budgetCents,
-        alertAtPercent
+        alertAtPercent,
+        notifiedAlready: false
       }
+    });
+  },
+
+  async setNotified(userId, year, month) {
+    const existing = await prisma.userMonthlyBudget.findFirst({
+      where: { userId, year, month }
+    });
+
+    if (!existing) return null;
+
+    return prisma.userMonthlyBudget.update({
+      where: { id: existing.id },
+      data: { notifiedAlready: true }
     });
   },
 

@@ -22,20 +22,6 @@ const MONTH_OPTIONS = [
   "July", "August", "September", "October", "November", "December"
 ]
 
-// ✅ HELPER: Reset popup memory
-function resetBudgetAlertKeys(yearNumber, monthNumber) {
-  // remove ALL warning keys for this year-month (any %)
-  const prefix = `budget-alert-${yearNumber}-${monthNumber}-`
-  for (let i = localStorage.length - 1; i >= 0; i--) {
-    const k = localStorage.key(i)
-    if (k && k.startsWith(prefix)) localStorage.removeItem(k)
-  }
-
-  // remove hard-limit key too
-  localStorage.removeItem(`budget-hard-${yearNumber}-${monthNumber}`)
-  
-}
-
 export default function SpendingsPage() {
   const [mode, setMode] = useState("month")
   // Default to current month string
@@ -47,9 +33,10 @@ export default function SpendingsPage() {
   const [isEditOpen, setIsEditOpen] = useState(false)
   const [budgetDollars, setBudgetDollars] = useState(250)
   const [alertAt, setAlertAt] = useState(50)
+  const [notifiedAlready, setNotifiedAlready] = useState(false)
   const [loadingBudget, setLoadingBudget] = useState(false)
   const [budgetError, setBudgetError] = useState(null)
-  
+
   // --- Budget Alert Popup State ---
   const [budgetPopup, setBudgetPopup] = useState(null)
 
@@ -94,21 +81,19 @@ export default function SpendingsPage() {
           params: { year: yearNumber, month: monthNumber }
         })
         const b = res.data?.budget
-        
+
         if (b) {
           const serverBudgetDollars = Math.round((b.budgetCents || 0) / 100)
           const serverAlertAt = b.alertAtPercent ?? 80
 
-          if (serverBudgetDollars !== budgetDollars || serverAlertAt !== alertAt) {
-            resetBudgetAlertKeys(yearNumber, monthNumber)
-          }
-
           setBudgetDollars(serverBudgetDollars)
           setAlertAt(serverAlertAt)
+          setNotifiedAlready(b.notifiedAlready ?? false)
         } else {
           // Default fallback
           setBudgetDollars(250)
           setAlertAt(50)
+          setNotifiedAlready(false)
         }
       } catch (err) {
         console.error("Failed to fetch budget:", err)
@@ -119,7 +104,7 @@ export default function SpendingsPage() {
     }
     if (mode === "month") fetchBudget()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, yearNumber, monthNumber]) 
+  }, [mode, yearNumber, monthNumber])
 
   // --- Filtering & Calculations ---
   const completedOrders = useMemo(() => {
@@ -130,16 +115,16 @@ export default function SpendingsPage() {
   const monthlyTotalsCents = useMemo(() => {
     const totals = Array(12).fill(0)
 
-    ;(completedOrders || []).forEach(o => {
-      const d = new Date(o?.createdAt)
-      if (Number.isNaN(d.getTime())) return
+      ; (completedOrders || []).forEach(o => {
+        const d = new Date(o?.createdAt)
+        if (Number.isNaN(d.getTime())) return
 
-      // NOTE: Year filter removed to ensure 2025 data appears
-      // if (d.getFullYear() !== new Date().getFullYear()) return 
+        // NOTE: Year filter removed to ensure 2025 data appears
+        // if (d.getFullYear() !== new Date().getFullYear()) return 
 
-      const m = d.getMonth() // 0-11
-      totals[m] += Number(o?.totalCents) || 0
-    })
+        const m = d.getMonth() // 0-11
+        totals[m] += Number(o?.totalCents) || 0
+      })
 
     return totals
   }, [completedOrders])
@@ -173,6 +158,7 @@ export default function SpendingsPage() {
   useEffect(() => {
     if (mode !== "month") return
     if (!budgetCapCents) return
+    if (notifiedAlready) return
 
     const hardLimitCents = budgetCapCents
     const alertThresholdCents = Math.round(budgetCapCents * (alertAt / 100))
@@ -183,31 +169,38 @@ export default function SpendingsPage() {
       spentCents >= alertThresholdCents &&
       spentCents < hardLimitCents
 
-    // keys (per user-month-year)
-    const warnKey = `budget-alert-${yearNumber}-${monthNumber}-${alertAt}`
-    const hardKey = `budget-hard-${yearNumber}-${monthNumber}`
+    const showPopup = async (type, title, message) => {
+      setBudgetPopup({ type, title, message })
+      try {
+        await api.post("/budget/monthly/notify", {
+          year: yearNumber,
+          month: monthNumber
+        })
+        setNotifiedAlready(true)
+      } catch (err) {
+        console.error("Failed to mark budget as notified:", err)
+      }
+    }
 
     // 1) Hard limit popup (100%+)
-    if (reachedHardLimit && !localStorage.getItem(hardKey)) {
-      setBudgetPopup({
-        type: "limit",
-        title: "Budget limit reached",
-        message: `You have used 100% of your budget.\n${formatPrice(spentCents)} / ${formatPrice(budgetCapCents)} spent`
-      })
-      localStorage.setItem(hardKey, "shown")
+    if (reachedHardLimit) {
+      showPopup(
+        "limit",
+        "Budget limit reached",
+        `You have used 100% of your budget.\n${formatPrice(spentCents)} / ${formatPrice(budgetCapCents)} spent`
+      )
       return
     }
 
     // 2) Early warning popup (e.g. 80%)
-    if (reachedAlert && !localStorage.getItem(warnKey)) {
-      setBudgetPopup({
-        type: "warning",
-        title: "Budget alert",
-        message: `You have used ${percent}% of your budget.\n${formatPrice(spentCents)} / ${formatPrice(budgetCapCents)} spent`
-      })
-      localStorage.setItem(warnKey, "shown")
+    if (reachedAlert) {
+      showPopup(
+        "warning",
+        "Budget alert",
+        `You have used ${percent}% of your budget.\n${formatPrice(spentCents)} / ${formatPrice(budgetCapCents)} spent`
+      )
     }
-  }, [mode, spentCents, budgetCapCents, alertAt, percent, yearNumber, monthNumber])
+  }, [mode, spentCents, budgetCapCents, alertAt, percent, yearNumber, monthNumber, notifiedAlready])
 
   // --- QuickChart URL (Donut only) ---
   const chartUrl = useMemo(() => {
@@ -224,18 +217,16 @@ export default function SpendingsPage() {
               <button
                 type="button"
                 onClick={() => setMode("month")}
-                className={`px-4 py-2 text-sm font-medium rounded-lg transition ${
-                  mode === "month" ? "bg-[#21421B] text-white" : "text-slate-700 hover:bg-slate-50"
-                }`}
+                className={`px-4 py-2 text-sm font-medium rounded-lg transition ${mode === "month" ? "bg-[#21421B] text-white" : "text-slate-700 hover:bg-slate-50"
+                  }`}
               >
                 Month
               </button>
               <button
                 type="button"
                 onClick={() => setMode("overall")}
-                className={`px-4 py-2 text-sm font-medium rounded-lg transition ${
-                  mode === "overall" ? "bg-[#21421B] text-white" : "text-slate-700 hover:bg-slate-50"
-                }`}
+                className={`px-4 py-2 text-sm font-medium rounded-lg transition ${mode === "overall" ? "bg-[#21421B] text-white" : "text-slate-700 hover:bg-slate-50"
+                  }`}
               >
                 Overall
               </button>
@@ -291,11 +282,10 @@ export default function SpendingsPage() {
                     <div className="text-5xl font-bold text-[#6F6AF8]">{percent}%</div>
                     {/* ✅ UPDATED: Red text if overspent */}
                     <div
-                      className={`mt-2 text-base font-medium ${
-                        spentCents > budgetCapCents
-                          ? "text-red-500"
-                          : "text-slate-500"
-                      }`}
+                      className={`mt-2 text-base font-medium ${spentCents > budgetCapCents
+                        ? "text-red-500"
+                        : "text-slate-500"
+                        }`}
                     >
                       {formatPrice(spentCents)} / {formatPrice(budgetCapCents)} spent
                     </div>
@@ -347,7 +337,7 @@ export default function SpendingsPage() {
                           🏪
                         </div>
                       )}
-                      
+
                       <div>
                         <h3 className="font-semibold text-gray-900">{order.stall?.name || "Unknown"}</h3>
                         <p className="text-xs text-gray-500">{formatDateTime(order.createdAt)}</p>
@@ -371,25 +361,24 @@ export default function SpendingsPage() {
           onSave={async ({ budget, alertAt }) => {
             try {
               const budgetCents = Math.max(0, Number(budget || 0) * 100)
-              
+
               const res = await api.put("/budget/monthly", {
                 year: yearNumber,
                 month: monthNumber,
                 budgetCents,
                 alertAtPercent: alertAt
               })
-              
+
               const b = res.data?.budget
               const nextBudgetDollars = Math.round((b?.budgetCents ?? budgetCents) / 100)
               const nextAlertAt = b?.alertAtPercent ?? alertAt
-
-              // ✅ RESET POPUP MEMORY for this month whenever settings change
-              resetBudgetAlertKeys(yearNumber, monthNumber)
+              const nextNotifiedAlready = b?.notifiedAlready ?? false
 
               // then update state
               setBudgetDollars(nextBudgetDollars)
               setAlertAt(nextAlertAt)
-              
+              setNotifiedAlready(nextNotifiedAlready)
+
               setIsEditOpen(false)
             } catch (err) {
               console.error(err)
@@ -493,24 +482,6 @@ function BudgetAlertModal({ data, onClose, onEdit }) {
           >
             Continue
           </button>
-
-          {/* Secondary only for warning */}
-          {!isLimit && (
-            <button
-              type="button"
-              onClick={onEdit}
-              className="
-                rounded-full bg-white
-                px-10 py-3
-                text-sm font-medium text-[#21421B]
-                border border-[#21421B]/25
-                hover:bg-[#21421B]/5
-                transition
-              "
-            >
-              Edit budget
-            </button>
-          )}
         </div>
 
         {/* top-right close */}
@@ -530,7 +501,7 @@ function BudgetAlertModal({ data, onClose, onEdit }) {
 }
 
 function SpendingPerMonthChart({ monthlyTotalsCents }) {
-  const labels = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+  const labels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
   const values = (monthlyTotalsCents || []).map(v => Math.round((Number(v) || 0) / 100))
 
   const data = {
@@ -540,11 +511,11 @@ function SpendingPerMonthChart({ monthlyTotalsCents }) {
         label: "Spending",
         data: values,
         backgroundColor: labels.map((_, i) => (i % 2 === 0 ? "#CFE0FF" : "#6B7A90")),
-        borderRadius: 14, 
+        borderRadius: 14,
         borderSkipped: false,
         barPercentage: 0.7,
         categoryPercentage: 0.8,
-        minBarLength: 10 
+        minBarLength: 10
       }
     ]
   }
@@ -621,10 +592,9 @@ function AlertDropdown({ value, onChange }) {
                   setOpen(false)
                 }}
                 className={`w-full px-4 py-3 text-left text-base font-medium transition-colors
-                  ${
-                    p === value
-                      ? "bg-[#21421B] text-white"
-                      : "text-slate-700 hover:bg-slate-50"
+                  ${p === value
+                    ? "bg-[#21421B] text-white"
+                    : "text-slate-700 hover:bg-slate-50"
                   }`}
               >
                 {p}%

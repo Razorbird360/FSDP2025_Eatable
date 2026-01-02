@@ -16,6 +16,12 @@ router.put(
   budgetController.updateMonthly
 );
 
+router.post(
+  '/monthly/notify',
+  authMiddleware,
+  budgetController.setNotified
+);
+
 
 
 export default router;

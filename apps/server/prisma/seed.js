@@ -2271,150 +2271,72 @@ const mediaUploadSeeds = [
 // Targets (per month, dollars): Jan 50, Feb 100, Mar 200, Apr 150, May 30, Jun 40, Jul 250, Aug 100, Sep 150, Oct 100, Nov 50, Dec 120
 // All totals are in cents (unitCents * quantity). Status set to "completed".
 
-const ordersToSeed = [
-  // JAN 2026
-  {
-    stallName: "Tian Tian Hainanese Chicken Rice",
-    status: "completed",
-    createdAt: new Date("2026-01-05T12:00:00Z"),
-    items: [
-      { name: "Hainanese Chicken Rice", quantity: 1, unitCents: 500 },
-      { name: "Chicken Rice (Drumstick)", quantity: 1, unitCents: 650 },
-    ],
-  },
-  {
-    stallName: "Tian Tian Hainanese Chicken Rice",
-    status: "completed",
-    createdAt: new Date("2026-01-15T12:30:00Z"),
-    items: [
-      { name: "Roasted Chicken Rice", quantity: 2, unitCents: 550 },
-      { name: "Hainanese Chicken Rice", quantity: 1, unitCents: 500 },
-    ],
-  },
-  {
-    stallName: "Tian Tian Hainanese Chicken Rice",
-    status: "completed",
-    createdAt: new Date("2026-01-25T13:00:00Z"),
-    items: [
-      { name: "Chicken Rice Set (With Veg)", quantity: 1, unitCents: 700 },
-      { name: "Chicken Gizzard Rice", quantity: 1, unitCents: 550 },
-    ],
-  },
+  let ordersToSeed = [];
 
-  // FEB 2026
-  {
-    stallName: "Tian Tian Hainanese Chicken Rice",
-    status: "completed",
-    createdAt: new Date("2026-02-05T12:00:00Z"),
-    items: [
-      { name: "Hainanese Chicken Rice", quantity: 2, unitCents: 500 },
-      { name: "Chicken Rice (Drumstick)", quantity: 1, unitCents: 650 },
-    ],
-  },
-  {
-    stallName: "Tian Tian Hainanese Chicken Rice",
-    status: "completed",
-    createdAt: new Date("2026-02-14T12:45:00Z"),
-    items: [
-      { name: "Roasted Chicken Rice", quantity: 1, unitCents: 550 },
-      { name: "Chicken Rice Set (With Veg)", quantity: 1, unitCents: 700 },
-    ],
-  },
-  {
-    stallName: "Tian Tian Hainanese Chicken Rice",
-    status: "completed",
-    createdAt: new Date("2026-02-23T13:10:00Z"),
-    items: [
-      { name: "Chicken Gizzard Rice", quantity: 2, unitCents: 550 },
-      { name: "Hainanese Chicken Rice", quantity: 1, unitCents: 500 },
-    ],
-  },
+  // Dynamic generation for June-Dec 2026
+  const tianTianItems = menuItemsByStallName["Tian Tian Hainanese Chicken Rice"];
+  const monthsToSeed = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]; // June (5) to Dec (11)
 
-  // MAR 2026
-  {
-    stallName: "Tian Tian Hainanese Chicken Rice",
-    status: "completed",
-    createdAt: new Date("2026-03-06T12:00:00Z"),
-    items: [
-      { name: "Hainanese Chicken Rice", quantity: 1, unitCents: 500 },
-      { name: "Roasted Chicken Rice", quantity: 1, unitCents: 550 },
-    ],
-  },
-  {
-    stallName: "Tian Tian Hainanese Chicken Rice",
-    status: "completed",
-    createdAt: new Date("2026-03-16T12:40:00Z"),
-    items: [
-      { name: "Chicken Rice (Drumstick)", quantity: 2, unitCents: 650 },
-      { name: "Chicken Gizzard Rice", quantity: 1, unitCents: 550 },
-    ],
-  },
-  {
-    stallName: "Tian Tian Hainanese Chicken Rice",
-    status: "completed",
-    createdAt: new Date("2026-03-26T13:05:00Z"),
-    items: [
-      { name: "Chicken Rice Set (With Veg)", quantity: 2, unitCents: 700 },
-    ],
-  },
+  for (const monthIndex of monthsToSeed) {
+    // Target total between $50 (5000 cents) and $200 (20000 cents)
+    const targetMonthlyTotal = Math.floor(Math.random() * (20000 - 5000 + 1)) + 5000;
+    let currentMonthlyTotal = 0;
 
-  // APR 2026
-  {
-    stallName: "Tian Tian Hainanese Chicken Rice",
-    status: "completed",
-    createdAt: new Date("2026-04-07T12:00:00Z"),
-    items: [
-      { name: "Hainanese Chicken Rice", quantity: 2, unitCents: 500 },
-      { name: "Chicken Gizzard Rice", quantity: 1, unitCents: 550 },
-    ],
-  },
-  {
-    stallName: "Tian Tian Hainanese Chicken Rice",
-    status: "completed",
-    createdAt: new Date("2026-04-17T12:35:00Z"),
-    items: [
-      { name: "Roasted Chicken Rice", quantity: 2, unitCents: 550 },
-      { name: "Chicken Rice (Drumstick)", quantity: 1, unitCents: 650 },
-    ],
-  },
-  {
-    stallName: "Tian Tian Hainanese Chicken Rice",
-    status: "completed",
-    createdAt: new Date("2026-04-27T13:15:00Z"),
-    items: [
-      { name: "Chicken Rice Set (With Veg)", quantity: 1, unitCents: 700 },
-      { name: "Hainanese Chicken Rice", quantity: 1, unitCents: 500 },
-    ],
-  },
+    for (let i = 0; i < 10; i++) {
+      const day = Math.floor(Math.random() * 28) + 1;
+      const hour = Math.floor(Math.random() * (20 - 11) + 11); // 11am to 8pm
+      const minute = Math.floor(Math.random() * 60);
+      const date = new Date(Date.UTC(2026, monthIndex, day, hour, minute));
 
-  // MAY 2026
-  {
-    stallName: "Tian Tian Hainanese Chicken Rice",
-    status: "completed",
-    createdAt: new Date("2026-05-06T12:00:00Z"),
-    items: [
-      { name: "Roasted Chicken Rice", quantity: 1, unitCents: 550 },
-      { name: "Chicken Rice (Drumstick)", quantity: 1, unitCents: 650 },
-    ],
-  },
-  {
-    stallName: "Tian Tian Hainanese Chicken Rice",
-    status: "completed",
-    createdAt: new Date("2026-05-16T12:30:00Z"),
-    items: [
-      { name: "Hainanese Chicken Rice", quantity: 2, unitCents: 500 },
-      { name: "Chicken Gizzard Rice", quantity: 1, unitCents: 550 },
-    ],
-  },
-  {
-    stallName: "Tian Tian Hainanese Chicken Rice",
-    status: "completed",
-    createdAt: new Date("2026-05-26T13:00:00Z"),
-    items: [
-      { name: "Chicken Rice Set (With Veg)", quantity: 2, unitCents: 700 },
-    ],
-  },
-];
+      // Calculate target for this specific order
+      const remainingOrders = 10 - i;
+      const remainingAmount = targetMonthlyTotal - currentMonthlyTotal;
+
+      // Base target is average of remaining amount
+      let targetOrderAmount = Math.floor(remainingAmount / remainingOrders);
+
+      // Add randomness (0.5x to 1.5x of average), but ensure minimum $5
+      targetOrderAmount = Math.floor(targetOrderAmount * (0.5 + Math.random()));
+      if (targetOrderAmount < 500) targetOrderAmount = 500;
+
+      // Cap at remaining amount if it's the last few orders to avoid overshooting too much
+      if (i === 9) targetOrderAmount = remainingAmount;
+      if (targetOrderAmount < 500 && i === 9) targetOrderAmount = 500; // Ensure last order is at least valid
+
+      const items = [];
+      let currentOrderAmount = 0;
+
+      // Add items until we reach target order amount
+      while (currentOrderAmount < targetOrderAmount) {
+        const randomItem = tianTianItems[Math.floor(Math.random() * tianTianItems.length)];
+        const quantity = 1;
+
+        // Vary unit price slightly (+/- 10%)
+        const variance = 0.9 + Math.random() * 0.2;
+        const unitCents = Math.floor(randomItem.priceCents * variance);
+
+        items.push({
+          name: randomItem.name,
+          quantity: quantity,
+          unitCents: unitCents
+        });
+        currentOrderAmount += unitCents * quantity;
+
+        // Break if we are close enough (within 200 cents) to avoid adding too many items
+        if (currentOrderAmount >= targetOrderAmount - 200) break;
+      }
+
+      currentMonthlyTotal += currentOrderAmount;
+
+      ordersToSeed.push({
+        stallName: "Tian Tian Hainanese Chicken Rice",
+        status: "completed",
+        createdAt: date,
+        items: items,
+      });
+    }
+    console.log(`Generated 10 orders for month ${monthIndex + 1}/2026 with total ${currentMonthlyTotal} cents (Target: ${targetMonthlyTotal})`);
+  }
 
 
 

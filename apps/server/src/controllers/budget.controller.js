@@ -48,5 +48,27 @@ export const budgetController = {
     }
   },
 
+  async setNotified(req, res) {
+    try {
+      const userId = req.user.id;
+      const { year, month } = req.body;
+
+      if (!year || !month) {
+        return res.status(400).json({ message: 'year and month required' });
+      }
+
+      const budget = await budgetService.setNotified(userId, year, month);
+
+      if (!budget) {
+        return res.status(404).json({ message: 'Budget not found' });
+      }
+
+      res.json({ budget });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: 'Failed to set notification status' });
+    }
+  },
+
 
 };
