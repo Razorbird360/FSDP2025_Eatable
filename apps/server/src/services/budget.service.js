@@ -1,6 +1,49 @@
 import prisma from '../lib/prisma.js';
 
 export const budgetService = {
+  async getMonthlyBudget(userId, year, month) {
+    const budget = await prisma.userMonthlyBudget.findFirst({
+      where: { userId, year, month }
+    });
 
+    if (budget) return budget;
 
-}    
+    // auto create default row when missing
+    return prisma.userMonthlyBudget.create({
+      data: {
+        userId,
+        year,
+        month,
+        budgetCents: 200000, // $2000 default
+        alertAtPercent: 80
+      }
+    });
+  },
+
+  async upsertMonthlyBudget(userId, year, month, budgetCents, alertAtPercent) {
+    const existing = await prisma.userMonthlyBudget.findFirst({
+      where: { userId, year, month }
+    });
+
+    if (existing) {
+      return prisma.userMonthlyBudget.update({
+        where: { id: existing.id },
+        data: {
+          budgetCents,
+          alertAtPercent
+        }
+      });
+    }
+
+    return prisma.userMonthlyBudget.create({
+      data: {
+        userId,
+        year,
+        month,
+        budgetCents,
+        alertAtPercent
+      }
+    });
+  },
+
+};

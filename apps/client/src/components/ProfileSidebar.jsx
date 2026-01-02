@@ -53,7 +53,7 @@ export default function ProfileSidebar() {
         <SidebarItem icon={FiHeart} label="Favourites" to="/favourites" />
         <SidebarItem icon={FiGift} label="Vouchers" to="/vouchers" />
         <SidebarItem icon={FiAward} label="Achievements" to="/achievements" />
-        <SidebarItem icon={FiDollarSign} label="Spendings" to="/spendings" />
+        <SidebarItem icon={FiDollarSign} label="Spending Budget" to="/spendingsPage" />
       </nav>
 
       {/* Bottom section */}

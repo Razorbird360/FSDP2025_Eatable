@@ -15,10 +15,10 @@ import OrderSummaryPage from "../pages/OrderSummaryPage";
 import MyCollectionPage from "../pages/MyCollectionPage";
 import FavouritesPage from "../pages/FavouritesPage";
 import OrdersPage from "../pages/OrdersPage";
+import SpendingsPage from "../pages/SpendingsPage";
 import {
   VouchersPage,
   AchievementsPage,
-  SpendingsPage,
   SettingsPage,
   BusinessPage,
   HelpPage
@@ -93,7 +93,7 @@ function AppRoutes() {
             <Route path="/favourites" element={<FavouritesPage />} />
             <Route path="/vouchers" element={<VouchersPage />} />
             <Route path="/achievements" element={<AchievementsPage />} />
-            <Route path="/spendings" element={<SpendingsPage />} />
+            <Route path="/spendingsPage" element={<SpendingsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/business" element={<BusinessPage />} />
             <Route path="/help" element={<HelpPage />} />

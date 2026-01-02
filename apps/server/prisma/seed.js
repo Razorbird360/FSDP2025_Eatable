@@ -5,7 +5,7 @@ const prisma = new PrismaClient();
 
 async function main() {
   // --- Optional: clean tables in FK-safe order if you're reseeding ---
-
+  await prisma.discounts_charges.deleteMany();
   await prisma.mediaUploadVote.deleteMany();
   await prisma.contentReport.deleteMany();
   await prisma.mediaUpload.deleteMany();
@@ -2240,6 +2240,243 @@ const mediaUploadSeeds = [
       servicefeecents: 50,
     },
   });
+
+    // --- Seed Vouchers for specific user ---
+  const specificUserId = "02441ecb-eb23-4c80-9146-1259b1517648";
+
+  // Ensure the user exists (required for foreign key constraint)
+  let specificUser = await prisma.user.findUnique({
+    where: { id: specificUserId },
+  });
+
+  // If user doesn't exist, create them
+  if (!specificUser) {
+    specificUser = await prisma.user.create({
+      data: {
+        id: specificUserId,
+        email: "beveats@gmail.com",
+        username: "BevEatsDemoAccount",
+        displayName: "BevEatsDemoAccount",
+        role: "user",
+        skipOnboarding: false,
+      },
+    });
+    console.log(`Created user ${specificUserId}`);
+  } else {
+    console.log(`User ${specificUserId} already exists.`);
+  }
+
+  console.log('Seeding Order for user ' + specificUserId);
+
+// Targets (per month, dollars): Jan 50, Feb 100, Mar 200, Apr 150, May 30, Jun 40, Jul 250, Aug 100, Sep 150, Oct 100, Nov 50, Dec 120
+// All totals are in cents (unitCents * quantity). Status set to "completed".
+
+const ordersToSeed = [
+  // JAN 2026
+  {
+    stallName: "Tian Tian Hainanese Chicken Rice",
+    status: "completed",
+    createdAt: new Date("2026-01-05T12:00:00Z"),
+    items: [
+      { name: "Hainanese Chicken Rice", quantity: 1, unitCents: 500 },
+      { name: "Chicken Rice (Drumstick)", quantity: 1, unitCents: 650 },
+    ],
+  },
+  {
+    stallName: "Tian Tian Hainanese Chicken Rice",
+    status: "completed",
+    createdAt: new Date("2026-01-15T12:30:00Z"),
+    items: [
+      { name: "Roasted Chicken Rice", quantity: 2, unitCents: 550 },
+      { name: "Hainanese Chicken Rice", quantity: 1, unitCents: 500 },
+    ],
+  },
+  {
+    stallName: "Tian Tian Hainanese Chicken Rice",
+    status: "completed",
+    createdAt: new Date("2026-01-25T13:00:00Z"),
+    items: [
+      { name: "Chicken Rice Set (With Veg)", quantity: 1, unitCents: 700 },
+      { name: "Chicken Gizzard Rice", quantity: 1, unitCents: 550 },
+    ],
+  },
+
+  // FEB 2026
+  {
+    stallName: "Tian Tian Hainanese Chicken Rice",
+    status: "completed",
+    createdAt: new Date("2026-02-05T12:00:00Z"),
+    items: [
+      { name: "Hainanese Chicken Rice", quantity: 2, unitCents: 500 },
+      { name: "Chicken Rice (Drumstick)", quantity: 1, unitCents: 650 },
+    ],
+  },
+  {
+    stallName: "Tian Tian Hainanese Chicken Rice",
+    status: "completed",
+    createdAt: new Date("2026-02-14T12:45:00Z"),
+    items: [
+      { name: "Roasted Chicken Rice", quantity: 1, unitCents: 550 },
+      { name: "Chicken Rice Set (With Veg)", quantity: 1, unitCents: 700 },
+    ],
+  },
+  {
+    stallName: "Tian Tian Hainanese Chicken Rice",
+    status: "completed",
+    createdAt: new Date("2026-02-23T13:10:00Z"),
+    items: [
+      { name: "Chicken Gizzard Rice", quantity: 2, unitCents: 550 },
+      { name: "Hainanese Chicken Rice", quantity: 1, unitCents: 500 },
+    ],
+  },
+
+  // MAR 2026
+  {
+    stallName: "Tian Tian Hainanese Chicken Rice",
+    status: "completed",
+    createdAt: new Date("2026-03-06T12:00:00Z"),
+    items: [
+      { name: "Hainanese Chicken Rice", quantity: 1, unitCents: 500 },
+      { name: "Roasted Chicken Rice", quantity: 1, unitCents: 550 },
+    ],
+  },
+  {
+    stallName: "Tian Tian Hainanese Chicken Rice",
+    status: "completed",
+    createdAt: new Date("2026-03-16T12:40:00Z"),
+    items: [
+      { name: "Chicken Rice (Drumstick)", quantity: 2, unitCents: 650 },
+      { name: "Chicken Gizzard Rice", quantity: 1, unitCents: 550 },
+    ],
+  },
+  {
+    stallName: "Tian Tian Hainanese Chicken Rice",
+    status: "completed",
+    createdAt: new Date("2026-03-26T13:05:00Z"),
+    items: [
+      { name: "Chicken Rice Set (With Veg)", quantity: 2, unitCents: 700 },
+    ],
+  },
+
+  // APR 2026
+  {
+    stallName: "Tian Tian Hainanese Chicken Rice",
+    status: "completed",
+    createdAt: new Date("2026-04-07T12:00:00Z"),
+    items: [
+      { name: "Hainanese Chicken Rice", quantity: 2, unitCents: 500 },
+      { name: "Chicken Gizzard Rice", quantity: 1, unitCents: 550 },
+    ],
+  },
+  {
+    stallName: "Tian Tian Hainanese Chicken Rice",
+    status: "completed",
+    createdAt: new Date("2026-04-17T12:35:00Z"),
+    items: [
+      { name: "Roasted Chicken Rice", quantity: 2, unitCents: 550 },
+      { name: "Chicken Rice (Drumstick)", quantity: 1, unitCents: 650 },
+    ],
+  },
+  {
+    stallName: "Tian Tian Hainanese Chicken Rice",
+    status: "completed",
+    createdAt: new Date("2026-04-27T13:15:00Z"),
+    items: [
+      { name: "Chicken Rice Set (With Veg)", quantity: 1, unitCents: 700 },
+      { name: "Hainanese Chicken Rice", quantity: 1, unitCents: 500 },
+    ],
+  },
+
+  // MAY 2026
+  {
+    stallName: "Tian Tian Hainanese Chicken Rice",
+    status: "completed",
+    createdAt: new Date("2026-05-06T12:00:00Z"),
+    items: [
+      { name: "Roasted Chicken Rice", quantity: 1, unitCents: 550 },
+      { name: "Chicken Rice (Drumstick)", quantity: 1, unitCents: 650 },
+    ],
+  },
+  {
+    stallName: "Tian Tian Hainanese Chicken Rice",
+    status: "completed",
+    createdAt: new Date("2026-05-16T12:30:00Z"),
+    items: [
+      { name: "Hainanese Chicken Rice", quantity: 2, unitCents: 500 },
+      { name: "Chicken Gizzard Rice", quantity: 1, unitCents: 550 },
+    ],
+  },
+  {
+    stallName: "Tian Tian Hainanese Chicken Rice",
+    status: "completed",
+    createdAt: new Date("2026-05-26T13:00:00Z"),
+    items: [
+      { name: "Chicken Rice Set (With Veg)", quantity: 2, unitCents: 700 },
+    ],
+  },
+];
+
+
+
+  for (const orderData of ordersToSeed) {
+    const stall = await prisma.stall.findFirst({
+      where: { 
+        name: {
+            equals: orderData.stallName,
+            mode: "insensitive",
+          }
+      }
+    });
+
+    if (!stall) {
+      console.log(`Stall ${orderData.stallName} not found, skipping order.`);
+      continue;
+    }
+
+    const totalCents = orderData.items.reduce((acc, item) => acc + (item.unitCents * item.quantity), 0);
+
+    const order = await prisma.order.create({
+      data: {
+        userId: specificUserId,
+        stallId: stall.id,
+        status: orderData.status,
+        totalCents: totalCents,
+        createdAt: orderData.createdAt,
+        updatedAt: orderData.createdAt,
+        completedAt: orderData.status === 'completed' ? orderData.createdAt : null,
+      }
+    });
+
+    for (const itemData of orderData.items) {
+      const menuItem = await prisma.menuItem.findFirst({
+        where: {
+          name: {
+            equals: itemData.name,
+            mode: "insensitive",  
+          },
+        }
+      });
+
+      if (!menuItem) {
+        console.log(`Menu item ${itemData.name} not found in stall ${stall.name}, skipping item.`);
+        continue;
+      }
+
+      await prisma.orderItem.create({
+        data: {
+          orderId: order.id,
+          menuItemId: menuItem.id,
+          quantity: itemData.quantity,
+          unitCents: itemData.unitCents,
+          createdAt: orderData.createdAt,
+          updatedAt: orderData.createdAt,
+        }
+      });
+    }
+    console.log(`Seeded order for ${orderData.stallName} with total ${totalCents} cents.`);
+  }
+
+
 
   console.log("Seeding completed successfully (manual uploads).");
 }
