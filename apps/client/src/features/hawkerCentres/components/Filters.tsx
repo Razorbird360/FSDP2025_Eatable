@@ -2,7 +2,12 @@ import { Button } from '@chakra-ui/react';
 import { Slider } from '@chakra-ui/react';
 import { useFilters } from '../hooks/useFilters';
 
-const Filters = () => {
+type FiltersProps = {
+  filters?: ReturnType<typeof useFilters>;
+};
+
+const Filters = ({ filters }: FiltersProps) => {
+  const fallbackFilters = useFilters();
   const {
     cuisines,
     priceRanges,
@@ -17,7 +22,9 @@ const Filters = () => {
     setPrepTime,
     toggleSelection,
     clearAllFilters,
-  } = useFilters();
+  } = filters ?? fallbackFilters;
+  const prepTimeLabel =
+    prepTime[0] === 0 ? 'None' : prepTime[0] >= 20 ? '20+ min' : `${prepTime[0]} min`;
 
   return (
     <div className="bg-white rounded-lg p-4 shadow-lg font-sans border border-black border-opacity-20">
@@ -88,13 +95,13 @@ const Filters = () => {
       <div className="mb-6">
         <div className="flex justify-between items-center mb-3">
           <h3 className="text-xs font-bold text-brand">Max prep time</h3>
-          <span className="text-xs text-gray-700">{prepTime[0]} min</span>
+          <span className="text-xs text-gray-700">{prepTimeLabel}</span>
         </div>
         <Slider.Root
-          defaultValue={[30]}
+          defaultValue={[0]}
           min={0}
-          max={60}
-          step={5}
+          max={20}
+          step={2}
           value={prepTime}
           onValueChange={(details) => setPrepTime(details.value)}
           colorPalette="green"

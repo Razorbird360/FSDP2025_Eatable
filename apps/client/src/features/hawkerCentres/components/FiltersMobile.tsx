@@ -3,9 +3,14 @@ import { Button, Drawer, Accordion, Slider, CloseButton, Portal } from '@chakra-
 import { useFilters } from '../hooks/useFilters';
 import filterDownArrow from '../../../assets/hawker/filter-down-arrow.svg';
 
-const FiltersMobile = () => {
+type FiltersMobileProps = {
+  filters?: ReturnType<typeof useFilters>;
+};
+
+const FiltersMobile = ({ filters }: FiltersMobileProps) => {
   const [isOpen, setIsOpen] = useState(false);
 
+  const fallbackFilters = useFilters();
   const {
     cuisines,
     priceRanges,
@@ -21,7 +26,9 @@ const FiltersMobile = () => {
     toggleSelection,
     clearAllFilters,
     getActiveFilterCount,
-  } = useFilters();
+  } = filters ?? fallbackFilters;
+  const prepTimeLabel =
+    prepTime[0] === 0 ? 'None' : prepTime[0] >= 20 ? '20+ min' : `${prepTime[0]} min`;
 
   const activeCount = getActiveFilterCount();
 
@@ -180,13 +187,13 @@ const FiltersMobile = () => {
                 <div className="py-6 border-b">
                   <div className="flex justify-between items-center mb-4">
                     <span className="text-lg font-bold text-brand">Max prep time</span>
-                    <span className="text-lg font-bold text-brand">{prepTime[0]} min</span>
+                    <span className="text-lg font-bold text-brand">{prepTimeLabel}</span>
                   </div>
                 <Slider.Root
-                  defaultValue={[30]}
+                  defaultValue={[0]}
                   min={0}
-                  max={60}
-                  step={5}
+                  max={20}
+                  step={2}
                   value={prepTime}
                   onValueChange={(details) => setPrepTime(details.value)}
                   colorPalette="green"

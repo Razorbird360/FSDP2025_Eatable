@@ -4,7 +4,7 @@ export const useFilters = () => {
   const [selectedCuisines, setSelectedCuisines] = useState<string[]>(['All']);
   const [selectedPriceRanges, setSelectedPriceRanges] = useState<string[]>(['All']);
   const [selectedDietary, setSelectedDietary] = useState<string[]>([]);
-  const [prepTime, setPrepTime] = useState([30]);
+  const [prepTime, setPrepTime] = useState([0]);
 
   const cuisines = ['All', 'Chinese', 'Malay', 'Indian', 'Western', 'Japanese', 'Vegetarian'];
   const priceRanges = ['All', 'Under $5', '$5 - $10', '$10 - $15', 'Above $15'];
@@ -48,7 +48,7 @@ export const useFilters = () => {
     setSelectedCuisines(['All']);
     setSelectedPriceRanges(['All']);
     setSelectedDietary([]);
-    setPrepTime([30]);
+    setPrepTime([0]);
   };
 
   const getActiveFilterCount = () => {
@@ -60,7 +60,7 @@ export const useFilters = () => {
       count += selectedPriceRanges.filter(p => p !== 'All').length;
     }
     count += selectedDietary.length;
-    if (prepTime[0] !== 30) count += 1;
+    if (prepTime[0] > 0 && prepTime[0] < 20) count += 1;
     return count;
   };
 

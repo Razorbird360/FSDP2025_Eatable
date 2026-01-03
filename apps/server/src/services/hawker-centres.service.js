@@ -121,12 +121,17 @@ async function getRandomStallsBySlug(slug, limit = 3) {
     if (stall.menuItems.length > 0 && stall.menuItems[0].mediaUploads.length > 0) {
       imageUrl = stall.menuItems[0].mediaUploads[0].imageUrl;
     }
+    const prepTimes = stall.menuItems
+      .map((item) => item.prepTimeMins)
+      .filter((value) => typeof value === 'number');
+    const maxPrepTimeMins = prepTimes.length ? Math.max(...prepTimes) : 5;
 
     return {
       id: stall.id,
       name: stall.name,
       cuisineType: stall.cuisineType,
       imageUrl: stall.image_url,
+      maxPrepTimeMins,
       menuItemCount: stall._count.menuItems
     };
   });

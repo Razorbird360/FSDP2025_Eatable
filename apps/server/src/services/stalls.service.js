@@ -23,7 +23,7 @@ export const stallsService = {
   },
 
   async getById(id) {
-    return await prisma.stall.findUnique({
+    const stall = await prisma.stall.findUnique({
       where: { id },
       include: {
         owner: {
@@ -51,6 +51,16 @@ export const stallsService = {
         },
       },
     });
+    if (!stall) {
+      return null;
+    }
+
+    const prepTimes = stall.menuItems
+      .map((item) => item.prepTimeMins)
+      .filter((value) => typeof value === 'number');
+    const maxPrepTimeMins = prepTimes.length ? Math.max(...prepTimes) : 5;
+
+    return { ...stall, maxPrepTimeMins };
   },
 
 

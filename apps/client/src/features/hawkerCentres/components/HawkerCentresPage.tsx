@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import arrowRight from '../../../assets/hawker/arrow-right.svg';
 import arrowRightWhite from '../../../assets/hawker/arrow-right-white.svg';
@@ -7,17 +7,31 @@ import Filters from './Filters';
 import FiltersMobile from './FiltersMobile';
 import StallCard from './StallCard';
 import { useHawkerCentres } from '../hooks/useHawkerCentres';
+import { useFilters } from '../hooks/useFilters';
 
 const HawkerCentresPage = () => {
   const [displayLimit, setDisplayLimit] = useState(6);
   const { hawkerCentres, loading, error } = useHawkerCentres(30); // Fetch more than we need
+  const filters = useFilters();
   const navigate = useNavigate();
-  const displayedCentres = hawkerCentres.slice(0, displayLimit);
-  const centresWithStalls = displayedCentres.filter(
-    (centre) => Array.isArray(centre.stalls) && centre.stalls.length > 0
-  );
-  const hasMore = displayLimit < hawkerCentres.length;
-  console.log('HawkerCentresPage centresWithStalls:', centresWithStalls);
+  const prepTimeLimit = filters.prepTime[0];
+  const filteredCentres = useMemo(() => {
+    const applyPrepTimeFilter = prepTimeLimit > 0 && prepTimeLimit < 20;
+    return hawkerCentres
+      .map((centre) => {
+        const stalls = Array.isArray(centre.stalls) ? centre.stalls : [];
+        const filteredStalls = applyPrepTimeFilter
+          ? stalls.filter((stall) => {
+              const maxPrep = typeof stall.maxPrepTimeMins === 'number' ? stall.maxPrepTimeMins : 5;
+              return maxPrep <= prepTimeLimit;
+            })
+          : stalls;
+        return { ...centre, stalls: filteredStalls };
+      })
+      .filter((centre) => centre.stalls.length > 0);
+  }, [hawkerCentres, prepTimeLimit]);
+  const displayedCentres = filteredCentres.slice(0, displayLimit);
+  const hasMore = displayLimit < filteredCentres.length;
 
   const loadMore = () => {
     setDisplayLimit((prev) => prev + 3);
@@ -42,14 +56,14 @@ const HawkerCentresPage = () => {
       <div className="w-full flex gap-6">
         {/* Desktop Filters - Hidden on mobile/tablet */}
         <div className="hidden lg:block w-[22vw] sticky top-24">
-          <Filters />
+          <Filters filters={filters} />
         </div>
 
         {/* Content Area */}
         <div className="w-full lg:w-[72vw] min-h-[60vh] pb-20 lg:pb-0">
           {/* Mobile Filters - Shown only on mobile/tablet */}
           <div className="lg:hidden">
-            <FiltersMobile />
+            <FiltersMobile filters={filters} />
           </div>
 
           {/* Loading State */}
@@ -69,7 +83,7 @@ const HawkerCentresPage = () => {
           {/* Hawker Centres List */}
           {!loading &&
             !error &&
-            centresWithStalls.map((centre) => (
+            displayedCentres.map((centre) => (
               <div key={centre.id} className="mb-8">
                 {/* Hawker Centre Header */}
                 <div className="w-full px-4 lg:px-0 py-4">
