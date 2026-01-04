@@ -12,7 +12,7 @@ import type { PriceRange } from '../hooks/useFilters';
 
 const HawkerCentresPage = () => {
   const [displayLimit, setDisplayLimit] = useState(6);
-  const { hawkerCentres, loading, error } = useHawkerCentres(30); // Fetch more than we need
+  const { hawkerCentres, loading, error, locationStatus } = useHawkerCentres(30); // Fetch more than we need
   const filters = useFilters();
   const navigate = useNavigate();
   const prepTimeLimit = filters.prepTime[0];
@@ -162,7 +162,9 @@ const HawkerCentresPage = () => {
                       <div className="flex items-center gap-1.5">
                         <img src={locationIcon} alt="" className="w-4 h-4" />
                         <span className="text-sm text-brand">
-                          {centre.distance.toFixed(1)} km
+                          {locationStatus === 'granted' && typeof centre.distance === 'number'
+                            ? `${centre.distance.toFixed(1)} km`
+                            : 'Distance unavailable'}
                         </span>
                       </div>
 

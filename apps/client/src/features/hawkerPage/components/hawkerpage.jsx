@@ -11,6 +11,7 @@ import clockIcon from "../../../assets/icons/clock.svg";
 import stallsIcon from "../../../assets/hawker/Stalls-dark.svg";
 import dishesIcon from "../../../assets/hawker/Dishes-dark.svg";
 import { useFilters } from "../../hawkerCentres/hooks/useFilters";
+import { useUserLocation } from "../../hawkerCentres/hooks/useUserLocation";
 
 const fallbackHeroImg =
   "https://images.unsplash.com/photo-1544027993-37dbfe43562a?q=80&w=800&auto=format&fit=crop";
@@ -71,8 +72,8 @@ function DishCard({ dish }) {
 
 function StallCard({ stall }) {
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 flex gap-3">
-      <div className="w-20 h-20 rounded-xl overflow-hidden flex-shrink-0 bg-slate-100">
+    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-3 flex items-center gap-4">
+      <div className="w-24 h-24 rounded-xl overflow-hidden flex-shrink-0 bg-slate-100">
         <img
           src={stall.image_url}
           alt={stall.name}
@@ -133,6 +134,7 @@ const HawkerCentreDetailPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const filters = useFilters();
+  const { coords, status: locationStatus } = useUserLocation();
 
   const prepTimeLimit = filters.prepTime[0];
   const selectedPriceRanges = filters.selectedPriceRanges;
@@ -295,6 +297,27 @@ const HawkerCentreDetailPage = () => {
     return true;
   });
 
+  const distanceKm =
+    locationStatus === "granted" &&
+    coords &&
+    typeof centre.latitude === "number" &&
+    typeof centre.longitude === "number"
+      ? (() => {
+          const toRad = (degrees) => (degrees * Math.PI) / 180;
+          const R = 6371;
+          const dLat = toRad(centre.latitude - coords.lat);
+          const dLon = toRad(centre.longitude - coords.lng);
+          const a =
+            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(toRad(coords.lat)) *
+              Math.cos(toRad(centre.latitude)) *
+              Math.sin(dLon / 2) *
+              Math.sin(dLon / 2);
+          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+          return R * c;
+        })()
+      : null;
+
   return (
     <section className="px-[4vw] py-8 w-full min-h-screen bg-[#f5f7f4] font-sans">
       {/* Breadcrumbs */}
@@ -322,7 +345,7 @@ const HawkerCentreDetailPage = () => {
 
       {/* Top summary card */}
       <div 
-        className="w-full rounded-2xl py-6 pl-6 pr-4 md:p-6 flex flex-col md:flex-row gap-5 shadow-[0_2px_12px_rgba(0,0,0,0.06)] relative overflow-hidden md:bg-white md:border md:border-slate-200"
+        className="w-full rounded-2xl py-6 pl-6 pr-4 md:p-6 flex flex-col md:flex-row md:items-center gap-5 shadow-[0_2px_12px_rgba(0,0,0,0.06)] relative overflow-hidden md:bg-white md:border md:border-slate-200"
       >
         {/* Background image for mobile */}
         <div 
@@ -337,7 +360,7 @@ const HawkerCentreDetailPage = () => {
         <div className="hidden md:block absolute inset-0 bg-white" />
 
         {/* Hero image - visible on desktop */}
-        <div className="hidden md:block w-40 h-40 flex-shrink-0 rounded-xl overflow-hidden relative z-10">
+        <div className="hidden md:block w-44 h-44 flex-shrink-0 rounded-xl overflow-hidden relative z-10">
           <img
             src={centre.imageUrl || fallbackHeroImg}
             alt={centre.name}
@@ -373,9 +396,9 @@ const HawkerCentreDetailPage = () => {
                   Location
                 </p>
                 <p className="text-sm text-white md:text-gray-600">
-                  {centre.distanceKm != null
-                    ? `${centre.distanceKm.toFixed(1)} km from you`
-                    : "Distance unavailable"}
+                {distanceKm != null
+                  ? `${distanceKm.toFixed(1)} km from you`
+                  : "Distance unavailable"}
                 </p>
               </div>
             </div>
@@ -425,7 +448,7 @@ const HawkerCentreDetailPage = () => {
           <button
             type="button"
             onClick={() => setActiveTab("stalls")}
-            className={`flex items-center gap-2 px-5 py-2 text-sm rounded-lg font-medium transition-colors
+            className={`flex items-center gap-2 pl-[18px] pr-5 py-2 text-sm rounded-lg font-medium transition-colors
               ${
                 activeTab === "stalls"
                   ? "bg-brand text-white"
@@ -435,14 +458,14 @@ const HawkerCentreDetailPage = () => {
             <img 
               src={stallsIcon} 
               alt="" 
-              className={`w-4 h-4 ${activeTab === "stalls" ? "brightness-0 invert" : "opacity-40"}`}
+              className={`w-4 h-4 ${activeTab === "stalls" ? "brightness-0 invert" : ""}`}
             />
             Stalls
           </button>
           <button
             type="button"
             onClick={() => setActiveTab("dishes")}
-            className={`flex items-center gap-2 px-5 py-2 text-sm rounded-lg font-medium transition-colors
+            className={`flex items-center gap-2 pl-[18px] pr-5 py-2 text-sm rounded-lg font-medium transition-colors
               ${
                 activeTab === "dishes"
                   ? "bg-brand text-white"
@@ -452,7 +475,7 @@ const HawkerCentreDetailPage = () => {
             <img 
               src={dishesIcon} 
               alt="" 
-              className={`w-4 h-4 ${activeTab === "dishes" ? "brightness-0 invert" : "opacity-40"}`}
+              className={`w-4 h-4 ${activeTab === "dishes" ? "brightness-0 invert" : ""}`}
             />
             Dishes
           </button>
