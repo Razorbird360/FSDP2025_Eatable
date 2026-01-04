@@ -61,6 +61,7 @@ async function getNearbyHawkerCentres({ lat, lng, limit = 10 }) {
     postalCode: centre.postalCode,
     latitude: centre.latitude,
     longitude: centre.longitude,
+    imageUrl: centre.imageUrl,
     distance: calculateDistance(lat, lng, centre.latitude, centre.longitude),
     stallCount: centre._count.stalls
   }));

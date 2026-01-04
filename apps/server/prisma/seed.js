@@ -69,6 +69,7 @@ async function main() {
       postalCode: "069184",
       latitude: 1.2803,
       longitude: 103.8445,
+      imageUrl: "https://i.ibb.co/wr06V8kP/Maxwell-Food-Centre.png",
     },
     {
       name: "Tiong Bahru Market",
@@ -77,6 +78,7 @@ async function main() {
       postalCode: "168898",
       latitude: 1.2839,
       longitude: 103.8332,
+      imageUrl: "https://i.ibb.co/LXNfV2pr/Tiong-Bahru-Market.png",
     },
   ];
 
@@ -616,6 +618,7 @@ async function main() {
         postalCode: hcData.postalCode,
         latitude: hcData.latitude,
         longitude: hcData.longitude,
+        imageUrl: hcData.imageUrl ?? null,
       },
     });
     
