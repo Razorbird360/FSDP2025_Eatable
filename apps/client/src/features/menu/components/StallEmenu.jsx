@@ -245,7 +245,6 @@ export default function StallEmenu() {
   const [toast, setToast] = useState(null);
 
   // Fetch stall from API
-  // Fetch stall from API
   useEffect(() => {
     let cancelled = false;
 
@@ -500,35 +499,35 @@ export default function StallEmenu() {
             className="flex items-center justify-between gap-1"
             ref={controlsRef}
           >
-            <div className="inline-flex rounded-xl border bg-white p-0.5">
+            <div className="inline-flex bg-white border border-[#E5E5E5] rounded-xl p-1 gap-[3px]">
               <button
                 onClick={() => setTab("menu")}
-                className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-[11px] sm:text-sm ${tab === "menu"
+                className={`flex items-center gap-2 pl-[18px] pr-5 py-2 text-sm rounded-lg font-medium transition-colors ${tab === "menu"
                     ? "bg-[#21421B] text-white"
-                    : "text-gray-700 hover:bg-gray-100"
+                    : "text-gray-400"
                   }`}
               >
-                <Icon.MenuList className="h-3 w-3 sm:h-4 sm:w-4" />
+                <Icon.MenuList className={`h-4 w-4 ${tab === "menu" ? "" : ""}`} />
                 Menu
               </button>
               <button
                 onClick={() => setTab("photos")}
-                className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-[11px] sm:text-sm ${tab === "photos"
+                className={`flex items-center gap-2 pl-[18px] pr-5 py-2 text-sm rounded-lg font-medium transition-colors ${tab === "photos"
                     ? "bg-[#21421B] text-white"
-                    : "text-gray-700 hover:bg-gray-100"
+                    : "text-gray-400"
                   }`}
               >
-                <Icon.Photo className="h-3 w-3 sm:h-4 sm:w-4" />
+                <Icon.Photo className={`h-4 w-4 ${tab === "photos" ? "" : ""}`} />
                 Photos
               </button>
               <button
                 onClick={() => setTab("about")}
-                className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-[11px] sm:text-sm ${tab === "about"
+                className={`flex items-center gap-2 pl-[18px] pr-5 py-2 text-sm rounded-lg font-medium transition-colors ${tab === "about"
                     ? "bg-[#21421B] text-white"
-                    : "text-gray-700 hover:bg-gray-100"
+                    : "text-gray-400"
                   }`}
               >
-                <Icon.Info className="h-3 w-3 sm:h-4 sm:w-4" />
+                <Icon.Info className={`h-4 w-4 ${tab === "about" ? "" : ""}`} />
                 About
               </button>
             </div>

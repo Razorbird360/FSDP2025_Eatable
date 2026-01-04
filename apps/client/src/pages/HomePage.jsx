@@ -18,23 +18,29 @@ import VerificationModal from "../features/verification/components/VerificationM
 
 const CUISINE_TYPES = ["malay", "indian", "western", "chinese", "desserts", "local"];
 
-const NEARBY_ITEMS = [
+const FALLBACK_NEARBY_ITEMS = [
   {
+    id: 'fallback-1',
     name: "Char Kway Teow",
-    price: "5.00",
-    vendor: "Fried Kway Teow Master",
+    priceCents: 500,
+    stallId: null,
+    stallName: "Fried Kway Teow Master",
     upvotes: 245,
   },
   {
+    id: 'fallback-2',
     name: "Prawn Mee",
-    price: "5.50",
-    vendor: "Kian Seng Lor Mee Prawn Mee Laksa",
+    priceCents: 550,
+    stallId: null,
+    stallName: "Kian Seng Lor Mee Prawn Mee Laksa",
     upvotes: 191,
   },
   {
+    id: 'fallback-3',
     name: "Nasi Lemak",
-    price: "4.80",
-    vendor: "Hani Food Stall",
+    priceCents: 480,
+    stallId: null,
+    stallName: "Hani Food Stall",
     upvotes: 176,
   },
 ];
@@ -44,6 +50,8 @@ function HomePage() {
   const location = useLocation();
   const { profile, refreshProfile, status } = useAuth();
   const [showVerificationModal, setShowVerificationModal] = useState(false);
+  const [topPicks, setTopPicks] = useState([]);
+  const [topPicksLoading, setTopPicksLoading] = useState(true);
   const isProfileLoading = status === 'loading';
 
   useEffect(() => {
@@ -56,6 +64,24 @@ function HomePage() {
       navigate(location.pathname, { replace: true, state: null });
     }
   }, [location, navigate]);
+
+  // Fetch top-voted menu items with fallback
+  useEffect(() => {
+    async function fetchTopPicks() {
+      try {
+        const res = await api.get('/menu/top-voted?limit=3');
+        // Use API data if available, otherwise fallback
+        setTopPicks(res.data?.length > 0 ? res.data : FALLBACK_NEARBY_ITEMS);
+      } catch (err) {
+        console.error('Failed to fetch top picks:', err);
+        // Fallback to hardcoded data on error
+        setTopPicks(FALLBACK_NEARBY_ITEMS);
+      } finally {
+        setTopPicksLoading(false);
+      }
+    }
+    fetchTopPicks();
+  }, []);
 
   const getButtonConfig = () => {
     // Wait for profile to load or default to explore stalls
@@ -438,29 +464,38 @@ function HomePage() {
               <h2 className="text-xl font-bold text-brand mb-0.5">Near you</h2>
               <p className="text-sm text-gray-700">Top picks nearby</p>
             </div>
-            <button className="flex items-center gap-1 text-brand hover:underline">
+            <Link to="/hawker-centres" className="flex items-center gap-1 text-brand hover:underline">
               <img src={locationBrand} alt="" aria-hidden="true" className="h-4 w-4" />
               <span className="text-sm font-medium">Map</span>
-            </button>
+            </Link>
           </div>
 
           <div className="flex flex-col gap-4">
-            {NEARBY_ITEMS.map((item) => (
-              <div
-                key={item.name}
-                className="bg-white rounded-lg p-3 shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.12)] transition-shadow cursor-pointer"
-              >
-                <div className="flex justify-between items-start mb-2">
-                  <h3 className="text-base font-semibold text-brand">{item.name}</h3>
-                  <span className="text-base font-bold text-brand">${item.price}</span>
+            {topPicksLoading ? (
+              <div className="text-sm text-gray-500">Loading top picks...</div>
+            ) : topPicks.length === 0 ? (
+              <div className="text-sm text-gray-500">No top picks available yet.</div>
+            ) : (
+              topPicks.map((item) => (
+                <div
+                  key={item.id}
+                  onClick={() => item.stallId && navigate(`/stalls/${item.stallId}`)}
+                  className={`bg-white rounded-lg p-3 shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.12)] transition-shadow ${item.stallId ? 'cursor-pointer' : 'cursor-default'}`}
+                >
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="text-base font-semibold text-brand">{item.name}</h3>
+                    <span className="text-base font-bold text-brand">
+                      ${(item.priceCents / 100).toFixed(2)}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-600 mb-1">{item.stallName}</p>
+                  <div className="flex items-center gap-1 text-gray-500">
+                    <img src={trendUp} alt="" className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span className="text-xs">{item.upvotes} Upvotes</span>
+                  </div>
                 </div>
-                <p className="text-xs text-gray-600 mb-1">{item.vendor}</p>
-                <div className="flex items-center gap-1 text-gray-500">
-                  <img src={trendUp} alt="" className="h-3.5 w-3.5" aria-hidden="true" />
-                  <span className="text-xs">{item.upvotes} Upvotes</span>
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
       </div>
