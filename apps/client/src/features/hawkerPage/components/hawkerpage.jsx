@@ -4,8 +4,9 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import arrowRight from "../../../assets/hawker/arrow-right.svg";
 import locationIcon from "../../../assets/hawker/location.svg";
 import Filters from "../../hawkerCentres/components/Filters";
-import FiltersMobile from "../../hawkerCentres/components/FiltersMobile"; // ⬅️ NEW
+import FiltersMobile from "../../hawkerCentres/components/FiltersMobile";
 import api from "../../../lib/api";
+import { useFilters } from "../../hawkerCentres/hooks/useFilters";
 
 const fallbackHeroImg =
   "https://images.unsplash.com/photo-1544027993-37dbfe43562a?q=80&w=800&auto=format&fit=crop";
@@ -147,6 +148,30 @@ const HawkerCentreDetailPage = () => {
   const [stalls, setStalls] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const filters = useFilters();
+
+  const prepTimeLimit = filters.prepTime[0];
+  const selectedPriceRanges = filters.selectedPriceRanges;
+  const selectedCuisines = filters.selectedCuisines;
+  const selectedDietary = filters.selectedDietary;
+  const cuisineOptions = filters.cuisines;
+
+  const applyPrepTimeFilter = prepTimeLimit > 0 && prepTimeLimit < 20;
+  const applyPriceFilter =
+    selectedPriceRanges.length > 0 && !selectedPriceRanges.includes("All");
+  const applyCuisineFilter =
+    selectedCuisines.length > 0 && !selectedCuisines.includes("All");
+  const applyDietaryFilter = selectedDietary.length > 0;
+  const knownCuisines = cuisineOptions.filter(
+    (cuisine) => cuisine !== "All" && cuisine !== "Other"
+  );
+
+  const priceRangeMatchers = {
+    "Under $5": (value) => value < 500,
+    "$5 - $10": (value) => value >= 500 && value < 1000,
+    "$10 - $15": (value) => value >= 1000 && value < 1500,
+    "Above $15": (value) => value >= 1500,
+  };
 
   useEffect(() => {
     if (!hawkerId) return;
@@ -221,6 +246,70 @@ const HawkerCentreDetailPage = () => {
       isCancelled = true;
     };
   }, [hawkerId]);
+
+  const filteredStalls = stalls.filter((stall) => {
+    const stallCuisine = stall.cuisineType ?? "";
+    const stallDietary = Array.isArray(stall.dietaryTags) ? stall.dietaryTags : [];
+
+    if (applyCuisineFilter) {
+      const cuisineMatches = selectedCuisines.some((selectedCuisine) => {
+        if (selectedCuisine === "Other") {
+          return stallCuisine === "" || !knownCuisines.includes(stallCuisine);
+        }
+        return stallCuisine === selectedCuisine;
+      });
+      if (!cuisineMatches) return false;
+    }
+
+    if (applyDietaryFilter) {
+      const dietaryMatches = selectedDietary.some((tag) => stallDietary.includes(tag));
+      if (!dietaryMatches) return false;
+    }
+
+    return true;
+  });
+
+  const filteredDishes = dishes.filter((dish) => {
+    const stallForDish = stalls.find((stall) => stall.id === dish.stallId);
+    if (!stallForDish) return false;
+
+    const stallCuisine = stallForDish.cuisineType ?? "";
+    const stallDietary = Array.isArray(stallForDish.dietaryTags)
+      ? stallForDish.dietaryTags
+      : [];
+
+    if (applyCuisineFilter) {
+      const cuisineMatches = selectedCuisines.some((selectedCuisine) => {
+        if (selectedCuisine === "Other") {
+          return stallCuisine === "" || !knownCuisines.includes(stallCuisine);
+        }
+        return stallCuisine === selectedCuisine;
+      });
+      if (!cuisineMatches) return false;
+    }
+
+    if (applyDietaryFilter) {
+      const dietaryMatches = selectedDietary.some((tag) => stallDietary.includes(tag));
+      if (!dietaryMatches) return false;
+    }
+
+    if (applyPriceFilter) {
+      if (typeof dish.priceCents !== "number") return false;
+      const priceMatches = selectedPriceRanges.some((range) => {
+        const matcher = priceRangeMatchers[range];
+        return matcher ? matcher(dish.priceCents) : false;
+      });
+      if (!priceMatches) return false;
+    }
+
+    if (applyPrepTimeFilter) {
+      const prepTimeValue =
+        typeof dish.prepTimeMins === "number" ? dish.prepTimeMins : 5;
+      if (prepTimeValue > prepTimeLimit) return false;
+    }
+
+    return true;
+  });
 
   return (
     <section className="px-[4vw] py-8 w-full min-h-screen bg-[#f5f7f4] font-sans">
@@ -377,14 +466,14 @@ const HawkerCentreDetailPage = () => {
       <div className="w-full flex gap-6">
         {/* Desktop filters */}
         <div className="hidden lg:block w-[22vw] sticky top-24">
-          <Filters />
+          <Filters filters={filters} />
         </div>
 
         {/* Main content */}
         <div className="w-full lg:w-[72vw] pb-10">
           {/* Mobile filters */}
           <div className="lg:hidden mb-4">
-            <FiltersMobile />
+            <FiltersMobile filters={filters} />
           </div>
 
           {loading && (
@@ -400,10 +489,10 @@ const HawkerCentreDetailPage = () => {
             <>
               {activeTab === "dishes" && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-5">
-                  {dishes.map((dish) => (
+                  {filteredDishes.map((dish) => (
                     <DishCard key={dish.id} dish={dish} />
                   ))}
-                  {dishes.length === 0 && (
+                  {filteredDishes.length === 0 && (
                     <p className="text-sm text-gray-500 col-span-full">
                       No dishes found for this hawker centre yet.
                     </p>
@@ -413,10 +502,10 @@ const HawkerCentreDetailPage = () => {
 
               {activeTab === "stalls" && (
                 <div className="space-y-3 text-sm text-gray-700">
-                  {stalls.map((stall) => (
+                  {filteredStalls.map((stall) => (
                     <StallCard key={stall.id} stall={stall} />
                   ))}
-                  {stalls.length === 0 && (
+                  {filteredStalls.length === 0 && (
                     <p className="text-sm text-gray-500">
                       No stalls found for this hawker centre yet.
                     </p>
