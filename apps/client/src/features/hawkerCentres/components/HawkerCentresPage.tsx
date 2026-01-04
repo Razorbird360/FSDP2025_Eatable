@@ -17,10 +17,19 @@ const HawkerCentresPage = () => {
   const navigate = useNavigate();
   const prepTimeLimit = filters.prepTime[0];
   const selectedPriceRanges = filters.selectedPriceRanges;
+  const selectedCuisines = filters.selectedCuisines;
+  const selectedDietary = filters.selectedDietary;
+  const cuisineOptions = filters.cuisines;
   const filteredCentres = useMemo(() => {
     const applyPrepTimeFilter = prepTimeLimit > 0 && prepTimeLimit < 20;
     const applyPriceFilter =
       selectedPriceRanges.length > 0 && !selectedPriceRanges.includes('All');
+    const applyCuisineFilter =
+      selectedCuisines.length > 0 && !selectedCuisines.includes('All');
+    const applyDietaryFilter = selectedDietary.length > 0;
+    const knownCuisines = cuisineOptions.filter(
+      (cuisine) => cuisine !== 'All' && cuisine !== 'Other'
+    );
     const priceRangeMatchers: Record<Exclude<PriceRange, 'All'>, (value: number) => boolean> = {
       'Under $5': (value) => value < 500,
       '$5 - $10': (value) => value >= 500 && value < 1000,
@@ -31,6 +40,8 @@ const HawkerCentresPage = () => {
       .map((centre) => {
         const stalls = Array.isArray(centre.stalls) ? centre.stalls : [];
         const filteredStalls = stalls.filter((stall) => {
+          const stallCuisine = stall.cuisineType ?? '';
+          const stallDietary = Array.isArray(stall.dietaryTags) ? stall.dietaryTags : [];
           if (typeof stall.avgPriceCents !== 'number') {
             return false;
           }
@@ -40,6 +51,23 @@ const HawkerCentresPage = () => {
               return matcher ? matcher(stall.avgPriceCents!) : false;
             });
             if (!priceMatches) {
+              return false;
+            }
+          }
+          if (applyCuisineFilter) {
+            const cuisineMatches = selectedCuisines.some((selectedCuisine) => {
+              if (selectedCuisine === 'Other') {
+                return stallCuisine === '' || !knownCuisines.includes(stallCuisine);
+              }
+              return stallCuisine === selectedCuisine;
+            });
+            if (!cuisineMatches) {
+              return false;
+            }
+          }
+          if (applyDietaryFilter) {
+            const dietaryMatches = selectedDietary.some((tag) => stallDietary.includes(tag));
+            if (!dietaryMatches) {
               return false;
             }
           }
@@ -54,7 +82,14 @@ const HawkerCentresPage = () => {
         return { ...centre, stalls: filteredStalls };
       })
       .filter((centre) => centre.stalls.length > 0);
-  }, [hawkerCentres, prepTimeLimit, selectedPriceRanges]);
+  }, [
+    hawkerCentres,
+    prepTimeLimit,
+    selectedPriceRanges,
+    selectedCuisines,
+    selectedDietary,
+    cuisineOptions,
+  ]);
   const displayedCentres = filteredCentres.slice(0, displayLimit);
   const hasMore = displayLimit < filteredCentres.length;
 

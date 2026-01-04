@@ -107,7 +107,7 @@ async function main() {
         name: "Maxwell Fuzhou Oyster Cake",
         description: "Crispy oyster cake with minced meat and peanuts.",
         location: "Stall 01-31",
-        cuisineType: "Local",
+        cuisineType: "Desserts",
         dietaryTags: [],
         tags: ["snack", "oyster", "fritters"],
         image_url:

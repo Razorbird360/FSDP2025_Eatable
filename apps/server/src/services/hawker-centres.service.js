@@ -138,6 +138,7 @@ async function getRandomStallsBySlug(slug, limit = 3) {
       id: stall.id,
       name: stall.name,
       cuisineType: stall.cuisineType,
+      dietaryTags: stall.dietaryTags ?? [],
       imageUrl: stall.image_url,
       maxPrepTimeMins,
       avgPriceCents,

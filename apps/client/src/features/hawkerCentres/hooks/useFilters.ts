@@ -8,7 +8,7 @@ export const useFilters = () => {
   const [selectedDietary, setSelectedDietary] = useState<string[]>([]);
   const [prepTime, setPrepTime] = useState([0]);
 
-  const cuisines = ['All', 'Chinese', 'Malay', 'Indian', 'Western', 'Japanese', 'Vegetarian'];
+  const cuisines = ['All', 'Chinese', 'Malay', 'Indian', 'Western', 'Desserts', 'Local', 'Drinks', 'Other'];
   const priceRanges = ['All', 'Under $5', '$5 - $10', '$10 - $15', 'Above $15'] as const;
   const dietary = ['Halal', 'Vegetarian', 'Vegan', 'Gluten-Free', 'No Pork'];
 
