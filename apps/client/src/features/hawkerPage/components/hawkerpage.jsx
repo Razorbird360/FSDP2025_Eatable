@@ -6,6 +6,10 @@ import locationIcon from "../../../assets/hawker/location.svg";
 import Filters from "../../hawkerCentres/components/Filters";
 import FiltersMobile from "../../hawkerCentres/components/FiltersMobile";
 import api from "../../../lib/api";
+import trendUp from "../../../assets/icons/trend-up.svg";
+import clockIcon from "../../../assets/icons/clock.svg";
+import stallsIcon from "../../../assets/hawker/Stalls-dark.svg";
+import dishesIcon from "../../../assets/hawker/Dishes-dark.svg";
 import { useFilters } from "../../hawkerCentres/hooks/useFilters";
 
 const fallbackHeroImg =
@@ -20,9 +24,9 @@ function DishCard({ dish }) {
   return (
     <div
       onClick={() => navigate(`/stalls/${dish.stallId}`)}
-      className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden cursor-pointer transition-transform hover:-translate-y-0.5 hover:shadow-md"
+      className="bg-white rounded-xl shadow-[0_2px_12px_rgba(0,0,0,0.08)] overflow-hidden cursor-pointer transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_8px_24px_rgba(0,0,0,0.12)]"
     >
-      <div className="h-44 w-full overflow-hidden">
+      <div className="aspect-[4/3] w-full overflow-hidden">
         <img
           src={dish.imageUrl || fallbackDishImg}
           alt={dish.name}
@@ -30,53 +34,33 @@ function DishCard({ dish }) {
         />
       </div>
 
-      <div className="p-4 flex flex-col gap-1">
-        <h3 className="text-sm font-semibold text-slate-900 line-clamp-2">
+      {/* Card content */}
+      <div className="p-3">
+        <h3 className="text-sm font-semibold text-slate-900 line-clamp-2 mb-1">
           {dish.name}
         </h3>
-        <p className="text-xs text-gray-500">
-          {dish.cuisine} · {dish.stallName}
+        <p className="text-xs text-gray-500 mb-3">
+          {dish.cuisine}
         </p>
 
-        <div className="mt-3 flex items-center justify-between text-[11px] text-slate-500">
-          <div className="flex items-center gap-4">
+        {/* Stats row */}
+        <div className="flex items-center justify-between text-xs text-slate-500">
+          <div className="flex items-center gap-3">
+            {/* Orders/upvotes with trend-up icon */}
             <div className="flex items-center gap-1">
-              <svg
-                viewBox="0 0 24 24"
-                className="w-3 h-3 text-slate-400"
-                fill="none"
-                stroke="currentColor"
-              >
-                <path
-                  d="M4 20v-6m5 6V8m5 12V4m5 16"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
+              <img src={trendUp} alt="" className="w-4 h-4" />
               <span>{dish.orders ?? "–"}</span>
             </div>
 
+            {/* Prep time with clock icon */}
             <div className="flex items-center gap-1">
-              <svg
-                viewBox="0 0 24 24"
-                className="w-3 h-3 text-slate-400"
-                fill="none"
-                stroke="currentColor"
-              >
-                <circle cx="12" cy="12" r="8" strokeWidth="1.5" />
-                <path
-                  d="M12 8v4l2 2"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
+              <img src={clockIcon} alt="" className="w-4 h-4" />
               <span>{dish.prepTime}</span>
             </div>
           </div>
 
-          <div className="font-semibold text-slate-900 text-xs">
+          {/* Price */}
+          <div className="font-semibold text-slate-900">
             ${dish.price.toFixed(2)}
           </div>
         </div>
@@ -215,7 +199,7 @@ const HawkerCentreDetailPage = () => {
                 ? dish.priceCents / 100
                 : 0,
             imageUrl: dish.mediaUploads?.[0]?.imageUrl || fallbackDishImg,
-            orders: dish.orders ?? null,
+            orders: typeof dish.upvoteCount === "number" ? dish.upvoteCount : null,
           };
         });
 
@@ -337,86 +321,89 @@ const HawkerCentreDetailPage = () => {
       </div>
 
       {/* Top summary card */}
-      <div className="w-full bg-white border border-slate-200 rounded-2xl p-4 md:p-6 flex flex-col gap-5">
-        {/* Title + stats */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+      <div 
+        className="w-full rounded-2xl py-6 pl-6 pr-4 md:p-6 flex flex-col md:flex-row gap-5 shadow-[0_2px_12px_rgba(0,0,0,0.06)] relative overflow-hidden md:bg-white md:border md:border-slate-200"
+      >
+        {/* Background image for mobile */}
+        <div 
+          className="absolute inset-0 md:hidden bg-cover bg-center"
+          style={{ backgroundImage: `url(${centre.imageUrl || fallbackHeroImg})` }}
+        />
+        
+        {/* Dark overlay for mobile */}
+        <div className="absolute inset-0 bg-black/50 md:hidden" />
+        
+        {/* White background for desktop */}
+        <div className="hidden md:block absolute inset-0 bg-white" />
+
+        {/* Hero image - visible on desktop */}
+        <div className="hidden md:block w-40 h-40 flex-shrink-0 rounded-xl overflow-hidden relative z-10">
+          <img
+            src={centre.imageUrl || fallbackHeroImg}
+            alt={centre.name}
+            className="w-full h-full object-cover"
+          />
+        </div>
+
+        {/* Content section */}
+        <div className="flex-1 flex flex-col gap-4 relative z-10 justify-center md:justify-start">
+          {/* Title + stats */}
           <div>
-            <h2 className="text-xl md:text-2xl font-semibold text-slate-900">
+            <h2 className="text-xl md:text-2xl font-semibold text-white md:text-slate-900">
               {centre.name || "Hawker Centre"}
             </h2>
-            <p className="mt-1 text-xs md:text-sm text-gray-600">
+            <p className="mt-1 text-xs md:text-sm text-white/90 md:text-gray-600">
               <span className="font-semibold">{centre.stallCount}</span> stalls
               <span className="mx-1.5">•</span>
-              <span className="font-semibold text-brand">
+              <span className="font-semibold text-white md:text-brand">
                 {centre.openCount} open
               </span>
             </p>
           </div>
-        </div>
 
-        {/* Location + Hours row */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs md:text-sm text-gray-600">
-          {/* Location */}
-          <div className="flex items-start gap-2">
-            <div className="mt-[2px] flex h-5 w-5 items-center justify-center rounded-full border border-gray-300">
-              <img src={locationIcon} alt="" className="w-3 h-3" />
-            </div>
-            <div>
-              <p className="text-[11px] uppercase tracking-wide text-gray-500">
-                Location
-              </p>
-              <p className="text-sm">
-                {centre.distanceKm != null
-                  ? `${centre.distanceKm.toFixed(1)} km from you`
-                  : "Distance unavailable"}
-              </p>
-              {centre.address && (
-                <p className="text-[11px] text-gray-500">
-                  {centre.address}
-                  {centre.postalCode && ` · S(${centre.postalCode})`}
+          {/* Location + Hours row */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs md:text-sm text-white/90 md:text-gray-600">
+            {/* Location */}
+            <div className="flex items-start gap-2">
+              <div className="mt-[2px] flex h-5 w-5 items-center justify-center rounded-full border border-white/50 md:border-gray-300">
+                <img src={locationIcon} alt="" className="w-3 h-3 brightness-0 invert md:brightness-100 md:invert-0" />
+              </div>
+              <div>
+                <p className="text-[11px] uppercase tracking-wide text-white/70 md:text-gray-500">
+                  Location
                 </p>
-              )}
+                <p className="text-sm text-white md:text-gray-600">
+                  {centre.distanceKm != null
+                    ? `${centre.distanceKm.toFixed(1)} km from you`
+                    : "Distance unavailable"}
+                </p>
+              </div>
+            </div>
+
+            {/* Hours */}
+            <div className="flex items-start gap-2">
+              <div className="mt-[2px] flex h-5 w-5 items-center justify-center rounded-full border border-white/50 md:border-gray-300">
+                <img src={clockIcon} alt="" className="w-3 h-3 brightness-0 invert md:brightness-100 md:invert-0" />
+              </div>
+              <div>
+                <p className="text-[11px] uppercase tracking-wide text-white/70 md:text-gray-500">
+                  Hours
+                </p>
+                <p className="text-sm text-white md:text-gray-600">
+                  {centre.hours || "6:00 AM - 10:00 PM"}
+                </p>
+                <p className="text-[11px] text-white/70 md:text-gray-500">
+                  {centre.days || "Daily"}
+                </p>
+              </div>
             </div>
           </div>
 
-          {/* Hours */}
-          <div className="flex items-start gap-2">
-            <div className="mt-[2px] flex h-5 w-5 items-center justify-center rounded-full border border-gray-300">
-              <svg
-                viewBox="0 0 24 24"
-                className="w-3 h-3"
-                fill="none"
-                stroke="currentColor"
-              >
-                <circle cx="12" cy="12" r="8" strokeWidth="1.5" />
-                <path
-                  d="M12 8v4l2 2"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </div>
-            <div>
-              <p className="text-[11px] uppercase tracking-wide text-gray-500">
-                Hours
-              </p>
-              <p className="text-sm">
-                {centre.hours || "6:00 AM - 10:00 PM"}
-              </p>
-              <p className="text-[11px] text-gray-500">
-                {centre.days || "Daily"}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* CTA */}
-        <button className="inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-medium rounded-full bg-brand text-white w-max hover:bg-brand/90 transition-colors">
-          <span className="inline-flex h-4 w-4 items-center justify-center rounded border border-white/60 text-[9px]">
+          {/* CTA */}
+          <button className="inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-medium rounded-full bg-white md:bg-brand text-brand md:text-white w-max hover:bg-white/90 md:hover:bg-brand/90 transition-colors">
             <svg
               viewBox="0 0 24 24"
-              className="w-3 h-3"
+              className="w-4 h-4"
               fill="none"
               stroke="currentColor"
             >
@@ -427,36 +414,46 @@ const HawkerCentreDetailPage = () => {
                 strokeLinejoin="round"
               />
             </svg>
-          </span>
-          View on map
-        </button>
+            View on map
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center justify-between mb-4 mt-10">
-        <div className="inline-flex bg-[#e9EFE4] rounded-full p-1">
+      <div className="flex items-center justify-between my-4 md:mb-4 md:mt-10">
+        <div className="inline-flex bg-white border border-[#E5E5E5] rounded-xl p-1 gap-[3px]">
           <button
             type="button"
             onClick={() => setActiveTab("stalls")}
-            className={`px-4 py-1.5 text-xs md:text-sm rounded-full font-medium transition-colors
+            className={`flex items-center gap-2 px-5 py-2 text-sm rounded-lg font-medium transition-colors
               ${
                 activeTab === "stalls"
-                  ? "bg-white text-brand shadow-sm"
-                  : "text-gray-600"
+                  ? "bg-brand text-white"
+                  : "text-gray-400"
               }`}
           >
+            <img 
+              src={stallsIcon} 
+              alt="" 
+              className={`w-4 h-4 ${activeTab === "stalls" ? "brightness-0 invert" : "opacity-40"}`}
+            />
             Stalls
           </button>
           <button
             type="button"
             onClick={() => setActiveTab("dishes")}
-            className={`px-4 py-1.5 text-xs md:text-sm rounded-full font-medium transition-colors
+            className={`flex items-center gap-2 px-5 py-2 text-sm rounded-lg font-medium transition-colors
               ${
                 activeTab === "dishes"
-                  ? "bg-white text-brand shadow-sm"
-                  : "text-gray-600"
+                  ? "bg-brand text-white"
+                  : "text-gray-400"
               }`}
           >
+            <img 
+              src={dishesIcon} 
+              alt="" 
+              className={`w-4 h-4 ${activeTab === "dishes" ? "brightness-0 invert" : "opacity-40"}`}
+            />
             Dishes
           </button>
         </div>

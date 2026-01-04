@@ -100,7 +100,6 @@ function HomePage() {
     const updateScrollLock = () => {
       const isDesktop = window.matchMedia("(min-width: 768px)").matches;
       if (isDesktop) {
-        // On desktop, prevent body scroll but allow section to scroll if needed
         html.style.overflow = "hidden";
         body.style.overflow = "hidden";
       } else {

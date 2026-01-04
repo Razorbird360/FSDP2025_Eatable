@@ -207,7 +207,30 @@ async function getHawkerDishesById(hawkerId) {
         },
       }
     });
-    return dishes;
+    if (dishes.length === 0) {
+      return dishes;
+    }
+
+    const dishIds = dishes.map((dish) => dish.id);
+    const upvoteTotals = await prisma.mediaUpload.groupBy({
+      by: ['menuItemId'],
+      where: {
+        menuItemId: { in: dishIds },
+        validationStatus: 'approved',
+      },
+      _sum: {
+        upvoteCount: true,
+      },
+    });
+
+    const upvoteByItem = new Map(
+      upvoteTotals.map((row) => [row.menuItemId, row._sum.upvoteCount ?? 0])
+    );
+
+    return dishes.map((dish) => ({
+      ...dish,
+      upvoteCount: upvoteByItem.get(dish.id) ?? 0,
+    }));
   } catch (error) {
     console.error(`Error fetching dishes for hawkerId ${hawkerId}:`, error);
     throw new Error('Failed to fetch dishes');
