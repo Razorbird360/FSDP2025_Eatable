@@ -61,6 +61,128 @@ export const menuService = {
     });
   },
 
+  async getFeaturedMenuItemsByCuisine({ minUpvotes = 500, cuisines } = {}) {
+    const defaultCuisines = ['malay', 'indian', 'western', 'chinese', 'desserts', 'local'];
+    const cuisineList = Array.isArray(cuisines) && cuisines.length > 0 ? cuisines : defaultCuisines;
+    const normalizedCuisines = Array.from(
+      new Set(
+        cuisineList
+          .map((cuisine) => (cuisine ?? '').toString().trim().toLowerCase())
+          .filter(Boolean)
+      )
+    );
+
+    const upvoteTotals = await prisma.mediaUpload.groupBy({
+      by: ['menuItemId'],
+      where: {
+        validationStatus: 'approved',
+      },
+      _sum: {
+        upvoteCount: true,
+      },
+    });
+
+    const filteredTotals = upvoteTotals.filter(
+      (row) => (row._sum.upvoteCount ?? 0) >= minUpvotes
+    );
+
+    const emptyItems = normalizedCuisines.reduce((acc, cuisine) => {
+      acc[cuisine] = null;
+      return acc;
+    }, {});
+
+    if (filteredTotals.length === 0) {
+      return {
+        minUpvotes,
+        items: emptyItems,
+      };
+    }
+
+    const menuItemIds = filteredTotals.map((row) => row.menuItemId);
+
+    const menuItems = await prisma.menuItem.findMany({
+      where: {
+        id: { in: menuItemIds },
+        isActive: true,
+      },
+      select: {
+        id: true,
+        name: true,
+        priceCents: true,
+        stall: {
+          select: {
+            id: true,
+            name: true,
+            cuisineType: true,
+            location: true,
+          },
+        },
+      },
+    });
+
+    const menuItemById = new Map(menuItems.map((item) => [item.id, item]));
+
+    const topImages = await prisma.mediaUpload.findMany({
+      where: {
+        menuItemId: { in: menuItemIds },
+        validationStatus: 'approved',
+      },
+      select: {
+        menuItemId: true,
+        imageUrl: true,
+        upvoteCount: true,
+      },
+      orderBy: {
+        upvoteCount: 'desc',
+      },
+      distinct: ['menuItemId'],
+    });
+
+    const imageByMenuItem = new Map(
+      topImages.map((image) => [image.menuItemId, image.imageUrl ?? null])
+    );
+
+    const itemsByCuisine = new Map();
+    for (const row of filteredTotals) {
+      const item = menuItemById.get(row.menuItemId);
+      if (!item) {
+        continue;
+      }
+
+      const cuisineKey = (item.stall?.cuisineType ?? 'Other').toString().trim().toLowerCase();
+      if (normalizedCuisines.length > 0 && !normalizedCuisines.includes(cuisineKey)) {
+        continue;
+      }
+
+      const entry = {
+        id: item.id,
+        name: item.name,
+        priceCents: item.priceCents,
+        stallId: item.stall?.id ?? null,
+        stallName: item.stall?.name ?? null,
+        stallLocation: item.stall?.location ?? null,
+        imageUrl: imageByMenuItem.get(item.id) ?? null,
+        upvotes: row._sum.upvoteCount ?? 0,
+        cuisine: cuisineKey,
+      };
+
+      const bucket = itemsByCuisine.get(cuisineKey) ?? [];
+      bucket.push(entry);
+      itemsByCuisine.set(cuisineKey, bucket);
+    }
+
+    const featured = normalizedCuisines.reduce((acc, cuisine) => {
+      const pool = itemsByCuisine.get(cuisine) ?? [];
+      acc[cuisine] = pool.length > 0 ? pool[Math.floor(Math.random() * pool.length)] : null;
+      return acc;
+    }, {});
+
+    return {
+      minUpvotes,
+      items: featured,
+    };
+  },
+
   /**
    * Get top-voted menu items across all stalls
    * @param {number} limit - Maximum number of items to return

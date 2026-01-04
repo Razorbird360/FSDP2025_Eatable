@@ -20,4 +20,30 @@ router.get('/top-voted', async (req, res, next) => {
   }
 });
 
+/**
+ * @route GET /api/menu/featured
+ * @description Get featured menu items by cuisine with min upvotes
+ * @query {number} minUpvotes - Minimum total upvotes per menu item (default: 500)
+ * @query {string} cuisines - Comma-separated cuisine keys (optional)
+ * @returns {Object} Featured item per cuisine
+ */
+router.get('/featured', async (req, res, next) => {
+  try {
+    const minUpvotes = Number.parseInt(req.query.minUpvotes, 10);
+    const cuisinesParam = typeof req.query.cuisines === 'string' ? req.query.cuisines : '';
+    const cuisines = cuisinesParam
+      .split(',')
+      .map((cuisine) => cuisine.trim())
+      .filter(Boolean);
+    const featured = await menuService.getFeaturedMenuItemsByCuisine({
+      minUpvotes: Number.isFinite(minUpvotes) ? minUpvotes : undefined,
+      cuisines: cuisines.length > 0 ? cuisines : undefined,
+    });
+    res.json(featured);
+  } catch (error) {
+    console.error('Error fetching featured items:', error);
+    next(error);
+  }
+});
+
 export default router;

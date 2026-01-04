@@ -45,6 +45,8 @@ const FALLBACK_NEARBY_ITEMS = [
   },
 ];
 
+
+
 function HomePage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -52,6 +54,8 @@ function HomePage() {
   const [showVerificationModal, setShowVerificationModal] = useState(false);
   const [topPicks, setTopPicks] = useState([]);
   const [topPicksLoading, setTopPicksLoading] = useState(true);
+  const [activeCuisineIndex, setActiveCuisineIndex] = useState(0);
+  const [featuredDishes, setFeaturedDishes] = useState({});
   const isProfileLoading = status === 'loading';
 
   useEffect(() => {
@@ -82,6 +86,37 @@ function HomePage() {
     }
     fetchTopPicks();
   }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setActiveCuisineIndex((prev) => (prev + 1) % CUISINE_TYPES.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Fetch featured dishes from API
+  useEffect(() => {
+    async function fetchFeatured() {
+      try {
+        const res = await api.get('/menu/featured?minUpvotes=500');
+        if (res.data?.items) {
+          setFeaturedDishes(res.data.items);
+        }
+      } catch (err) {
+        console.error('Failed to fetch featured dishes:', err);
+      }
+    }
+    fetchFeatured();
+  }, []);
+
+  // Get current featured dish based on active cuisine
+  const activeCuisine = CUISINE_TYPES[activeCuisineIndex];
+  const currentFeaturedDish = featuredDishes[activeCuisine] || {
+    name: `Top Rated ${activeCuisine.charAt(0).toUpperCase() + activeCuisine.slice(1)} Dishes`,
+    stallName: 'Explore local hawker favorites',
+    stallId: null,
+    imageUrl: undefined,
+  };
 
   const getButtonConfig = () => {
     // Wait for profile to load or default to explore stalls
@@ -319,10 +354,20 @@ function HomePage() {
       {/* middle column */}
       <div className="flex flex-col items-center md:w-[36vw] md:py-4 xl:py-6 2xl:py-10 md:justify-center md:flex-shrink-0">
         <div className="md:hidden">
-          <HeroAdvertisement />
+          <HeroAdvertisement
+            imageUrl={currentFeaturedDish.imageUrl}
+            dishName={currentFeaturedDish.name}
+            stallName={currentFeaturedDish.stallName}
+            stallId={currentFeaturedDish.stallId}
+          />
           <div className="grid w-[90vw] max-w-[24rem] grid-cols-3 gap-x-3 mt-6 gap-y-3 max-[430px]:w-[88vw] max-[430px]:max-w-[22rem] max-[430px]:gap-x-2 max-[430px]:gap-y-2">
-            {CUISINE_TYPES.map((cuisine) => (
-              <CuisineBox key={cuisine} type={cuisine} />
+            {CUISINE_TYPES.map((cuisine, index) => (
+              <CuisineBox
+                key={cuisine}
+                type={cuisine}
+                isActive={activeCuisineIndex === index}
+                navigateOnClick={true}
+              />
             ))}
           </div>
 
@@ -429,27 +474,62 @@ function HomePage() {
           >
             <div className="flex justify-between w-full mb-3" style={{ transform: "translateY(-2vh)" }}>
               <div className="w-14 xl:w-16" style={{ transform: "translateX(-3vw)" }}>
-                <CuisineBox type="malay" shape="circle" />
+                <CuisineBox
+                  type="malay"
+                  shape="circle"
+                  isActive={activeCuisineIndex === 0}
+                  navigateOnClick={true}
+                />
               </div>
               <div className="w-14 xl:w-16" style={{ transform: "translateY(-4vh)" }}>
-                <CuisineBox type="indian" shape="circle" />
+                <CuisineBox
+                  type="indian"
+                  shape="circle"
+                  isActive={activeCuisineIndex === 1}
+                  navigateOnClick={true}
+                />
               </div>
               <div className="w-14 xl:w-16" style={{ transform: "translateX(3vw)" }}>
-                <CuisineBox type="western" shape="circle" />
+                <CuisineBox
+                  type="western"
+                  shape="circle"
+                  isActive={activeCuisineIndex === 2}
+                  navigateOnClick={true}
+                />
               </div>
             </div>
 
-            <HeroAdvertisement />
+            <HeroAdvertisement
+              imageUrl={currentFeaturedDish.imageUrl}
+              dishName={currentFeaturedDish.name}
+              stallName={currentFeaturedDish.stallName}
+              stallId={currentFeaturedDish.stallId}
+            />
 
             <div className="flex justify-between w-full mt-3" style={{ transform: "translateY(2vh)" }}>
               <div className="w-14 xl:w-16" style={{ transform: "translateX(-3vw)" }}>
-                <CuisineBox type="chinese" shape="circle" />
+                <CuisineBox
+                  type="chinese"
+                  shape="circle"
+                  isActive={activeCuisineIndex === 3}
+                  navigateOnClick={true}
+                />
               </div>
               <div className="w-14 xl:w-16" style={{ transform: "translateY(4vh)" }}>
-                <CuisineBox type="desserts" shape="circle" />
+                <CuisineBox
+                  type="desserts"
+                  shape="circle"
+                  isActive={activeCuisineIndex === 4}
+                  navigateOnClick={true}
+                />
               </div>
               <div className="w-14 xl:w-16" style={{ transform: "translateX(3vw)" }}>
-                <CuisineBox type="local" shape="circle" />
+                <CuisineBox
+                  type="local"
+                  shape="circle"
+                  isActive={activeCuisineIndex === 5}
+                  navigateOnClick={true}
+                />
               </div>
             </div>
           </div>
