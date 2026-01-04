@@ -1,16 +1,18 @@
 import { useState } from 'react';
 
+export type PriceRange = 'All' | 'Under $5' | '$5 - $10' | '$10 - $15' | 'Above $15';
+
 export const useFilters = () => {
   const [selectedCuisines, setSelectedCuisines] = useState<string[]>(['All']);
-  const [selectedPriceRanges, setSelectedPriceRanges] = useState<string[]>(['All']);
+  const [selectedPriceRanges, setSelectedPriceRanges] = useState<PriceRange[]>(['All']);
   const [selectedDietary, setSelectedDietary] = useState<string[]>([]);
   const [prepTime, setPrepTime] = useState([0]);
 
   const cuisines = ['All', 'Chinese', 'Malay', 'Indian', 'Western', 'Japanese', 'Vegetarian'];
-  const priceRanges = ['All', 'Under $5', '$5 - $10', '$10 - $15', 'Above $15'];
+  const priceRanges = ['All', 'Under $5', '$5 - $10', '$10 - $15', 'Above $15'] as const;
   const dietary = ['Halal', 'Vegetarian', 'Vegan', 'Gluten-Free', 'No Pork'];
 
-  const sortByOriginalOrder = (items: string[], originalArray: string[]): string[] => {
+  const sortByOriginalOrder = <T extends string>(items: T[], originalArray: T[]): T[] => {
     return [...items].sort((a, b) => {
       const indexA = originalArray.indexOf(a);
       const indexB = originalArray.indexOf(b);
@@ -18,21 +20,23 @@ export const useFilters = () => {
     });
   };
 
-  const toggleSelection = (
-    item: string,
-    selected: string[],
-    setSelected: (items: string[]) => void,
+  const toggleSelection = <T extends string>(
+    item: T,
+    selected: T[],
+    setSelected: (items: T[]) => void,
     hasAll: boolean = true,
-    originalArray?: string[]
+    originalArray?: T[]
   ) => {
     if (item === 'All') {
-      setSelected(['All']);
+      setSelected(['All' as T]);
     } else {
       const newSelection = selected.includes(item)
         ? selected.filter((i) => i !== item)
         : [...selected.filter((i) => i !== 'All'), item];
 
-      const finalSelection = newSelection.length === 0 && hasAll ? ['All'] : newSelection;
+      const finalSelection = newSelection.length === 0 && hasAll
+        ? (['All' as T])
+        : newSelection;
 
       // Sort by original array order if provided
       if (originalArray && finalSelection[0] !== 'All') {

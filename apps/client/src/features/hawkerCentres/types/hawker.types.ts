@@ -15,6 +15,7 @@ export interface Stall {
   name: string;
   cuisineType: string | null;
   imageUrl: string | null; // from media uploads or stall.image_url
+  avgPriceCents?: number;
   maxPrepTimeMins?: number;
   menuItemCount: number;
 }

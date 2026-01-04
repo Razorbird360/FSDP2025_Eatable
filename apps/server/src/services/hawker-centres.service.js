@@ -109,8 +109,10 @@ async function getRandomStallsBySlug(slug, limit = 3) {
     }
   });
 
+  const stallsWithActiveMenuItems = stalls.filter((stall) => stall.menuItems.length > 0);
+
   // Shuffle stalls array and take first N items
-  const shuffled = stalls.sort(() => 0.5 - Math.random());
+  const shuffled = stallsWithActiveMenuItems.sort(() => 0.5 - Math.random());
   const randomStalls = shuffled.slice(0, limit);
 
   // Format stalls with image URL
@@ -125,6 +127,12 @@ async function getRandomStallsBySlug(slug, limit = 3) {
       .map((item) => item.prepTimeMins)
       .filter((value) => typeof value === 'number');
     const maxPrepTimeMins = prepTimes.length ? Math.max(...prepTimes) : 5;
+    const prices = stall.menuItems
+      .map((item) => item.priceCents)
+      .filter((value) => typeof value === 'number');
+    const avgPriceCents = prices.length
+      ? Math.round(prices.reduce((sum, value) => sum + value, 0) / prices.length)
+      : null;
 
     return {
       id: stall.id,
@@ -132,6 +140,7 @@ async function getRandomStallsBySlug(slug, limit = 3) {
       cuisineType: stall.cuisineType,
       imageUrl: stall.image_url,
       maxPrepTimeMins,
+      avgPriceCents,
       menuItemCount: stall._count.menuItems
     };
   });
@@ -160,7 +169,20 @@ async function getHawkerStallsById(hawkerId) {
         }
       }
     });
-    return stalls;
+    const stallsWithActiveMenuItems = stalls.filter((stall) => stall.menuItems.length > 0);
+    return stallsWithActiveMenuItems.map((stall) => {
+      const prepTimes = stall.menuItems
+        .map((item) => item.prepTimeMins)
+        .filter((value) => typeof value === 'number');
+      const maxPrepTimeMins = prepTimes.length ? Math.max(...prepTimes) : 5;
+      const prices = stall.menuItems
+        .map((item) => item.priceCents)
+        .filter((value) => typeof value === 'number');
+      const avgPriceCents = prices.length
+        ? Math.round(prices.reduce((sum, value) => sum + value, 0) / prices.length)
+        : null;
+      return { ...stall, maxPrepTimeMins, avgPriceCents };
+    });
   } catch (error) {
     console.error(`Error fetching stalls for hawkerId ${hawkerId}:`, error);
     throw new Error('Failed to fetch stalls');

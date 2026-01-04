@@ -8,6 +8,7 @@ import FiltersMobile from './FiltersMobile';
 import StallCard from './StallCard';
 import { useHawkerCentres } from '../hooks/useHawkerCentres';
 import { useFilters } from '../hooks/useFilters';
+import type { PriceRange } from '../hooks/useFilters';
 
 const HawkerCentresPage = () => {
   const [displayLimit, setDisplayLimit] = useState(6);
@@ -15,21 +16,45 @@ const HawkerCentresPage = () => {
   const filters = useFilters();
   const navigate = useNavigate();
   const prepTimeLimit = filters.prepTime[0];
+  const selectedPriceRanges = filters.selectedPriceRanges;
   const filteredCentres = useMemo(() => {
     const applyPrepTimeFilter = prepTimeLimit > 0 && prepTimeLimit < 20;
+    const applyPriceFilter =
+      selectedPriceRanges.length > 0 && !selectedPriceRanges.includes('All');
+    const priceRangeMatchers: Record<Exclude<PriceRange, 'All'>, (value: number) => boolean> = {
+      'Under $5': (value) => value < 500,
+      '$5 - $10': (value) => value >= 500 && value < 1000,
+      '$10 - $15': (value) => value >= 1000 && value < 1500,
+      'Above $15': (value) => value >= 1500,
+    };
     return hawkerCentres
       .map((centre) => {
         const stalls = Array.isArray(centre.stalls) ? centre.stalls : [];
-        const filteredStalls = applyPrepTimeFilter
-          ? stalls.filter((stall) => {
-              const maxPrep = typeof stall.maxPrepTimeMins === 'number' ? stall.maxPrepTimeMins : 5;
-              return maxPrep <= prepTimeLimit;
-            })
-          : stalls;
+        const filteredStalls = stalls.filter((stall) => {
+          if (typeof stall.avgPriceCents !== 'number') {
+            return false;
+          }
+          if (applyPriceFilter) {
+            const priceMatches = selectedPriceRanges.some((range) => {
+              const matcher = priceRangeMatchers[range];
+              return matcher ? matcher(stall.avgPriceCents!) : false;
+            });
+            if (!priceMatches) {
+              return false;
+            }
+          }
+          if (applyPrepTimeFilter) {
+            const maxPrep = typeof stall.maxPrepTimeMins === 'number' ? stall.maxPrepTimeMins : 5;
+            if (maxPrep > prepTimeLimit) {
+              return false;
+            }
+          }
+          return true;
+        });
         return { ...centre, stalls: filteredStalls };
       })
       .filter((centre) => centre.stalls.length > 0);
-  }, [hawkerCentres, prepTimeLimit]);
+  }, [hawkerCentres, prepTimeLimit, selectedPriceRanges]);
   const displayedCentres = filteredCentres.slice(0, displayLimit);
   const hasMore = displayLimit < filteredCentres.length;
 
@@ -132,7 +157,7 @@ const HawkerCentresPage = () => {
                         name={stall.name}
                         cuisineType={stall.cuisineType}
                         imageUrl={stall.imageUrl}
-                        upvotes={stall.upvotes}
+                        avgPriceCents={stall.avgPriceCents}
                       />
                     </div>
                   ))}

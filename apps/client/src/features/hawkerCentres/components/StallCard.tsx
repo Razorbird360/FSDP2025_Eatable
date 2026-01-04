@@ -6,13 +6,17 @@ interface StallCardProps {
   name: string;
   cuisineType: string | null;
   imageUrl: string | null;
+  avgPriceCents?: number;
 }
 
-const StallCard = ({ name, cuisineType, imageUrl }: StallCardProps) => {
+const StallCard = ({ name, cuisineType, imageUrl, avgPriceCents }: StallCardProps) => {
   // Hardcoded values as per requirements
   const rating = 201;
-  const price = '$7.50';
-  console.log('StallCard imageUrl:', imageUrl);
+  const price = typeof avgPriceCents === 'number'
+    ? avgPriceCents % 100 === 0
+      ? `$${avgPriceCents / 100}`
+      : `$${(avgPriceCents / 100).toFixed(2)}`
+    : '—';
 
   // Use placeholder image if imageUrl is null
   const displayImage = imageUrl || placeholderImage;
