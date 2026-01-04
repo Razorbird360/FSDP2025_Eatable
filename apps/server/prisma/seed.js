@@ -24,6 +24,15 @@ async function main() {
 
   const seedUsers = [
     {
+      id: "f3d8544d-6e6e-4658-8183-60af41c295aa",
+      email: "ranen.src@gmail.com",
+      displayName: "Hawker Uncle",
+      username: "hawkeruncle",
+      role: "hawker",
+      description: "",
+      skipOnboarding: false,
+    },
+    {
       email: "foodie1@example.com",
       displayName: "Hungry Marcus",
       username: "hungry_marcus",
@@ -57,6 +66,11 @@ async function main() {
       create: u,
     });
     users.push(created);
+  }
+
+  const hawkerUser = users.find((user) => user.email === "ranen.src@gmail.com");
+  if (!hawkerUser) {
+    throw new Error("Hawker seed user not found for ranen.src@gmail.com");
   }
 
   // --- Hawker centres data ---
@@ -614,8 +628,19 @@ async function main() {
     const stallsForCentre = stallsByCentre[hc.slug] || [];
 
     for (const stallTemplate of stallsForCentre) {
+      const isFriedSotongStall =
+        stallTemplate.name === "Hong Heng Fried Sotong Prawn Mee";
+
       const stall = await prisma.stall.create({
         data: {
+          ...(isFriedSotongStall
+            ? {
+                id: "52fea012-f7c6-483f-92ef-84069a73d6ef",
+                owner: {
+                  connect: { id: hawkerUser.id },
+                },
+              }
+            : {}),
           name: stallTemplate.name,
           description: stallTemplate.description,
           location: stallTemplate.location,

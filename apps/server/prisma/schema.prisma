@@ -121,6 +121,7 @@ model Order {
   userId             String              @map("user_id") @db.Uuid
   stallId            String              @map("stall_id") @db.Uuid
   status             String              @default("pending")
+  orderCode          String?             @map("order_code") @db.Char(4)
   totalCents         Int                 @default(0) @map("total_cents")
   netsTxnId          String?             @map("nets_txn_id")
   estimatedReadyTime DateTime?           @map("estimated_ready_time") @db.Timestamptz(6)
@@ -132,6 +133,7 @@ model Order {
   stall              Stall               @relation(fields: [stallId], references: [id], onDelete: Cascade)
   user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@unique([stallId, orderCode])
   @@map("orders")
 }
 
