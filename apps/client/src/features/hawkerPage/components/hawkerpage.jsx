@@ -331,7 +331,7 @@ const HawkerCentreDetailPage = () => {
           </Link>
           <img src={arrowRight} alt=">" className="w-3 h-3" />
           <Link
-            to="/hawkers"
+            to="/hawker-centres"
             className="hover:text-brand hover:underline hover:decoration-gray-400 cursor-pointer"
           >
             Hawkers
@@ -398,7 +398,9 @@ const HawkerCentreDetailPage = () => {
                 <p className="text-sm text-white md:text-gray-600">
                 {distanceKm != null
                   ? `${distanceKm.toFixed(1)} km from you`
-                  : "Distance unavailable"}
+                  : locationStatus === "pending"
+                    ? "Locating..."
+                    : "Distance unavailable"}
                 </p>
               </div>
             </div>

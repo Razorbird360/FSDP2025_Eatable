@@ -164,7 +164,9 @@ const HawkerCentresPage = () => {
                         <span className="text-sm text-brand">
                           {locationStatus === 'granted' && typeof centre.distance === 'number'
                             ? `${centre.distance.toFixed(1)} km`
-                            : 'Distance unavailable'}
+                            : locationStatus === 'pending'
+                              ? 'Locating...'
+                              : 'Distance unavailable'}
                         </span>
                       </div>
 

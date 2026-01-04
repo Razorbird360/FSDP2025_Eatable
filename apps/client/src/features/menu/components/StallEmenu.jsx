@@ -372,7 +372,7 @@ export default function StallEmenu() {
 
   const crumbs = [
     { label: "Home", to: "/" },
-    { label: "Hawkers", to: "/stalls" },
+    { label: "Hawkers", to: "/hawker-centres" },
     { label: STALL_META?.market || "Stall" },
   ];
 

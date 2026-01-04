@@ -17,6 +17,7 @@ export const useUserLocation = () => {
       return;
     }
 
+    let watchId: number | null = null;
     let permissionStatus: PermissionStatus | null = null;
     let cancelled = false;
 
@@ -33,11 +34,16 @@ export const useUserLocation = () => {
       if (cancelled) return;
       if (error?.code === error.PERMISSION_DENIED) {
         setStatus('denied');
+        if (watchId != null) {
+          navigator.geolocation.clearWatch(watchId);
+          watchId = null;
+        }
       }
     };
 
-    const requestPosition = () => {
-      navigator.geolocation.getCurrentPosition(updateCoords, handleError, {
+    const startWatch = () => {
+      if (watchId != null) return;
+      watchId = navigator.geolocation.watchPosition(updateCoords, handleError, {
         enableHighAccuracy: true,
         timeout: 10000,
         maximumAge: 30000,
@@ -48,10 +54,14 @@ export const useUserLocation = () => {
       if (cancelled) return;
       if (state === 'denied') {
         setStatus('denied');
+        if (watchId != null) {
+          navigator.geolocation.clearWatch(watchId);
+          watchId = null;
+        }
         return;
       }
       setStatus('pending');
-      requestPosition();
+      startWatch();
     };
 
     if (navigator.permissions?.query) {
@@ -63,14 +73,17 @@ export const useUserLocation = () => {
           permissionStatus.onchange = () => syncPermissionState(permissionStatus.state);
         })
         .catch(() => {
-          requestPosition();
+          startWatch();
         });
     } else {
-      requestPosition();
+      startWatch();
     }
 
     return () => {
       cancelled = true;
+      if (watchId != null) {
+        navigator.geolocation.clearWatch(watchId);
+      }
       if (permissionStatus) {
         permissionStatus.onchange = null;
       }
