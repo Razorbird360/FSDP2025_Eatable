@@ -33,11 +33,16 @@ function CuisineBox({ type, shape = 'square', isActive = false, navigateOnClick 
   });
   
   // Scale based on hover distance OR active state
-  const targetScale = useTransform(distance, [0, 80, 160], [1.15, 1.05, 1]);
+  // Reduce scale on mobile to be less overwhelming
+  const isMobile = window.innerWidth < 768;
+  const maxScale = isMobile ? 1.08 : 1.15;
+  const midScale = isMobile ? 1.04 : 1.05;
+
+  const targetScale = useTransform(distance, [0, 80, 160], [maxScale, midScale, 1]);
   const hoverScale = useSpring(targetScale, { mass: 0.2, stiffness: 200, damping: 18 });
   
   // When active, use fixed scale
-  const scale = isActive ? 1.15 : hoverScale;
+  const scale = isActive ? maxScale : hoverScale;
 
   const isCircle = shape === 'circle';
 

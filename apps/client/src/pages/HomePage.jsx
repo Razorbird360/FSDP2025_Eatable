@@ -195,7 +195,7 @@ function HomePage() {
   };
 
   return (
-    <section className="box-border flex w-full flex-col items-center gap-6 px-4 pt-0 pb-6 max-[430px]:gap-5 max-[430px]:px-3.5 sm:px-8 md:px-0 md:pt-0 md:pb-0 md:flex-row md:gap-0 md:h-[calc(100vh-4rem)] md:items-center md:justify-center md:overflow-y-auto bg-[#FBF7F0]">
+    <section className="box-border flex w-full flex-col items-center gap-6 px-4 pt-0 pb-6 max-[430px]:gap-5 max-[430px]:px-3.5 sm:px-8 md:px-0 md:pt-0 md:pb-0 md:flex-row md:gap-0 md:h-[calc(100vh-4rem)] md:items-center md:justify-center md:overflow-hidden bg-[#FBF7F0]">
 
       {/* left column */}
       <div className="w-[90vw] max-w-[24rem] rounded-lg px-4 py-4 max-[430px]:w-[88vw] max-[430px]:max-w-[22rem] max-[430px]:px-3 md:w-[38vw] lg:w-[36vw] xl:w-[34vw] 2xl:w-[34vw] md:max-w-none md:py-6 md:pl-[4vw] md:pr-3 xl:py-8 xl:pl-[4.75vw] xl:pr-4 2xl:py-10 2xl:pl-[5.5vw] 2xl:pr-[5.5vw] flex flex-col items-start md:justify-center md:flex-shrink-0">
@@ -470,7 +470,6 @@ function HomePage() {
         <div className="relative hidden md:flex md:items-center md:justify-center">
           <div
             className="relative flex flex-col items-center pt-10 pb-10 xl:pt-12 xl:pb-12 2xl:pt-16 2xl:pb-16"
-            style={{ transform: "translateY(-1rem)" }}
           >
             <div className="flex justify-between w-full mb-3" style={{ transform: "translateY(-2vh)" }}>
               <div className="w-14 xl:w-16" style={{ transform: "translateX(-3vw)" }}>
