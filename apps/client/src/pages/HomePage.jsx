@@ -472,7 +472,7 @@ function HomePage() {
             className="relative flex flex-col items-center pt-10 pb-10 xl:pt-12 xl:pb-12 2xl:pt-16 2xl:pb-16"
           >
             <div className="flex justify-between w-full mb-3" style={{ transform: "translateY(-2vh)" }}>
-              <div className="w-14 xl:w-16" style={{ transform: "translateX(-3vw)" }}>
+              <div className="w-14 xl:w-16 flex justify-center" style={{ transform: "translateX(-3vw)" }}>
                 <CuisineBox
                   type="malay"
                   shape="circle"
@@ -480,7 +480,7 @@ function HomePage() {
                   navigateOnClick={true}
                 />
               </div>
-              <div className="w-14 xl:w-16" style={{ transform: "translateY(-4vh)" }}>
+              <div className="w-14 xl:w-16 flex justify-center" style={{ transform: "translateY(-4vh)" }}>
                 <CuisineBox
                   type="indian"
                   shape="circle"
@@ -488,7 +488,7 @@ function HomePage() {
                   navigateOnClick={true}
                 />
               </div>
-              <div className="w-14 xl:w-16" style={{ transform: "translateX(3vw)" }}>
+              <div className="w-14 xl:w-16 flex justify-center" style={{ transform: "translateX(3vw)" }}>
                 <CuisineBox
                   type="western"
                   shape="circle"
@@ -506,7 +506,7 @@ function HomePage() {
             />
 
             <div className="flex justify-between w-full mt-3" style={{ transform: "translateY(2vh)" }}>
-              <div className="w-14 xl:w-16" style={{ transform: "translateX(-3vw)" }}>
+              <div className="w-14 xl:w-16 flex justify-center" style={{ transform: "translateX(-3vw)" }}>
                 <CuisineBox
                   type="chinese"
                   shape="circle"
@@ -514,7 +514,7 @@ function HomePage() {
                   navigateOnClick={true}
                 />
               </div>
-              <div className="w-14 xl:w-16" style={{ transform: "translateY(4vh)" }}>
+              <div className="w-14 xl:w-16 flex justify-center" style={{ transform: "translateY(4vh)" }}>
                 <CuisineBox
                   type="desserts"
                   shape="circle"
@@ -522,7 +522,7 @@ function HomePage() {
                   navigateOnClick={true}
                 />
               </div>
-              <div className="w-14 xl:w-16" style={{ transform: "translateX(3vw)" }}>
+              <div className="w-14 xl:w-16 flex justify-center" style={{ transform: "translateX(3vw)" }}>
                 <CuisineBox
                   type="local"
                   shape="circle"
