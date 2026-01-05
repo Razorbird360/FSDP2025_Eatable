@@ -16,9 +16,9 @@ import MyCollectionPage from '../pages/MyCollectionPage';
 import FavouritesPage from '../pages/FavouritesPage';
 import OrdersPage from '../pages/OrdersPage';
 import VouchersPage from '../pages/VouchersPage';
+import AchievementsPage from '../pages/AchievementsPage';
 
 import {
-  AchievementsPage,
   SettingsPage,
   BusinessPage,
   HelpPage

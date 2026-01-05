@@ -2230,10 +2230,17 @@ async function main() {
   } else {
     console.log(`User ${specificUserId} already exists.`);
   }
-
   console.log(`Seeding vouchers for user ${specificUserId}...`);
 
   const vouchersToSeed = [
+    {
+      code: 'VOTER_REWARD',
+      description: 'Reward for being an active voter!',
+      discountAmount: 200, // $2.00
+      discountType: 'fixed',
+      minSpend: 500, // $5.00
+      expiryDate: new Date('2026-12-31'),
+    },
     {
       code: "WELCOME5",
       description: "$5 off your first order",

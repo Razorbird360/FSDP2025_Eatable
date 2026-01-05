@@ -11,6 +11,7 @@ import netsRoutes from '../services/payment.service.js';
 import verificationRoutes from './verification.routes.js';
 import voucherRoutes from './voucher.routes.js';
 import dataRoutes from './data.routes.js';
+import achievementRoutes from './achievement.routes.js';
 
 const router = Router();
 
@@ -30,5 +31,6 @@ router.use('/nets-qr', netsRoutes);
 router.use('/verification', verificationRoutes);
 router.use('/vouchers', voucherRoutes);
 router.use('/data', dataRoutes);
+router.use('/achievements', achievementRoutes);
 
 export default router;

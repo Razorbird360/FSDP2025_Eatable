@@ -35,6 +35,8 @@ model User {
   favorites               UserFavorite[]
   userVouchers            UserVoucher[]
   discounts_charges       discounts_charges[]
+  achievements            UserAchievement[]
+  monthlyActions          UserMonthlyAction[]
 
   @@map("users")
 }
@@ -259,4 +261,44 @@ model UserVoucher {
   discounts_charges discounts_charges[]
 
   @@map("user_vouchers")
+}
+
+model Achievement {
+  id          String            @id @default(uuid()) @db.Uuid
+  code        String            @unique // e.g., "VOTER_REWARD"
+  name        String
+  description String?
+  badgeUrl    String?           @map("badge_url")
+  createdAt   DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  users       UserAchievement[]
+
+  @@map("achievements")
+}
+
+model UserAchievement {
+  id            String      @id @default(uuid()) @db.Uuid
+  userId        String      @map("user_id") @db.Uuid
+  achievementId String      @map("achievement_id") @db.Uuid
+  unlockedAt    DateTime    @default(now()) @map("unlocked_at") @db.Timestamptz(6)
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, achievementId])
+  @@map("user_achievements")
+}
+
+model UserMonthlyAction {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  monthYear   String   @map("month_year") // Format: "YYYY-MM"
+  voteCount   Int      @default(0) @map("vote_count")
+  uploadCount Int      @default(0) @map("upload_count")
+  rewarded    Boolean  @default(false) // Whether the monthly voucher has been issued
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, monthYear])
+  @@map("user_monthly_actions")
 }

@@ -122,6 +122,16 @@ export const mediaController = {
         validationStatus,
       });
 
+      // Track upload for achievements
+      try {
+        const { achievementService } = await import('../services/achievement.service.js');
+        const date = new Date();
+        const monthYear = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        await achievementService.trackUpload(req.user.id, monthYear);
+      } catch (e) {
+        console.error("Failed to track upload achievement:", e);
+      }
+
       // 10. Return success
       res.status(201).json({
         message: 'Image uploaded successfully',

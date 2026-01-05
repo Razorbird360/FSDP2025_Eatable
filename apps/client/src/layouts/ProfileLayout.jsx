@@ -42,6 +42,7 @@ export default function ProfileLayout() {
             } else {
                 console.error("Failed to fetch profile:", res.status);
             }
+
         } catch (error) {
             console.error("Error loading profile:", error);
         } finally {
