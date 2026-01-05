@@ -2,6 +2,28 @@
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
+const ORDER_CODE_CHARS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const ORDER_CODE_LENGTH = 4;
+const ORDER_CODE_MAX_RETRIES = 10;
+
+const generateOrderCode = () => {
+  let code = "";
+  for (let i = 0; i < ORDER_CODE_LENGTH; i += 1) {
+    code += ORDER_CODE_CHARS[Math.floor(Math.random() * ORDER_CODE_CHARS.length)];
+  }
+  return code;
+};
+
+const generateUniqueOrderCode = (existingCodes) => {
+  for (let attempt = 0; attempt < ORDER_CODE_MAX_RETRIES; attempt += 1) {
+    const code = generateOrderCode();
+    if (!existingCodes.has(code)) {
+      existingCodes.add(code);
+      return code;
+    }
+  }
+  throw new Error("Failed to generate unique order code");
+};
 
 async function main() {
   // --- Optional: clean tables in FK-safe order if you're reseeding ---
@@ -2211,6 +2233,38 @@ const mediaUploadSeeds = [
         voteScore: seed.upvoteCount - seed.downvoteCount,
       },
     });
+  }
+
+  // --- Backfill order codes for existing orders (if any) ---
+  const stallIds = await prisma.stall.findMany({
+    select: { id: true },
+  });
+
+  for (const stall of stallIds) {
+    const existingCodes = await prisma.order.findMany({
+      where: {
+        stallId: stall.id,
+        orderCode: { not: null },
+      },
+      select: { orderCode: true },
+    });
+
+    const codes = new Set(existingCodes.map((row) => row.orderCode));
+    const ordersMissingCode = await prisma.order.findMany({
+      where: {
+        stallId: stall.id,
+        orderCode: null,
+      },
+      select: { id: true },
+    });
+
+    for (const order of ordersMissingCode) {
+      const orderCode = generateUniqueOrderCode(codes);
+      await prisma.order.update({
+        where: { id: order.id },
+        data: { orderCode },
+      });
+    }
   }
 
 
