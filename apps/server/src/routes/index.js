@@ -12,6 +12,7 @@ import verificationRoutes from './verification.routes.js';
 import voucherRoutes from './voucher.routes.js';
 import dataRoutes from './data.routes.js';
 import achievementRoutes from './achievement.routes.js';
+import adminRoutes from './admin.routes.js';
 
 const router = Router();
 
@@ -32,5 +33,6 @@ router.use('/verification', verificationRoutes);
 router.use('/vouchers', voucherRoutes);
 router.use('/data', dataRoutes);
 router.use('/achievements', achievementRoutes);
+router.use('/admin', adminRoutes);
 
 export default router;

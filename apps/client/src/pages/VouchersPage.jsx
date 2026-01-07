@@ -5,6 +5,7 @@ const VouchersPage = () => {
     const [vouchers, setVouchers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [activeFilter, setActiveFilter] = useState('available');
 
     useEffect(() => {
         const fetchVouchers = async () => {
@@ -32,6 +33,13 @@ const VouchersPage = () => {
         });
     };
 
+    const filteredVouchers = vouchers.filter((voucher) => {
+        const expired = voucher.isExpired;
+        const used = voucher.used || voucher.isUsed;
+        const isAvailable = !used && !expired;
+        return activeFilter === 'available' ? isAvailable : !isAvailable;
+    });
+
     if (loading) {
         return (
             <div className="bg-white rounded-xl border border-gray-100 p-8 min-h-[400px] flex items-center justify-center shadow-sm">
@@ -50,7 +58,41 @@ const VouchersPage = () => {
 
     return (
         <div className="bg-white rounded-xl border border-gray-100 p-4 md:p-8 shadow-sm">
-            <h1 className="text-xl font-bold mb-6 text-gray-900">My Vouchers</h1>
+            <div className="space-y-4 mb-6">
+                <h1 className="text-xl font-bold text-gray-900">My Vouchers</h1>
+                <div className="flex justify-start">
+                    <div className="relative inline-flex items-center rounded-full bg-gray-100 p-1">
+                        <span
+                            className={`absolute top-1 left-1 h-8 w-[120px] rounded-full bg-white shadow-sm transition-transform duration-300 ${activeFilter === 'used'
+                                ? 'translate-x-[120px]'
+                                : 'translate-x-0'
+                                }`}
+                        ></span>
+                        <button
+                            type="button"
+                            className={`relative z-10 h-8 w-[120px] rounded-full text-sm font-semibold transition-colors ${activeFilter === 'available'
+                                ? 'text-gray-900'
+                                : 'text-gray-500'
+                                }`}
+                            onClick={() => setActiveFilter('available')}
+                            aria-pressed={activeFilter === 'available'}
+                        >
+                            Available
+                        </button>
+                        <button
+                            type="button"
+                            className={`relative z-10 h-8 w-[120px] rounded-full text-sm font-semibold transition-colors ${activeFilter === 'used'
+                                ? 'text-gray-900'
+                                : 'text-gray-500'
+                                }`}
+                            onClick={() => setActiveFilter('used')}
+                            aria-pressed={activeFilter === 'used'}
+                        >
+                            Used
+                        </button>
+                    </div>
+                </div>
+            </div>
 
             {vouchers.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 bg-gray-50 rounded-xl border border-dashed border-gray-200">
@@ -60,9 +102,15 @@ const VouchersPage = () => {
                     <h3 className="text-lg font-semibold text-gray-900 mb-2">No vouchers yet</h3>
                     <p className="text-sm text-gray-500 text-center">Your collected vouchers and discounts will appear here</p>
                 </div>
+            ) : filteredVouchers.length === 0 ? (
+                <div className="text-center text-sm text-gray-500 py-10">
+                    {activeFilter === 'available'
+                        ? 'No available vouchers right now.'
+                        : 'No used vouchers yet.'}
+                </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-                    {vouchers.map((voucher) => {
+                    {filteredVouchers.map((voucher) => {
                         // Use isExpired from backend (calculated based on server time)
                         const expired = voucher.isExpired;
                         const used = voucher.used || voucher.isUsed;

@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 export default function AchievementsPage() {
     const [achievements, setAchievements] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [activeFilter, setActiveFilter] = useState('available');
 
     async function getToken() {
         const session = await supabase.auth.getSession();
@@ -44,26 +45,31 @@ export default function AchievementsPage() {
 
     // Filter achievements to show progressive unlocking
     const getVisibleAchievements = () => {
+        if (activeFilter === 'completed') {
+            return achievements
+                .filter(a => a.completed)
+                .sort((a, b) => {
+                    if (a.type !== b.type) {
+                        return a.type.localeCompare(b.type);
+                    }
+                    return a.target - b.target;
+                });
+        }
+
         // Group achievements by type
         const voteAchievements = achievements.filter(a => a.type === 'vote').sort((a, b) => a.target - b.target);
         const uploadAchievements = achievements.filter(a => a.type === 'upload').sort((a, b) => a.target - b.target);
 
         const visible = [];
 
-        // For vote achievements, show only up to the next incomplete one
-        for (let i = 0; i < voteAchievements.length; i++) {
-            visible.push(voteAchievements[i]);
-            if (!voteAchievements[i].completed) {
-                break; // Stop after first incomplete
-            }
+        const nextVoteAchievement = voteAchievements.find(a => !a.completed);
+        if (nextVoteAchievement) {
+            visible.push(nextVoteAchievement);
         }
 
-        // For upload achievements, show only up to the next incomplete one
-        for (let i = 0; i < uploadAchievements.length; i++) {
-            visible.push(uploadAchievements[i]);
-            if (!uploadAchievements[i].completed) {
-                break; // Stop after first incomplete
-            }
+        const nextUploadAchievement = uploadAchievements.find(a => !a.completed);
+        if (nextUploadAchievement) {
+            visible.push(nextUploadAchievement);
         }
 
         return visible;
@@ -80,15 +86,54 @@ export default function AchievementsPage() {
     const visibleAchievements = getVisibleAchievements();
 
     return (
-        <div className="space-y-6">
+        <div className="bg-white rounded-xl border border-gray-100 p-6 shadow-sm space-y-6">
             {/* Header */}
-            <div className="bg-white rounded-xl p-6 shadow-sm">
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">Achievements</h2>
-                <p className="text-gray-600">Track your monthly progress and unlock rewards</p>
+            <div className="space-y-4">
+                <div>
+                    <h2 className="text-2xl font-bold text-gray-900 mb-2">Achievements</h2>
+                    <p className="text-gray-600">Track your monthly progress and unlock rewards</p>
+                </div>
+                <div className="flex justify-start">
+                    <div className="relative inline-flex items-center rounded-full bg-gray-100 p-1">
+                        <span
+                            className={`absolute top-1 left-1 h-8 w-[120px] rounded-full bg-white shadow-sm transition-transform duration-300 ${activeFilter === 'completed'
+                                ? 'translate-x-[120px]'
+                                : 'translate-x-0'
+                                }`}
+                        ></span>
+                        <button
+                            type="button"
+                            className={`relative z-10 h-8 w-[120px] rounded-full text-sm font-semibold transition-colors ${activeFilter === 'available'
+                                ? 'text-gray-900'
+                                : 'text-gray-500'
+                                }`}
+                            onClick={() => setActiveFilter('available')}
+                            aria-pressed={activeFilter === 'available'}
+                        >
+                            Available
+                        </button>
+                        <button
+                            type="button"
+                            className={`relative z-10 h-8 w-[120px] rounded-full text-sm font-semibold transition-colors ${activeFilter === 'completed'
+                                ? 'text-gray-900'
+                                : 'text-gray-500'
+                                }`}
+                            onClick={() => setActiveFilter('completed')}
+                            aria-pressed={activeFilter === 'completed'}
+                        >
+                            Completed
+                        </button>
+                    </div>
+                </div>
             </div>
 
-            {/* White Card Container with 2x2 Grid */}
-            <div className="bg-white rounded-xl p-6 shadow-sm">
+            {visibleAchievements.length === 0 ? (
+                <div className="text-center text-sm text-gray-500 py-10">
+                    {activeFilter === 'completed'
+                        ? 'No completed achievements yet. Keep going!'
+                        : 'No available achievements right now.'}
+                </div>
+            ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {visibleAchievements.map((achievement) => (
                         <div
@@ -100,7 +145,7 @@ export default function AchievementsPage() {
                                 <div className="flex-1">
                                     <h3 className="text-lg font-bold text-gray-900 mb-1">{achievement.name}</h3>
                                     <p className="text-sm text-gray-500">
-                                        {getActionText(achievement.type)} • Monthly Challenge
+                                        {getActionText(achievement.type)} - {achievement.isOneTime ? 'One-time' : 'Monthly'} Challenge
                                     </p>
                                 </div>
                                 {achievement.completed ? (
@@ -142,7 +187,7 @@ export default function AchievementsPage() {
                                 {achievement.reward && achievement.completed && (
                                     <div className="pt-2 border-t border-gray-200">
                                         <span className="text-xs bg-yellow-50 text-yellow-800 px-2 py-1 rounded font-medium inline-flex items-center gap-1">
-                                            <span>🎁</span> Reward Unlocked
+                                            Reward Unlocked
                                         </span>
                                     </div>
                                 )}
@@ -150,7 +195,7 @@ export default function AchievementsPage() {
                         </div>
                     ))}
                 </div>
-            </div>
+            )}
         </div>
     );
 }

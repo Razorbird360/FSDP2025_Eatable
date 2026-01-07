@@ -6,11 +6,10 @@ export default function AchievementCard({ closestAchievement }) {
     const { name, type, target, current, progress, percentage, completed, remaining } = closestAchievement;
 
     const getIcon = () => {
-        if (type === 'vote') return '🗳️';
-        if (type === 'upload') return '📸';
-        return '🏆';
+        if (type === 'vote') return 'V';
+        if (type === 'upload') return 'U';
+        return '*';
     };
-
     const getActionText = () => {
         if (type === 'vote') return 'votes';
         if (type === 'upload') return 'uploads';
@@ -28,8 +27,8 @@ export default function AchievementCard({ closestAchievement }) {
                     </div>
                 </div>
                 {completed ? (
-                    <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full flex items-center gap-1">
-                        <span>✓</span> Complete!
+                    <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full">
+                        Complete!
                     </span>
                 ) : (
                     <span className="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-bold rounded-full">
@@ -54,7 +53,7 @@ export default function AchievementCard({ closestAchievement }) {
 
                 <p className="text-xs text-gray-500">
                     {completed
-                        ? `🎉 Amazing! You've completed this achievement!`
+                        ? `Amazing! You've completed this achievement!`
                         : `${remaining} more ${getActionText()} to unlock this achievement!`}
                 </p>
             </div>

@@ -17,6 +17,7 @@ import FavouritesPage from '../pages/FavouritesPage';
 import OrdersPage from '../pages/OrdersPage';
 import VouchersPage from '../pages/VouchersPage';
 import AchievementsPage from '../pages/AchievementsPage';
+import AdminRewardsPage from '../pages/AdminRewardsPage';
 
 import {
   SettingsPage,
@@ -112,6 +113,17 @@ function AppRoutes() {
           </Route>
         </Route>
 
+      </Route>
+
+      <Route element={<ProtectedLayout />}>
+        <Route
+          path="/admin"
+          element={
+            <RequireRole role="admin">
+              <AdminRewardsPage />
+            </RequireRole>
+          }
+        />
       </Route>
 
       {/* Auth routes OUTSIDE the layout */}

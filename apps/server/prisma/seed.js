@@ -2207,7 +2207,7 @@ async function main() {
   });
 
   // --- Seed Vouchers for specific user ---
-  const specificUserId = "d62244f0-c495-44f6-b314-e3ba5b22bd90";
+  const specificUserId = "02441ecb-eb23-4c80-9146-1259b1517648";
 
   // Ensure the user exists (required for foreign key constraint)
   let specificUser = await prisma.user.findUnique({
@@ -2222,7 +2222,7 @@ async function main() {
         email: "marcusongjr0209@gmail.com",
         username: "MarcusOngJR",
         displayName: "MarcusOngJR",
-        role: "user",
+        role: "admin",
         skipOnboarding: true,
       },
     });
@@ -2240,6 +2240,7 @@ async function main() {
       discountType: 'fixed',
       minSpend: 500, // $5.00
       expiryDate: new Date('2026-12-31'),
+      expiryOnReceiveMonths: 1,
     },
     {
       code: "WELCOME5",
@@ -2280,15 +2281,66 @@ async function main() {
       data: v,
     });
 
+    let userVoucherExpiry = v.expiryDate;
+    if (v.expiryOnReceiveMonths) {
+      const expiry = new Date();
+      expiry.setMonth(expiry.getMonth() + v.expiryOnReceiveMonths);
+      userVoucherExpiry = expiry;
+    }
+
     await prisma.userVoucher.create({
       data: {
         userId: specificUserId, // Use the ID directly
         voucherId: voucher.id,
         isUsed: v.code === "YUMMY10", // Mark YUMMY10 as used for testing
-        expiryDate: v.expiryDate, // Copy expiry date to user voucher
+        expiryDate: userVoucherExpiry, // Copy expiry date to user voucher
       }
     });
     console.log(`Assigned voucher ${v.code} to user.`);
+  }
+
+
+  const achievementDefinitions = [
+    {
+      code: 'vote_3',
+      name: 'Casual Voter',
+      description: 'Cast 3 votes in a month.',
+      type: 'vote',
+      target: 3,
+      rewardCode: 'VOTER_REWARD',
+    },
+    {
+      code: 'vote_5',
+      name: 'Active Voter',
+      description: 'Cast 5 votes in a month.',
+      type: 'vote',
+      target: 5,
+      rewardCode: null,
+    },
+    {
+      code: 'vote_10',
+      name: 'Super Voter',
+      description: 'Cast 10 votes in a month.',
+      type: 'vote',
+      target: 10,
+      rewardCode: null,
+    },
+    {
+      code: 'upload_5',
+      name: 'Content Creator',
+      description: 'Upload 5 photos in a month.',
+      type: 'upload',
+      target: 5,
+      rewardCode: null,
+    },
+  ];
+
+  for (const definition of achievementDefinitions) {
+    await prisma.achievement.upsert({
+      where: { code: definition.code },
+      update: definition,
+      create: definition,
+    });
   }
 
   console.log("Seeding completed successfully (manual uploads).");
