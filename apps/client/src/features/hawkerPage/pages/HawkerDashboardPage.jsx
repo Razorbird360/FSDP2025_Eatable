@@ -14,6 +14,7 @@ import scrollUpArrowIcon from '../../../assets/icons/scroll-up arrow.svg';
 const CHART_COLORS = ['#A855F7', '#5EBECC', '#EC4899', '#F59E0B', '#6366F1', '#94A3B8'];
 
 const MAX_CHART_ITEMS = 5;
+const SG_TIMEZONE = 'Asia/Singapore';
 
 const processOrdersByDish = (ordersByDish) => {
   if (!ordersByDish || ordersByDish.length === 0) return { items: [], total: 0 };
@@ -32,6 +33,33 @@ const processOrdersByDish = (ordersByDish) => {
     items: [...top, { name: 'Other', count: otherCount }],
     total: sorted.reduce((sum, d) => sum + d.count, 0),
   };
+};
+
+const addDays = (dateString, days) => {
+  const base = new Date(`${dateString}T00:00:00+08:00`);
+  base.setUTCDate(base.getUTCDate() + days);
+  return base.toISOString().split('T')[0];
+};
+
+const formatWeekLabelShort = (weekStart) => {
+  const start = new Date(`${weekStart}T00:00:00+08:00`);
+  const end = new Date(`${addDays(weekStart, 6)}T00:00:00+08:00`);
+  const startDay = start.getUTCDate();
+  const endDay = end.getUTCDate();
+  const startMonth = start.toLocaleDateString('en-SG', { month: 'short', timeZone: SG_TIMEZONE });
+  const endMonth = end.toLocaleDateString('en-SG', { month: 'short', timeZone: SG_TIMEZONE });
+  
+  if (startMonth === endMonth) {
+    return `${startMonth} ${startDay}–${endDay}`;
+  }
+  return `${startMonth} ${startDay} – ${endMonth} ${endDay}`;
+};
+
+const formatDayLabelShort = (dateString) => {
+  const date = new Date(`${dateString}T00:00:00+08:00`);
+  const day = date.toLocaleDateString('en-SG', { weekday: 'short', timeZone: SG_TIMEZONE });
+  const dayNum = date.getUTCDate();
+  return `${day} ${dayNum}`;
 };
 
 const getActivityText = (item) => {
@@ -124,6 +152,8 @@ const HawkerDashboardPage = () => {
   const [error, setError] = useState(null);
   const [chartView, setChartView] = useState('dish'); // 'dish' or 'day'
   const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' or 'dishes'
+  const [dayChartMode, setDayChartMode] = useState('week'); // 'week' or 'day'
+  const [selectedWeekStart, setSelectedWeekStart] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -162,24 +192,53 @@ const HawkerDashboardPage = () => {
     );
   }
 
-  const chartSource =
-    chartView === 'day'
-      ? (summary?.ordersByDay || []).map((item) => ({
-          name: item.date
-            ? formatDate(item.date, 'Asia/Singapore')
-            : item.name ?? 'Unknown day',
-          count: item.count,
-        }))
-      : summary?.ordersByDish || [];
+  const { items: dishChartData, total: dishChartTotal } = processOrdersByDish(
+    summary?.ordersByDish
+  );
 
-  const { items: chartData, total: chartTotal } = processOrdersByDish(chartSource);
-  const emptyChartMessage =
-    chartView === 'day' ? 'No orders by day yet' : 'No orders by dish yet';
-  
-  const chartOptions = {
+  const weeklyData = summary?.ordersByWeek || [];
+  const dailyData = summary?.ordersByDay || [];
+  const isDayView = chartView === 'day';
+  const isWeeklyView = isDayView && dayChartMode === 'week';
+  const isDailyView = isDayView && dayChartMode === 'day';
+
+  const weekLabels = weeklyData.map((week) => formatWeekLabelShort(week.weekStart));
+  const weekCounts = weeklyData.map((week) => week.count);
+
+  const dayCountsByDate = new Map(
+    dailyData.map((item) => [item.date, item.count])
+  );
+
+  const weekDayLabels = [];
+  const weekDayCounts = [];
+
+  if (selectedWeekStart) {
+    for (let i = 0; i < 7; i += 1) {
+      const dateKey = addDays(selectedWeekStart, i);
+      weekDayLabels.push(formatDayLabelShort(dateKey));
+      weekDayCounts.push(dayCountsByDate.get(dateKey) ?? 0);
+    }
+  }
+
+  const dayCategories = isWeeklyView ? weekLabels : weekDayLabels;
+  const daySeriesData = isWeeklyView ? weekCounts : weekDayCounts;
+  const dayChartTotal = daySeriesData.reduce((sum, value) => sum + value, 0);
+  const dayEmptyMessage = isWeeklyView
+    ? 'No orders in the last 4 weeks'
+    : 'No orders in this week';
+  const dishEmptyMessage = 'No orders by dish yet';
+  const selectedWeekEnd = selectedWeekStart ? addDays(selectedWeekStart, 6) : null;
+  const dayTitle = isWeeklyView
+    ? 'Total Orders by Week'
+    : `Orders for ${formatDate(selectedWeekStart, SG_TIMEZONE)} - ${formatDate(
+        selectedWeekEnd,
+        SG_TIMEZONE
+      )}`;
+
+  const dishChartOptions = {
     chart: { type: 'donut', fontFamily: 'inherit' },
-    labels: chartData.map(d => d.name),
-    colors: CHART_COLORS.slice(0, chartData.length),
+    labels: dishChartData.map(d => d.name),
+    colors: CHART_COLORS.slice(0, dishChartData.length),
     legend: { show: false },
     dataLabels: {
       enabled: true,
@@ -203,7 +262,7 @@ const HawkerDashboardPage = () => {
               fontSize: '48px',
               fontWeight: 700,
               color: '#21421B',
-              formatter: () => chartTotal.toString(),
+              formatter: () => dishChartTotal.toString(),
             },
           },
         },
@@ -212,7 +271,70 @@ const HawkerDashboardPage = () => {
     tooltip: { enabled: true },
   };
 
-  const chartSeries = chartData.map(d => d.count);
+  const dishChartSeries = dishChartData.map(d => d.count);
+  const dayChartOptions = {
+    chart: {
+      type: 'bar',
+      fontFamily: 'inherit',
+      toolbar: { show: false },
+      events: isWeeklyView
+        ? {
+            dataPointSelection: (_, __, config) => {
+              const week = weeklyData[config.dataPointIndex];
+              if (week?.weekStart) {
+                setSelectedWeekStart(week.weekStart);
+                setDayChartMode('day');
+              }
+            },
+          }
+        : {},
+    },
+    colors: ['#21421B'],
+    dataLabels: { enabled: false },
+    plotOptions: {
+      bar: {
+        borderRadius: 6,
+        columnWidth: isWeeklyView ? '50%' : '40%',
+        distributed: false,
+      },
+    },
+    xaxis: {
+      categories: dayCategories,
+      labels: {
+        rotate: 0,
+        style: { fontSize: '13px', fontWeight: 500 },
+      },
+      axisBorder: { show: false },
+      axisTicks: { show: false },
+    },
+    yaxis: {
+      labels: {
+        style: { fontSize: '12px' },
+        formatter: (val) => Math.floor(val).toString(),
+      },
+      min: 0,
+      forceNiceScale: true,
+      tickAmount: 4,
+    },
+    grid: {
+      borderColor: '#E5E7EB',
+      strokeDashArray: 4,
+      yaxis: { lines: { show: true } },
+      xaxis: { lines: { show: false } },
+    },
+    tooltip: {
+      y: {
+        formatter: (value) => `${value} order${value !== 1 ? 's' : ''}`,
+      },
+    },
+  };
+
+  const dayChartSeries = [
+    {
+      name: 'Orders',
+      data: daySeriesData,
+    },
+  ];
 
   return (
     <section className="px-[4vw] py-6 w-full h-[calc(100vh-64px)] flex flex-col bg-[#F5F7F4]">
@@ -303,7 +425,11 @@ const HawkerDashboardPage = () => {
             <div className="relative flex items-center mb-6">
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setChartView('dish')}
+                  onClick={() => {
+                    setChartView('dish');
+                    setDayChartMode('week');
+                    setSelectedWeekStart(null);
+                  }}
                   className="p-1 transition-opacity hover:opacity-70"
                 >
                   <img 
@@ -313,7 +439,11 @@ const HawkerDashboardPage = () => {
                   />
                 </button>
                 <button
-                  onClick={() => setChartView('day')}
+                  onClick={() => {
+                    setChartView('day');
+                    setDayChartMode('week');
+                    setSelectedWeekStart(null);
+                  }}
                   className="p-1 transition-opacity hover:opacity-70"
                 >
                   <img 
@@ -324,28 +454,45 @@ const HawkerDashboardPage = () => {
                 </button>
               </div>
               <h2 className="absolute left-1/2 -translate-x-1/2 text-xl font-bold text-[#1C201D]">
-                Total Orders by {chartView === 'dish' ? 'Dish' : 'Day'}
+                {chartView === 'dish' ? 'Total Orders by Dish' : dayTitle}
               </h2>
+              {isDailyView ? (
+                <button
+                  className="ml-auto flex items-center gap-1.5 text-sm text-[#21421B] hover:text-[#1a3415] font-medium transition-colors"
+                  onClick={() => {
+                    setDayChartMode('week');
+                    setSelectedWeekStart(null);
+                  }}
+                  type="button"
+                >
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="15 18 9 12 15 6" />
+                  </svg>
+                  All weeks
+                </button>
+              ) : (
+                <div className="ml-auto w-24" />
+              )}
             </div>
 
-            {chartTotal === 0 ? (
+            {chartView === 'dish' && dishChartTotal === 0 ? (
               <div className="h-64 flex items-center justify-center text-gray-400">
-                {emptyChartMessage}
+                {dishEmptyMessage}
               </div>
-            ) : (
+            ) : chartView === 'dish' ? (
               <div className="flex items-center justify-center gap-28">
                 {/* Chart on left */}
                 <div className="flex-shrink-0" style={{ width: '300px' }}>
                   <Chart
-                    options={chartOptions}
-                    series={chartSeries}
+                    options={dishChartOptions}
+                    series={dishChartSeries}
                     type="donut"
                     height={300}
                   />
                 </div>
                 {/* Legend on right */}
                 <div className="flex flex-col gap-5">
-                  {chartData.map((dish, index) => (
+                  {dishChartData.map((dish, index) => (
                     <div key={dish.name} className="flex items-center gap-4">
                       <span
                         className="w-5 h-5 rounded-full flex-shrink-0"
@@ -355,6 +502,20 @@ const HawkerDashboardPage = () => {
                     </div>
                   ))}
                 </div>
+              </div>
+            ) : dayChartTotal === 0 ? (
+              <div className="h-64 flex items-center justify-center text-gray-400">
+                {dayEmptyMessage}
+              </div>
+            ) : (
+              <div>
+                <Chart
+                  key={isWeeklyView ? 'weekly' : selectedWeekStart}
+                  options={dayChartOptions}
+                  series={dayChartSeries}
+                  type="bar"
+                  height={280}
+                />
               </div>
             )}
           </div>

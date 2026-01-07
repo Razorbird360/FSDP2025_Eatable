@@ -39,16 +39,29 @@ const mapOrdersByDish = async (grouped) => {
     .sort((a, b) => b.count - a.count);
 };
 
-const mapOrdersByDayRows = (rows) =>
-  rows.map((row) => {
-    const rawDay = row.day instanceof Date ? row.day.toISOString() : row.day;
-    const day = typeof rawDay === 'string' ? rawDay.split('T')[0] : rawDay;
+const normalizeDateKey = (value) => {
+  if (value instanceof Date) {
+    return value.toISOString().split('T')[0];
+  }
 
-    return {
-      date: day,
-      count: Number(row.count) || 0,
-    };
-  });
+  if (typeof value === 'string') {
+    return value.split('T')[0];
+  }
+
+  return value;
+};
+
+const mapOrdersByDayRows = (rows) =>
+  rows.map((row) => ({
+    date: normalizeDateKey(row.day),
+    count: Number(row.count) || 0,
+  }));
+
+const mapOrdersByWeekRows = (rows) =>
+  rows.map((row) => ({
+    weekStart: normalizeDateKey(row.week_start),
+    count: Number(row.count) || 0,
+  }));
 
 const buildOrderSummary = (orderItems) => {
   if (!orderItems || orderItems.length === 0) {
@@ -81,6 +94,7 @@ export const hawkerDashboardService = {
       upvotesCount,
       previousUpvotesCount,
       ordersByDishGrouped,
+      ordersByWeekRows,
       ordersByDayRows,
     ] = await Promise.all([
       prisma.order.count({
@@ -137,20 +151,65 @@ export const hawkerDashboardService = {
         _sum: { quantity: true },
       }),
       prisma.$queryRaw`
+        WITH params AS (
+          SELECT
+            date_trunc('week', timezone('Asia/Singapore', now()))::date AS current_week_start
+        ),
+        series AS (
+          SELECT
+            (current_week_start - interval '3 week' + (gs * interval '1 week'))::date AS week_start
+          FROM params, generate_series(0, 3) AS gs
+        ),
+        orders AS (
+          SELECT
+            date_trunc('week', timezone('Asia/Singapore', created_at))::date AS week_start,
+            COUNT(*)::int AS count
+          FROM "orders", params
+          WHERE stall_id = ${stallId}::uuid
+            AND status = 'PAID'
+            AND timezone('Asia/Singapore', created_at) >= (current_week_start - interval '3 week')
+            AND timezone('Asia/Singapore', created_at) < (current_week_start + interval '4 week')
+          GROUP BY week_start
+        )
         SELECT
-          date_trunc('day', timezone('Asia/Singapore', created_at))::date AS day,
-          COUNT(*)::int AS count
-        FROM "orders"
-        WHERE stall_id = ${stallId}::uuid
-          AND status = 'PAID'
-          AND created_at >= ${current.from}
-          AND created_at < ${current.to}
-        GROUP BY day
+          series.week_start,
+          COALESCE(orders.count, 0) AS count
+        FROM series
+        LEFT JOIN orders USING (week_start)
+        ORDER BY week_start ASC;
+      `,
+      prisma.$queryRaw`
+        WITH params AS (
+          SELECT
+            date_trunc('week', timezone('Asia/Singapore', now()))::date AS current_week_start
+        ),
+        series AS (
+          SELECT
+            (current_week_start - interval '3 week' + (gs * interval '1 day'))::date AS day
+          FROM params, generate_series(0, 27) AS gs
+        ),
+        orders AS (
+          SELECT
+            date_trunc('day', timezone('Asia/Singapore', created_at))::date AS day,
+            COUNT(*)::int AS count
+          FROM "orders", params
+          WHERE stall_id = ${stallId}::uuid
+            AND status = 'PAID'
+            AND timezone('Asia/Singapore', created_at) >= (current_week_start - interval '3 week')
+            AND timezone('Asia/Singapore', created_at) < (current_week_start + interval '4 week')
+          GROUP BY day
+        )
+        SELECT
+          series.day,
+          COALESCE(orders.count, 0) AS count
+        FROM series
+        LEFT JOIN orders USING (day)
         ORDER BY day ASC;
       `,
     ]);
 
     const ordersByDish = await mapOrdersByDish(ordersByDishGrouped);
+    const ordersByWeek = mapOrdersByWeekRows(ordersByWeekRows);
     const ordersByDay = mapOrdersByDayRows(ordersByDayRows);
 
     return {
@@ -170,6 +229,7 @@ export const hawkerDashboardService = {
       },
       ordersByDish,
       totalOrdersByDish: sumCounts(ordersByDish),
+      ordersByWeek,
       ordersByDay,
       totalOrdersByDay: sumCounts(ordersByDay),
     };
