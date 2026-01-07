@@ -50,6 +50,14 @@ const updateAchievementRewardSchema = Joi.object({
   rewardCode: Joi.string().trim().allow('', null),
 });
 
+const updateMediaStatusSchema = Joi.object({
+  validationStatus: Joi.string().valid('pending', 'approved', 'rejected').required(),
+});
+
+const updateReportStatusSchema = Joi.object({
+  status: Joi.string().valid('pending', 'resolved', 'dismissed').required(),
+});
+
 router.get('/vouchers', authMiddleware, adminMiddleware, adminController.listVouchers);
 router.post(
   '/vouchers',
@@ -99,6 +107,39 @@ router.patch(
   adminMiddleware,
   validate(updateAchievementRewardSchema),
   adminController.updateAchievementReward
+);
+
+router.get(
+  '/moderation/users',
+  authMiddleware,
+  adminMiddleware,
+  adminController.listModerationUsers
+);
+router.get(
+  '/moderation/media',
+  authMiddleware,
+  adminMiddleware,
+  adminController.listModerationMedia
+);
+router.patch(
+  '/moderation/media/:uploadId',
+  authMiddleware,
+  adminMiddleware,
+  validate(updateMediaStatusSchema),
+  adminController.updateModerationMedia
+);
+router.get(
+  '/moderation/reports',
+  authMiddleware,
+  adminMiddleware,
+  adminController.listModerationReports
+);
+router.patch(
+  '/moderation/reports/:reportId',
+  authMiddleware,
+  adminMiddleware,
+  validate(updateReportStatusSchema),
+  adminController.updateModerationReport
 );
 
 export default router;

@@ -17,7 +17,13 @@ import FavouritesPage from '../pages/FavouritesPage';
 import OrdersPage from '../pages/OrdersPage';
 import VouchersPage from '../pages/VouchersPage';
 import AchievementsPage from '../pages/AchievementsPage';
-import AdminRewardsPage from '../pages/AdminRewardsPage';
+import AdminHomePage from '../pages/AdminHomePage';
+import AdminVouchersPage from '../pages/AdminVouchersPage';
+import AdminAchievementsPage from '../pages/AdminAchievementsPage';
+import AdminModerationUsersPage from '../pages/AdminModerationUsersPage';
+import AdminModerationMediaPage from '../pages/AdminModerationMediaPage';
+import AdminModerationReportsPage from '../pages/AdminModerationReportsPage';
+import AdminLayout from '../layouts/AdminLayout';
 
 import {
   SettingsPage,
@@ -120,10 +126,18 @@ function AppRoutes() {
           path="/admin"
           element={
             <RequireRole role="admin">
-              <AdminRewardsPage />
+              <AdminLayout />
             </RequireRole>
           }
-        />
+        >
+          <Route index element={<AdminHomePage />} />
+          <Route path="vouchers" element={<AdminVouchersPage />} />
+          <Route path="achievements" element={<AdminAchievementsPage />} />
+          <Route path="rewards" element={<Navigate to="/admin/vouchers" replace />} />
+          <Route path="moderation/users" element={<AdminModerationUsersPage />} />
+          <Route path="moderation/media" element={<AdminModerationMediaPage />} />
+          <Route path="moderation/reports" element={<AdminModerationReportsPage />} />
+        </Route>
       </Route>
 
       {/* Auth routes OUTSIDE the layout */}

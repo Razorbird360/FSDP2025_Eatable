@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import api from '../lib/api';
 
 const emptyVoucherForm = {
@@ -23,6 +22,7 @@ const emptyAchievementForm = {
 };
 
 const emptyStatus = { loading: false, error: null, success: null };
+
 
 const formatDateInput = (value) => {
   if (!value) return '';
@@ -76,6 +76,13 @@ export default function AdminRewardsPage() {
   const [rewardStatus, setRewardStatus] = useState(emptyStatus);
   const [deletingVoucherId, setDeletingVoucherId] = useState(null);
   const [deletingAchievementId, setDeletingAchievementId] = useState(null);
+
+  const voucherCount = vouchers.length;
+  const achievementCount = achievements.length;
+  const rewardLinkedCount = achievements.filter((achievement) => achievement.rewardCode).length;
+  const expiryRuleCount = vouchers.filter(
+    (voucher) => voucher.expiryDate || voucher.expiryOnReceiveMonths
+  ).length;
 
   const loadData = async () => {
     setLoading(true);
@@ -260,7 +267,7 @@ export default function AdminRewardsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#f8fdf3] flex items-center justify-center">
+      <div className="bg-white rounded-xl border border-gray-100 p-10 shadow-sm flex items-center justify-center">
         <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#21421B]"></div>
       </div>
     );
@@ -268,33 +275,50 @@ export default function AdminRewardsPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-[#f8fdf3] flex items-center justify-center">
+      <div className="bg-white rounded-xl border border-gray-100 p-6 shadow-sm">
         <p className="text-red-500">{error}</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#f8fdf3]">
-      <div className="mx-auto w-full max-w-6xl px-6 py-10 space-y-8">
-        <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-gray-500">Admin Console</p>
-            <h1 className="text-3xl font-bold text-gray-900">Rewards Dashboard</h1>
-            <p className="text-gray-600">
-              Configure vouchers, achievements, and reward links for your community.
-            </p>
-          </div>
-          <Link
-            to="/home"
-            className="inline-flex items-center justify-center rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:border-gray-300 hover:text-gray-900"
-          >
-            Back to site
-          </Link>
-        </header>
+    <section className="space-y-8">
+      <div>
+        <p className="text-xs uppercase tracking-[0.2em] text-gray-500">Rewards</p>
+        <h2 className="text-2xl font-semibold text-gray-900">Vouchers and Achievements</h2>
+        <p className="text-sm text-gray-500">
+          Build reward offers, tune achievements, and link vouchers to milestones.
+        </p>
+      </div>
 
-        <section className="grid grid-cols-1 xl:grid-cols-[1.1fr_1fr] gap-6">
-          <form onSubmit={handleSaveVoucher} className="bg-white rounded-xl border border-gray-100 p-6 shadow-sm space-y-4">
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+          <p className="text-xs uppercase tracking-[0.2em] text-gray-400">Vouchers</p>
+          <p className="mt-2 text-2xl font-semibold text-gray-900">{voucherCount}</p>
+          <p className="text-xs text-gray-500">{expiryRuleCount} with expiry rules</p>
+        </div>
+        <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+          <p className="text-xs uppercase tracking-[0.2em] text-gray-400">Achievements</p>
+          <p className="mt-2 text-2xl font-semibold text-gray-900">{achievementCount}</p>
+          <p className="text-xs text-gray-500">{rewardLinkedCount} linked to rewards</p>
+        </div>
+        <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+          <p className="text-xs uppercase tracking-[0.2em] text-gray-400">Reward Links</p>
+          <p className="mt-2 text-2xl font-semibold text-gray-900">{rewardLinkedCount}</p>
+          <p className="text-xs text-gray-500">Active achievement rewards</p>
+        </div>
+        <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+          <p className="text-xs uppercase tracking-[0.2em] text-gray-400">Expiry Rules</p>
+          <p className="mt-2 text-2xl font-semibold text-gray-900">{expiryRuleCount}</p>
+          <p className="text-xs text-gray-500">Voucher expiries configured</p>
+        </div>
+      </section>
+
+      <section className="grid grid-cols-1 xl:grid-cols-[1.1fr_1fr] gap-6">
+        <form
+          onSubmit={handleSaveVoucher}
+          className="bg-white rounded-xl border border-gray-100 p-6 shadow-sm space-y-4"
+        >
             <div>
               <h2 className="text-xl font-semibold text-gray-900">Voucher Builder</h2>
               <p className="text-sm text-gray-500">Create or update voucher templates for rewards.</p>
@@ -704,7 +728,6 @@ export default function AdminRewardsPage() {
             )}
           </div>
         </section>
-      </div>
-    </div>
-  );
+      </section>
+    );
 }

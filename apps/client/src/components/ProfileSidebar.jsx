@@ -18,8 +18,8 @@ export default function ProfileSidebar() {
     const location = useLocation();
     const { profile } = useAuth();
 
-    const SidebarItem = ({ icon: Icon, label, to }) => {
-        const active = location.pathname === to;
+    const SidebarItem = ({ icon: Icon, label, to, match }) => {
+        const active = match ? location.pathname.startsWith(match) : location.pathname === to;
         return (
             <Link
                 to={to}
@@ -52,7 +52,7 @@ export default function ProfileSidebar() {
 
                 <div className="flex flex-row md:flex-col md:px-3 md:mt-6 md:pt-6 border-l md:border-l-0 md:border-t border-gray-100 space-x-2 md:space-x-0 md:space-y-1 ml-2 md:ml-0 pl-2 md:pl-0">
                     {profile?.role === 'admin' && (
-                        <SidebarItem icon={FiShield} label="Admin" to="/admin" />
+                        <SidebarItem icon={FiShield} label="Admin" to="/admin" match="/admin" />
                     )}
                     <SidebarItem icon={FiSettings} label="Settings" to="/settings" />
                     <SidebarItem icon={FiBriefcase} label="For Business" to="/business" />
