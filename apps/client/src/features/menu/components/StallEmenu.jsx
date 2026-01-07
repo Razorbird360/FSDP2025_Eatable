@@ -4,6 +4,7 @@ import foodStallIcon from "./Assets/FoodStall_Icon.png";
 import StallGallery from "../../stalls/components/StallGallery";
 import { useCart } from "../../orders/components/CartContext";
 import api from "../../../lib/api"; // ⬅️ adjust path if needed
+import { useNavigate } from "react-router-dom"
 
 const Icon = {
   MapPin: (props) => (
@@ -243,6 +244,7 @@ export default function StallEmenu() {
 
   const { addToCart } = useCart();
   const [toast, setToast] = useState(null);
+  const navigate = useNavigate()
 
   // Fetch stall from API
   // Fetch stall from API
@@ -488,8 +490,12 @@ export default function StallEmenu() {
                 </div>
               </div>
             </div>
-
-            <button className="mt-2 inline-flex items-center rounded-lg bg-[#21421B] px-2.5 py-1.5 text-[11px] font-medium text-white hover:bg-[#21421B]/90">
+            <button
+              onClick={() =>
+                navigate(`/hawker-centres/map?centreId=${stall.hawkerCentreId}`)
+              }
+              className="mt-6 inline-flex items-center rounded-lg bg-[#21421B] px-2.5 py-1.5 text-[11px] font-medium text-white hover:bg-[#21421B]/90"
+            >
               View on map
             </button>
           </div>
