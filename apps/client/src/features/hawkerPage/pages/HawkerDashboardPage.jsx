@@ -5,6 +5,7 @@ import { formatDate, formatTimeAgo } from '../../../utils/helpers';
 
 // Icons from assets
 import tileLightIcon from '../../../assets/icons/tile-light.svg';
+import tileBrandIcon from '../../../assets/icons/tile-brand.svg';
 import dishLightIcon from '../../../assets/icons/dish-light.svg';
 import dishDarkIcon from '../../../assets/icons/dish-dark.svg';
 import dayLightIcon from '../../../assets/icons/day-light.svg';
@@ -86,10 +87,10 @@ const StatsCard = ({ title, value, delta }) => {
   const isNeutral = delta === 0 || delta === undefined || delta === null;
   
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm h-fit">
-      <p className="text-sm text-gray-500 mb-2">{title}</p>
-      <p className="text-4xl font-bold text-[#21421B] mb-3">{value}</p>
-      <div className="flex items-center gap-1.5 text-sm text-gray-500">
+    <div className="bg-white rounded-xl md:rounded-2xl border border-gray-100 p-4 md:p-5 shadow-sm h-fit">
+      <p className="text-sm md:text-sm text-gray-500 mb-1 md:mb-2">{title}</p>
+      <p className="text-3xl md:text-4xl font-bold text-[#21421B] mb-2 md:mb-3">{value}</p>
+      <div className="flex items-center gap-1.5 text-sm md:text-sm text-gray-500">
         <span className="font-semibold text-gray-700">{deltaValue}</span>
         <img 
           src={scrollUpArrowIcon} 
@@ -97,7 +98,8 @@ const StatsCard = ({ title, value, delta }) => {
           className={`w-3.5 h-3.5 ${isPositive ? '' : isNeutral ? 'opacity-40' : 'rotate-180'}`}
           style={isPositive ? { filter: 'invert(23%) sepia(90%) saturate(400%) hue-rotate(70deg)' } : isNeutral ? {} : { filter: 'invert(30%) sepia(90%) saturate(2000%) hue-rotate(340deg)' }}
         />
-        <span>{isPositive ? 'Increased' : isNeutral ? 'No change' : 'Decreased'} from last month</span>
+        <span className="hidden sm:inline">{isPositive ? 'Increased' : isNeutral ? 'No change' : 'Decreased'} from last month</span>
+        <span className="sm:hidden">{isPositive ? 'Increased' : isNeutral ? 'No change' : 'Decreased'}</span>
       </div>
     </div>
   );
@@ -261,7 +263,7 @@ const HawkerDashboardPage = () => {
     plotOptions: {
       pie: {
         donut: {
-          size: '70%',
+          size: '65%',
           labels: {
             show: true,
             name: { show: false },
@@ -313,8 +315,10 @@ const HawkerDashboardPage = () => {
     xaxis: {
       categories: dayCategories,
       labels: {
-        rotate: 0,
-        style: { fontSize: '13px', fontWeight: 500 },
+        rotate: -45,
+        rotateAlways: typeof window !== 'undefined' && window.innerWidth < 640,
+        style: { fontSize: '11px', fontWeight: 500 },
+        hideOverlappingLabels: true,
       },
       axisBorder: { show: false },
       axisTicks: { show: false },
@@ -322,11 +326,10 @@ const HawkerDashboardPage = () => {
     yaxis: {
       labels: {
         style: { fontSize: '12px' },
-        formatter: (val) => Math.floor(val).toString(),
+        formatter: (val) => (val % 1 === 0 ? val.toString() : ''),
       },
       min: 0,
       forceNiceScale: true,
-      tickAmount: 4,
     },
     grid: {
       borderColor: '#E5E7EB',
@@ -349,42 +352,43 @@ const HawkerDashboardPage = () => {
   ];
 
   return (
-    <section className="px-[4vw] py-6 w-full h-[calc(100vh-64px)] flex flex-col bg-[#F5F7F4]">
-      {/* Header with toggle on the right */}
-      <div className="flex items-end justify-between mb-4 flex-shrink-0">
+    <section className="px-4 md:px-[4vw] pt-10 pb-4 md:py-6 w-full min-h-[calc(100vh-64px)] bg-[#F5F7F4] overflow-y-auto">
+      {/* Header - stacks on mobile */}
+      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between mb-4 flex-shrink-0">
         <div>
-          <h1 className="text-4xl font-bold text-[#1C201D] mb-1">Dashboard</h1>
-          <p className="text-gray-500">Track your stall&apos;s performance and manage your dishes</p>
+          <h1 className="text-2xl md:text-4xl font-bold text-[#1C201D] mb-1">Dashboard</h1>
+          <p className="text-sm md:text-base text-gray-500">Track your stall&apos;s performance</p>
         </div>
         
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 text-sm text-gray-500 cursor-pointer hover:text-gray-700">
+        {/* Controls row - on mobile, center the toggle */}
+        <div className="flex flex-col md:flex-row items-center md:items-center gap-3 md:gap-4">
+          <div className="hidden md:flex items-center gap-2 text-sm text-gray-500 cursor-pointer hover:text-gray-700">
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <polyline points="6 9 12 15 18 9" />
             </svg>
             <span>Last month</span>
           </div>
           
-          {/* Tab Toggle */}
-          <div className="relative inline-flex bg-white rounded-xl p-1 border border-gray-200 shadow-sm">
+          {/* Tab Toggle - full width on mobile */}
+          <div className="relative flex w-full md:w-auto md:inline-flex bg-white rounded-xl p-1 border border-gray-200 shadow-sm">
             {/* Sliding background */}
             <div 
-              className={`absolute top-1 bottom-1 bg-[#21421B] rounded-lg transition-all duration-300 ease-in-out`}
+              className="absolute top-1 bottom-1 bg-[#21421B] rounded-lg transition-all duration-300 ease-in-out"
               style={{
                 width: 'calc(50% - 4px)',
-                left: activeTab === 'dashboard' ? '4px' : 'calc(50% + 0px)'
+                left: activeTab === 'dashboard' ? '4px' : 'calc(50%)'
               }}
             />
             
             {/* Dashboard Tab */}
             <button
               onClick={() => setActiveTab('dashboard')}
-              className="relative z-10 flex items-center justify-center gap-2 px-5 py-2 rounded-lg text-sm font-medium transition-colors duration-300 min-w-[120px]"
+              className="relative z-10 flex-1 flex items-center justify-center gap-2 px-4 md:px-5 py-2.5 rounded-lg text-base md:text-sm font-medium transition-colors duration-300"
             >
               <img 
-                src={tileLightIcon}
+                src={activeTab === 'dashboard' ? tileLightIcon : tileBrandIcon}
                 alt="" 
-                className={`w-4 h-4 transition-all duration-300 ${activeTab === 'dashboard' ? 'brightness-0 invert' : ''}`}
+                className={`w-5 h-5 md:w-4 md:h-4 transition-all duration-300 ${activeTab === 'dashboard' ? 'brightness-0 invert' : ''}`}
               />
               <span className={activeTab === 'dashboard' ? 'text-white' : 'text-gray-500'}>
                 Dashboard
@@ -394,12 +398,12 @@ const HawkerDashboardPage = () => {
             {/* Dishes Tab */}
             <button
               onClick={() => setActiveTab('dishes')}
-              className="relative z-10 flex items-center justify-center gap-2 px-5 py-2 rounded-lg text-sm font-medium transition-colors duration-300 min-w-[120px]"
+              className="relative z-10 flex-1 flex items-center justify-center gap-2 px-4 md:px-5 py-2.5 rounded-lg text-base md:text-sm font-medium transition-colors duration-300"
             >
               <img 
-                src={dishLightIcon}
+                src={activeTab === 'dishes' ? dishLightIcon : dishDarkIcon}
                 alt="" 
-                className={`w-4 h-4 transition-all duration-300 ${activeTab === 'dishes' ? 'brightness-0 invert' : ''}`}
+                className={`w-5 h-5 md:w-4 md:h-4 transition-all duration-300 ${activeTab === 'dishes' ? 'brightness-0 invert' : ''}`}
               />
               <span className={activeTab === 'dishes' ? 'text-white' : 'text-gray-500'}>
                 Dishes
@@ -409,12 +413,12 @@ const HawkerDashboardPage = () => {
         </div>
       </div>
 
-      {/* Main Content - Flex layout that fills remaining space */}
-      <div className="flex flex-col lg:flex-row gap-4 flex-1 min-h-0">
+      {/* Main Content */}
+      <div className="flex flex-col lg:flex-row gap-4">
         {/* Left Column - Stats + Chart */}
-        <div className="flex-1 flex flex-col gap-4">
-          {/* Stats Cards Row */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="flex-1 flex flex-col gap-6 md:gap-4">
+          {/* Stats Cards - stacked on mobile, 3 on tablet+ */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
             <StatsCard
               title="Total Orders"
               value={summary?.totals?.orders ?? 0}
@@ -432,10 +436,11 @@ const HawkerDashboardPage = () => {
             />
           </div>
 
-          {/* Donut Chart Section */}
-          <div className="flex-1 bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
-            <div className="relative flex items-center mb-6">
-              <div className="flex items-center gap-2">
+          {/* Chart Section */}
+          <div className={`flex-1 bg-white rounded-xl md:rounded-2xl border border-gray-100 p-5 md:p-6 shadow-sm ${chartView === 'day' ? 'pb-2 md:pb-6' : ''}`}>
+            <div className="flex items-center justify-between gap-3 mb-4 md:mb-6">
+              {/* Dish Icon - Left side on mobile, beside Day icon on desktop */}
+              <div className="flex items-center md:gap-2 min-w-[40px]">
                 <button
                   onClick={() => {
                     setChartView('dish');
@@ -456,7 +461,7 @@ const HawkerDashboardPage = () => {
                     setDayChartMode('week');
                     setSelectedWeekStart(null);
                   }}
-                  className="p-1 transition-opacity hover:opacity-70"
+                  className="hidden md:block p-1 transition-opacity hover:opacity-70"
                 >
                   <img 
                     src={chartView === 'day' ? dayDarkIcon : dayLightIcon} 
@@ -465,26 +470,48 @@ const HawkerDashboardPage = () => {
                   />
                 </button>
               </div>
-              <h2 className="absolute left-1/2 -translate-x-1/2 text-xl font-bold text-[#1C201D]">
-                {chartView === 'dish' ? 'Total Orders by Dish' : dayTitle}
-              </h2>
-              {isDailyView ? (
+              
+              {/* Centered Title - larger on mobile, handles wrapping */}
+              <div className="flex-1 text-center">
+                <h2 className="text-lg md:text-xl font-bold text-[#1C201D] leading-tight">
+                  {chartView === 'dish' ? 'Total Orders by Dish' : dayTitle}
+                </h2>
+              </div>
+
+              {/* Right side - Day icon on mobile, plus All weeks button if applicable */}
+              <div className="flex items-center gap-1 md:gap-2 min-w-[40px] justify-end">
                 <button
-                  className="ml-auto flex items-center gap-1.5 text-sm text-[#21421B] hover:text-[#1a3415] font-medium transition-colors"
                   onClick={() => {
+                    setChartView('day');
                     setDayChartMode('week');
                     setSelectedWeekStart(null);
                   }}
-                  type="button"
+                  className="md:hidden p-1 transition-opacity hover:opacity-70"
                 >
-                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <polyline points="15 18 9 12 15 6" />
-                  </svg>
-                  All weeks
+                  <img 
+                    src={chartView === 'day' ? dayDarkIcon : dayLightIcon} 
+                    alt="By Day" 
+                    className="w-6 h-6" 
+                  />
                 </button>
-              ) : (
-                <div className="ml-auto w-24" />
-              )}
+                {isDailyView ? (
+                  <button
+                    className="hidden md:flex items-center gap-1.5 text-sm text-[#21421B] hover:text-[#1a3415] font-medium transition-colors"
+                    onClick={() => {
+                      setDayChartMode('week');
+                      setSelectedWeekStart(null);
+                    }}
+                    type="button"
+                  >
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <polyline points="15 18 9 12 15 6" />
+                    </svg>
+                    Weekly View
+                  </button>
+                ) : (
+                  <div className="hidden md:block w-24" />
+                )}
+              </div>
             </div>
 
             {chartView === 'dish' && dishChartTotal === 0 ? (
@@ -492,17 +519,17 @@ const HawkerDashboardPage = () => {
                 {dishEmptyMessage}
               </div>
             ) : chartView === 'dish' ? (
-              <div className="flex items-center justify-center gap-28">
-                {/* Chart on left */}
-                <div className="flex-shrink-0" style={{ width: '300px' }}>
+              <div className="flex flex-col md:flex-row items-center justify-center gap-6 md:gap-16 lg:gap-28 py-6 md:py-0">
+                {/* Chart */}
+                <div className="flex-shrink-0 w-[260px] md:w-[280px] lg:w-[300px]">
                   <Chart
                     options={dishChartOptions}
                     series={dishChartSeries}
                     type="donut"
-                    height={300}
+                    height={typeof window !== 'undefined' && window.innerWidth < 768 ? 260 : 300}
                   />
                 </div>
-                {/* Legend on right */}
+                {/* Legend */}
                 <div className={`flex flex-col ${dishLegendClass} ${dishLegendContainerClass}`}>
                   {dishChartData.map((dish, index) => (
                     <div key={dish.name} className={`flex items-center ${dishLegendClass}`}>
@@ -510,7 +537,7 @@ const HawkerDashboardPage = () => {
                         className={`${dishDotClass} rounded-full flex-shrink-0`}
                         style={{ backgroundColor: CHART_COLORS[index] }}
                       />
-                      <span className="min-w-0 truncate text-gray-800 font-medium">
+                      <span className="min-w-0 truncate text-gray-800 font-medium text-sm md:text-base">
                         {dish.name}
                       </span>
                     </div>
@@ -522,14 +549,30 @@ const HawkerDashboardPage = () => {
                 {dayEmptyMessage}
               </div>
             ) : (
-              <div>
-                <Chart
-                  key={isWeeklyView ? 'weekly' : selectedWeekStart}
-                  options={dayChartOptions}
-                  series={dayChartSeries}
-                  type="bar"
-                  height={280}
-                />
+              <div className="flex flex-col">
+                <div className="mb-[-10px] md:mb-0">
+                  <Chart
+                    key={isWeeklyView ? 'weekly' : selectedWeekStart}
+                    options={dayChartOptions}
+                    series={dayChartSeries}
+                    type="bar"
+                    height={typeof window !== 'undefined' && window.innerWidth < 768 ? 220 : 280}
+                  />
+                </div>
+                {isDailyView && (
+                  <button
+                    onClick={() => {
+                      setDayChartMode('week');
+                      setSelectedWeekStart(null);
+                    }}
+                    className="md:hidden mt-[-8px] mb-2 flex items-center justify-center gap-2 py-3.5 w-full bg-[#F5F7F4] rounded-xl text-[#21421B] font-bold text-sm transition-all active:scale-[0.98] active:bg-gray-200"
+                  >
+                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                      <polyline points="15 18 9 12 15 6" />
+                    </svg>
+                    Back to Weekly View
+                  </button>
+                )}
               </div>
             )}
           </div>
