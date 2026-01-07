@@ -13,7 +13,7 @@ import scrollUpArrowIcon from '../../../assets/icons/scroll-up arrow.svg';
 
 const CHART_COLORS = ['#A855F7', '#5EBECC', '#EC4899', '#F59E0B', '#6366F1', '#94A3B8'];
 
-const MAX_CHART_ITEMS = 5;
+const MAX_DISH_ITEMS = 10;
 const SG_TIMEZONE = 'Asia/Singapore';
 
 const processOrdersByDish = (ordersByDish) => {
@@ -21,16 +21,12 @@ const processOrdersByDish = (ordersByDish) => {
   
   const sorted = [...ordersByDish].sort((a, b) => b.count - a.count);
   
-  if (sorted.length <= MAX_CHART_ITEMS) {
+  if (sorted.length <= MAX_DISH_ITEMS) {
     return { items: sorted, total: sorted.reduce((sum, d) => sum + d.count, 0) };
   }
   
-  const top = sorted.slice(0, MAX_CHART_ITEMS);
-  const others = sorted.slice(MAX_CHART_ITEMS);
-  const otherCount = others.reduce((sum, d) => sum + d.count, 0);
-  
   return {
-    items: [...top, { name: 'Other', count: otherCount }],
+    items: sorted.slice(0, MAX_DISH_ITEMS),
     total: sorted.reduce((sum, d) => sum + d.count, 0),
   };
 };
@@ -195,6 +191,21 @@ const HawkerDashboardPage = () => {
   const { items: dishChartData, total: dishChartTotal } = processOrdersByDish(
     summary?.ordersByDish
   );
+  const dishLegendDensity = dishChartData.length;
+  const dishLegendClass =
+    dishLegendDensity >= 9
+      ? 'gap-2 text-sm leading-tight'
+      : dishLegendDensity >= 7
+        ? 'gap-3 text-base'
+        : 'gap-5 text-lg';
+  const dishDotClass =
+    dishLegendDensity >= 9
+      ? 'w-3.5 h-3.5'
+      : dishLegendDensity >= 7
+        ? 'w-4 h-4'
+        : 'w-5 h-5';
+  const dishLegendContainerClass =
+    dishLegendDensity >= 9 ? 'max-h-[260px] overflow-y-auto pr-2' : '';
 
   const weeklyData = summary?.ordersByWeek || [];
   const dailyData = summary?.ordersByDay || [];
@@ -262,7 +273,8 @@ const HawkerDashboardPage = () => {
               fontSize: '48px',
               fontWeight: 700,
               color: '#21421B',
-              formatter: () => dishChartTotal.toString(),
+              formatter: () =>
+                (summary?.totalOrdersByDish ?? dishChartTotal).toString(),
             },
           },
         },
@@ -491,14 +503,16 @@ const HawkerDashboardPage = () => {
                   />
                 </div>
                 {/* Legend on right */}
-                <div className="flex flex-col gap-5">
+                <div className={`flex flex-col ${dishLegendClass} ${dishLegendContainerClass}`}>
                   {dishChartData.map((dish, index) => (
-                    <div key={dish.name} className="flex items-center gap-4">
+                    <div key={dish.name} className={`flex items-center ${dishLegendClass}`}>
                       <span
-                        className="w-5 h-5 rounded-full flex-shrink-0"
+                        className={`${dishDotClass} rounded-full flex-shrink-0`}
                         style={{ backgroundColor: CHART_COLORS[index] }}
                       />
-                      <span className="text-lg text-gray-800 font-medium">{dish.name}</span>
+                      <span className="min-w-0 truncate text-gray-800 font-medium">
+                        {dish.name}
+                      </span>
                     </div>
                   ))}
                 </div>
