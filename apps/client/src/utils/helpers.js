@@ -11,30 +11,44 @@ export const formatPrice = (cents) => {
 /**
  * Format date to readable string
  * @param {string|Date} date - Date to format
+ * @param {string} [timeZone] - Optional IANA timezone (e.g., "Asia/Singapore")
  * @returns {string} Formatted date (e.g., "12 Jan 2024")
  */
-export const formatDate = (date) => {
-  return new Date(date).toLocaleDateString('en-SG', {
+export const formatDate = (date, timeZone) => {
+  const options = {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
-  });
+  };
+
+  if (timeZone) {
+    options.timeZone = timeZone;
+  }
+
+  return new Date(date).toLocaleDateString('en-SG', options);
 };
 
 /**
  * Format datetime to readable string
  * @param {string|Date} date - Datetime to format
+ * @param {string} [timeZone] - Optional IANA timezone (e.g., "Asia/Singapore")
  * @returns {string} Formatted datetime (e.g., "12 Jan 2024, 3:45 PM")
  */
-export const formatDateTime = (date) => {
-  return new Date(date).toLocaleDateString('en-SG', {
+export const formatDateTime = (date, timeZone) => {
+  const options = {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
     hour12: true,
-  });
+  };
+
+  if (timeZone) {
+    options.timeZone = timeZone;
+  }
+
+  return new Date(date).toLocaleDateString('en-SG', options);
 };
 
 /**

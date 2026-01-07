@@ -39,6 +39,17 @@ const mapOrdersByDish = async (grouped) => {
     .sort((a, b) => b.count - a.count);
 };
 
+const mapOrdersByDayRows = (rows) =>
+  rows.map((row) => {
+    const rawDay = row.day instanceof Date ? row.day.toISOString() : row.day;
+    const day = typeof rawDay === 'string' ? rawDay.split('T')[0] : rawDay;
+
+    return {
+      date: day,
+      count: Number(row.count) || 0,
+    };
+  });
+
 const buildOrderSummary = (orderItems) => {
   if (!orderItems || orderItems.length === 0) {
     return 'Ordered items';
@@ -70,6 +81,7 @@ export const hawkerDashboardService = {
       upvotesCount,
       previousUpvotesCount,
       ordersByDishGrouped,
+      ordersByDayRows,
     ] = await Promise.all([
       prisma.order.count({
         where: {
@@ -124,9 +136,22 @@ export const hawkerDashboardService = {
         },
         _sum: { quantity: true },
       }),
+      prisma.$queryRaw`
+        SELECT
+          date_trunc('day', timezone('Asia/Singapore', created_at))::date AS day,
+          COUNT(*)::int AS count
+        FROM "orders"
+        WHERE stall_id = ${stallId}::uuid
+          AND status = 'PAID'
+          AND created_at >= ${current.from}
+          AND created_at < ${current.to}
+        GROUP BY day
+        ORDER BY day ASC;
+      `,
     ]);
 
     const ordersByDish = await mapOrdersByDish(ordersByDishGrouped);
+    const ordersByDay = mapOrdersByDayRows(ordersByDayRows);
 
     return {
       period: {
@@ -145,6 +170,8 @@ export const hawkerDashboardService = {
       },
       ordersByDish,
       totalOrdersByDish: sumCounts(ordersByDish),
+      ordersByDay,
+      totalOrdersByDay: sumCounts(ordersByDay),
     };
   },
 

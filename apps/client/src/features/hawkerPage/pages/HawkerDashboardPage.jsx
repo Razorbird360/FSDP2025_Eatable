@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import Chart from 'react-apexcharts';
 import api from '../../../lib/api';
-import { formatTimeAgo } from '../../../utils/helpers';
+import { formatDate, formatTimeAgo } from '../../../utils/helpers';
 
 // Icons from assets
 import tileLightIcon from '../../../assets/icons/tile-light.svg';
@@ -41,7 +41,8 @@ const getActivityText = (item) => {
     case 'upvote':
       return (
         <>
-          Upvoted your stall! "<span className="text-white">{item.data.menuItem}</span>"
+          Upvoted your stall!{' '}
+          <span className="text-white">&quot;{item.data.menuItem}&quot;</span>
         </>
       );
     case 'photo_upload':
@@ -161,7 +162,19 @@ const HawkerDashboardPage = () => {
     );
   }
 
-  const { items: chartData, total: chartTotal } = processOrdersByDish(summary?.ordersByDish);
+  const chartSource =
+    chartView === 'day'
+      ? (summary?.ordersByDay || []).map((item) => ({
+          name: item.date
+            ? formatDate(item.date, 'Asia/Singapore')
+            : item.name ?? 'Unknown day',
+          count: item.count,
+        }))
+      : summary?.ordersByDish || [];
+
+  const { items: chartData, total: chartTotal } = processOrdersByDish(chartSource);
+  const emptyChartMessage =
+    chartView === 'day' ? 'No orders by day yet' : 'No orders by dish yet';
   
   const chartOptions = {
     chart: { type: 'donut', fontFamily: 'inherit' },
@@ -207,7 +220,7 @@ const HawkerDashboardPage = () => {
       <div className="flex items-end justify-between mb-4 flex-shrink-0">
         <div>
           <h1 className="text-4xl font-bold text-[#1C201D] mb-1">Dashboard</h1>
-          <p className="text-gray-500">Track your stall's performance and manage your dishes</p>
+          <p className="text-gray-500">Track your stall&apos;s performance and manage your dishes</p>
         </div>
         
         <div className="flex items-center gap-4">
@@ -317,7 +330,7 @@ const HawkerDashboardPage = () => {
 
             {chartTotal === 0 ? (
               <div className="h-64 flex items-center justify-center text-gray-400">
-                No orders by dish yet
+                {emptyChartMessage}
               </div>
             ) : (
               <div className="flex items-center justify-center gap-28">
