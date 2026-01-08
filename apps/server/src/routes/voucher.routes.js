@@ -6,5 +6,6 @@ const router = Router();
 
 router.get('/user', authMiddleware, voucherController.getUserVouchers);
 router.post('/apply/:voucherId', authMiddleware, voucherController.applyVoucher);
+router.delete('/apply', authMiddleware, voucherController.clearVoucher);
 
 export default router;

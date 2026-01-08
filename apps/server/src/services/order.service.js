@@ -115,32 +115,56 @@ export const orderService = {
             });
 
             if (pendingVoucherDiscount) {
-                // Link discount to order
-                await tx.discounts_charges.update({
-                    where: { id: pendingVoucherDiscount.id },
-                    data: { orderId: order.id },
-                });
+                let shouldApplyVoucher = false;
 
-                // Update order total
-                const discountAmount = pendingVoucherDiscount.amountCents || 0;
-                await tx.order.update({
-                    where: { id: order.id },
-                    data: {
-                        totalCents: {
-                            decrement: discountAmount,
-                        },
-                    },
-                });
-
-                // Update local order object to reflect the change
-                order.totalCents -= discountAmount;
-
-                // Mark the UserVoucher as used
                 if (pendingVoucherDiscount.userVoucherId) {
-                    await tx.userVoucher.update({
+                    const userVoucher = await tx.userVoucher.findUnique({
                         where: { id: pendingVoucherDiscount.userVoucherId },
-                        data: { isUsed: true },
+                        include: { voucher: true },
                     });
+
+                    if (userVoucher && userVoucher.userId === userId && !userVoucher.isUsed) {
+                        const now = new Date();
+                        const expiryDate = userVoucher.expiryDate || userVoucher.voucher?.expiryDate;
+                        const isExpired = expiryDate ? new Date(expiryDate) <= now : false;
+                        if (!isExpired) {
+                            shouldApplyVoucher = true;
+                        }
+                    }
+                }
+
+                if (!shouldApplyVoucher) {
+                    await tx.discounts_charges.delete({
+                        where: { id: pendingVoucherDiscount.id },
+                    });
+                } else {
+                    // Link discount to order
+                    await tx.discounts_charges.update({
+                        where: { id: pendingVoucherDiscount.id },
+                        data: { orderId: order.id },
+                    });
+
+                    // Update order total
+                    const discountAmount = pendingVoucherDiscount.amountCents || 0;
+                    await tx.order.update({
+                        where: { id: order.id },
+                        data: {
+                            totalCents: {
+                                decrement: discountAmount,
+                            },
+                        },
+                    });
+
+                    // Update local order object to reflect the change
+                    order.totalCents -= discountAmount;
+
+                    // Mark the UserVoucher as used
+                    if (pendingVoucherDiscount.userVoucherId) {
+                        await tx.userVoucher.update({
+                            where: { id: pendingVoucherDiscount.userVoucherId },
+                            data: { isUsed: true },
+                        });
+                    }
                 }
             }
 

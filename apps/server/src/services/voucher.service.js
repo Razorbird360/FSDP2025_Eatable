@@ -20,7 +20,7 @@ class VoucherService {
       // Flatten the structure to return a list of vouchers with usage info and expiry status
       return userVouchers.map(uv => {
         const expiryDate = uv.expiryDate || uv.voucher.expiryDate;
-        const isExpired = expiryDate ? new Date(expiryDate) < now : false;
+        const isExpired = expiryDate ? new Date(expiryDate) <= now : false;
 
         return {
           ...uv.voucher,
@@ -34,6 +34,25 @@ class VoucherService {
       });
     } catch (error) {
       throw new Error(`Error fetching user vouchers: ${error.message}`);
+    }
+  }
+
+  async clearPendingVoucher(userId) {
+    try {
+      const result = await prisma.discounts_charges.deleteMany({
+        where: {
+          userId: userId,
+          type: 'voucher',
+          orderId: null,
+        },
+      });
+
+      return {
+        success: true,
+        removed: result.count,
+      };
+    } catch (error) {
+      throw new Error(`Error clearing voucher: ${error.message}`);
     }
   }
 
@@ -69,6 +88,12 @@ class VoucherService {
 
       if (userVoucher.isUsed) {
         throw new Error("Voucher already used");
+      }
+
+      const now = new Date();
+      const expiryDate = userVoucher.expiryDate || userVoucher.voucher.expiryDate;
+      if (expiryDate && new Date(expiryDate) <= now) {
+        throw new Error("Voucher has expired");
       }
 
       const voucher = userVoucher.voucher;
@@ -126,3 +151,4 @@ class VoucherService {
 }
 
 export default new VoucherService();
+

@@ -52,7 +52,7 @@ export default function OrderSummary() {
     try {
       const res = await api.get('/vouchers/user');
       // Filter out used vouchers so they don't appear in the list
-      const availableVouchers = res.data.filter(v => !v.isUsed && !v.used);
+      const availableVouchers = (res.data || []).filter(v => !v.isUsed && !v.used && !v.isExpired);
       setVouchers(availableVouchers);
     } catch (err) {
       console.error("Failed to fetch vouchers:", err);
@@ -76,8 +76,11 @@ export default function OrderSummary() {
     // Toggle selection: if already selected, deselect
     if (selectedVoucher && selectedVoucher.userVoucherId === voucher.userVoucherId) {
       setSelectedVoucher(null);
-      // Ideally call backend to remove voucher too, but for now we just clear local state.
-      // If we want to be strict, we should have a remove endpoint or pass null to apply.
+      try {
+        await api.delete('/vouchers/apply');
+      } catch (err) {
+        console.error("Failed to clear voucher:", err);
+      }
     } else {
       try {
         // Call backend to apply voucher

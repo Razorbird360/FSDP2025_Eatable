@@ -65,161 +65,161 @@ async function main() {
 
   // --- Hawker centres data ---
 
- // hawkerCentresData (Maxwell + Tiong Bahru unchanged)
+  // hawkerCentresData (Maxwell + Tiong Bahru unchanged)
 
-const hawkerCentresData = [
-  {
-    name: "Maxwell Food Centre",
-    slug: "maxwell-food-centre",
-    address: "1 Kadayanallur St, Singapore",
-    postalCode: "069184",
-    latitude: 1.2803,
-    longitude: 103.8445,
-  },
-  {
-    name: "Tiong Bahru Market",
-    slug: "tiong-bahru-market",
-    address: "30 Seng Poh Rd, Singapore",
-    postalCode: "168898",
-    latitude: 1.2839,
-    longitude: 103.8332,
-  },
-
-  // NS9 — Woodlands
-  {
-    name: "Woodlands Centre Road Food Centre",
-    slug: "woodlands-centre-road-food-centre",
-    address: "4A Woodlands Centre Rd, Singapore",
-    postalCode: "731004",
-    latitude: 1.4408,
-    longitude: 103.7701,
-  },
-
-  // NS8 — Marsiling
-  {
-    name: "Marsiling Mall Hawker Centre",
-    slug: "marsiling-mall-hawker-centre",
-    address: "4 Woodlands Street 12, Singapore",
-    postalCode: "738623",
-    latitude: 1.4335,
-    longitude: 103.7797,
-  },
-
-  // NE17 — Punggol
-  {
-    name: "Punggol East Container Park Hawker",
-    slug: "punggol-east-container-park",
-    address: "50 Punggol East, Singapore",
-    postalCode: "828824",
-    latitude: 1.4047,
-    longitude: 103.9169,
-  },
-
-  // EW28 — Pioneer
-  {
-    name: "Pioneer Food Centre",
-    slug: "pioneer-food-centre",
-    address: "49 Sims Place, Singapore",
-    postalCode: "380049",
-    latitude: 1.3169,
-    longitude: 103.8780,
-  },
-];
-
-
-// stallsByCentre (only non-central ones changed)
-
-const stallsByCentre = {
-  "maxwell-food-centre": [
+  const hawkerCentresData = [
     {
-      name: "Tian Tian Hainanese Chicken Rice",
-      description: "Famous Hainanese chicken rice with fragrant rice and chilli.",
-      location: "Stall 01-10",
-      cuisineType: "Chinese",
-      tags: ["chicken rice", "rice", "chilli"],
-      image_url:
-        "https://cache-wak-wak-hawker-com.s3-ap-southeast-1.amazonaws.com/data/images/stall/70/870/block/HPEmAfesLHnuUZk0.jpg?v=1612194201",
+      name: "Maxwell Food Centre",
+      slug: "maxwell-food-centre",
+      address: "1 Kadayanallur St, Singapore",
+      postalCode: "069184",
+      latitude: 1.2803,
+      longitude: 103.8445,
     },
     {
-      name: "Zhen Zhen Porridge",
-      description: "Comforting Teochew porridge with generous ingredients.",
-      location: "Stall 01-54",
-      cuisineType: "Chinese",
-      tags: ["porridge", "breakfast", "teochew"],
-      image_url:
-        "https://sethlui.com/wp-content/uploads/2017/07/Hong-Heng-Fried-Sotong-Prawn-Mee-1.jpg",
+      name: "Tiong Bahru Market",
+      slug: "tiong-bahru-market",
+      address: "30 Seng Poh Rd, Singapore",
+      postalCode: "168898",
+      latitude: 1.2839,
+      longitude: 103.8332,
     },
-  ],
 
-  "tiong-bahru-market": [
+    // NS9 — Woodlands
     {
-      name: "Tiong Bahru Hainanese Boneless Chicken Rice",
-      description: "Juicy boneless chicken rice with old-school vibes.",
-      location: "Stall 02-82",
-      cuisineType: "Chinese",
-      tags: ["chicken rice", "boneless", "rice"],
-      image_url:
-        "https://sethlui.com/wp-content/uploads/2021/11/Tiong-Bahru-Hainanese-Chicken-Rice-12..jpg",
+      name: "Woodlands Centre Road Food Centre",
+      slug: "woodlands-centre-road-food-centre",
+      address: "4A Woodlands Centre Rd, Singapore",
+      postalCode: "731004",
+      latitude: 1.4408,
+      longitude: 103.7701,
     },
-    {
-      name: "Hong Heng Fried Sotong Prawn Mee",
-      description: "Famous hokkien mee fried with prawn and sotong.",
-      location: "Stall 02-01",
-      cuisineType: "Chinese",
-      tags: ["hokkien mee", "noodles", "seafood"],
-      image_url:
-        "https://sethlui.com/wp-content/uploads/2017/07/Hong-Heng-Fried-Sotong-Prawn-Mee-1.jpg",
-    },
-  ],
 
-  "woodlands-centre-road-food-centre": [
+    // NS8 — Marsiling
     {
-      name: "Lai Heng Handmade Noodles",
-      description: "Traditional handmade noodles with minced meat.",
-      location: "Stall 01-32",
-      cuisineType: "Chinese",
-      tags: ["noodles", "minced meat"],
-      // CHANGED: Use a reliable testing URL
-      image_url: "https://sethlui.com/wp-content/uploads/2021/11/Tiong-Bahru-Hainanese-Chicken-Rice-12..jpg",
+      name: "Marsiling Mall Hawker Centre",
+      slug: "marsiling-mall-hawker-centre",
+      address: "4 Woodlands Street 12, Singapore",
+      postalCode: "738623",
+      latitude: 1.4335,
+      longitude: 103.7797,
     },
-  ],
 
-  "marsiling-mall-hawker-centre": [
+    // NE17 — Punggol
     {
-      name: "Ah Ma Chi Mian",
-      description: "Old-school wanton mee with handmade noodles.",
-      location: "Stall 02-15",
-      cuisineType: "Chinese",
-      tags: ["wantan mee", "noodles"],
-      // CHANGED: Use a reliable testing URL
-      image_url: "https://sethlui.com/wp-content/uploads/2021/11/Tiong-Bahru-Hainanese-Chicken-Rice-12..jpg",
+      name: "Punggol East Container Park Hawker",
+      slug: "punggol-east-container-park",
+      address: "50 Punggol East, Singapore",
+      postalCode: "828824",
+      latitude: 1.4047,
+      longitude: 103.9169,
     },
-  ],
 
-  "punggol-east-container-park": [
+    // EW28 — Pioneer
     {
-      name: "Punggol Western Grill",
-      description: "Western food with large portions near the coast.",
-      location: "Container 05",
-      cuisineType: "Western",
-      tags: ["grill", "western"],
-      // CHANGED: Use a reliable testing URL
-      image_url: "https://sethlui.com/wp-content/uploads/2021/11/Tiong-Bahru-Hainanese-Chicken-Rice-12..jpg",
+      name: "Pioneer Food Centre",
+      slug: "pioneer-food-centre",
+      address: "49 Sims Place, Singapore",
+      postalCode: "380049",
+      latitude: 1.3169,
+      longitude: 103.8780,
     },
-  ],
+  ];
 
-  "pioneer-food-centre": [
-    {
-      name: "Muslim Nasi Padang",
-      description: "Affordable nasi padang with many side dishes.",
-      location: "Stall 01-08",
-      cuisineType: "Malay",
-      tags: ["nasi padang", "rice"],
-      // CHANGED: Use a reliable testing URL
-      image_url: "https://sethlui.com/wp-content/uploads/2021/11/Tiong-Bahru-Hainanese-Chicken-Rice-12..jpg",
-    },
-  ],
-};
+
+  // stallsByCentre (only non-central ones changed)
+
+  const stallsByCentre = {
+    "maxwell-food-centre": [
+      {
+        name: "Tian Tian Hainanese Chicken Rice",
+        description: "Famous Hainanese chicken rice with fragrant rice and chilli.",
+        location: "Stall 01-10",
+        cuisineType: "Chinese",
+        tags: ["chicken rice", "rice", "chilli"],
+        image_url:
+          "https://cache-wak-wak-hawker-com.s3-ap-southeast-1.amazonaws.com/data/images/stall/70/870/block/HPEmAfesLHnuUZk0.jpg?v=1612194201",
+      },
+      {
+        name: "Zhen Zhen Porridge",
+        description: "Comforting Teochew porridge with generous ingredients.",
+        location: "Stall 01-54",
+        cuisineType: "Chinese",
+        tags: ["porridge", "breakfast", "teochew"],
+        image_url:
+          "https://sethlui.com/wp-content/uploads/2017/07/Hong-Heng-Fried-Sotong-Prawn-Mee-1.jpg",
+      },
+    ],
+
+    "tiong-bahru-market": [
+      {
+        name: "Tiong Bahru Hainanese Boneless Chicken Rice",
+        description: "Juicy boneless chicken rice with old-school vibes.",
+        location: "Stall 02-82",
+        cuisineType: "Chinese",
+        tags: ["chicken rice", "boneless", "rice"],
+        image_url:
+          "https://sethlui.com/wp-content/uploads/2021/11/Tiong-Bahru-Hainanese-Chicken-Rice-12..jpg",
+      },
+      {
+        name: "Hong Heng Fried Sotong Prawn Mee",
+        description: "Famous hokkien mee fried with prawn and sotong.",
+        location: "Stall 02-01",
+        cuisineType: "Chinese",
+        tags: ["hokkien mee", "noodles", "seafood"],
+        image_url:
+          "https://sethlui.com/wp-content/uploads/2017/07/Hong-Heng-Fried-Sotong-Prawn-Mee-1.jpg",
+      },
+    ],
+
+    "woodlands-centre-road-food-centre": [
+      {
+        name: "Lai Heng Handmade Noodles",
+        description: "Traditional handmade noodles with minced meat.",
+        location: "Stall 01-32",
+        cuisineType: "Chinese",
+        tags: ["noodles", "minced meat"],
+        // CHANGED: Use a reliable testing URL
+        image_url: "https://sethlui.com/wp-content/uploads/2021/11/Tiong-Bahru-Hainanese-Chicken-Rice-12..jpg",
+      },
+    ],
+
+    "marsiling-mall-hawker-centre": [
+      {
+        name: "Ah Ma Chi Mian",
+        description: "Old-school wanton mee with handmade noodles.",
+        location: "Stall 02-15",
+        cuisineType: "Chinese",
+        tags: ["wantan mee", "noodles"],
+        // CHANGED: Use a reliable testing URL
+        image_url: "https://sethlui.com/wp-content/uploads/2021/11/Tiong-Bahru-Hainanese-Chicken-Rice-12..jpg",
+      },
+    ],
+
+    "punggol-east-container-park": [
+      {
+        name: "Punggol Western Grill",
+        description: "Western food with large portions near the coast.",
+        location: "Container 05",
+        cuisineType: "Western",
+        tags: ["grill", "western"],
+        // CHANGED: Use a reliable testing URL
+        image_url: "https://sethlui.com/wp-content/uploads/2021/11/Tiong-Bahru-Hainanese-Chicken-Rice-12..jpg",
+      },
+    ],
+
+    "pioneer-food-centre": [
+      {
+        name: "Muslim Nasi Padang",
+        description: "Affordable nasi padang with many side dishes.",
+        location: "Stall 01-08",
+        cuisineType: "Malay",
+        tags: ["nasi padang", "rice"],
+        // CHANGED: Use a reliable testing URL
+        image_url: "https://sethlui.com/wp-content/uploads/2021/11/Tiong-Bahru-Hainanese-Chicken-Rice-12..jpg",
+      },
+    ],
+  };
 
 
   // Menu items per stall (5 items each, realistic hawker food)
@@ -2246,7 +2246,7 @@ const stallsByCentre = {
   });
 
   // --- Seed Vouchers for specific user ---
-  const specificUserId = "d62244f0-c495-44f6-b314-e3ba5b22bd90";
+  const specificUserId = "02441ecb-eb23-4c80-9146-1259b1517648";
 
   // Ensure the user exists (required for foreign key constraint)
   let specificUser = await prisma.user.findUnique({

@@ -12,6 +12,17 @@ class VoucherController {
         }
     }
 
+    async clearVoucher(req, res) {
+        try {
+            const userId = req.user.id;
+            const result = await voucherService.clearPendingVoucher(userId);
+            res.json(result);
+        } catch (error) {
+            console.error('Error in clearVoucher:', error);
+            res.status(500).json({ error: 'Failed to clear voucher' });
+        }
+    }
+
     async applyVoucher(req, res) {
         try {
             const userId = req.user.id;
