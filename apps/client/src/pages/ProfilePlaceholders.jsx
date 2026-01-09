@@ -1,5 +1,3 @@
-import React from 'react';
-
 const PlaceholderPage = ({ title, description }) => (
   <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100 min-h-[400px] flex flex-col items-center justify-center text-center">
     <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">

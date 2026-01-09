@@ -103,7 +103,6 @@ export default function SpendingsPage() {
       }
     }
     if (mode === "month") fetchBudget()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, yearNumber, monthNumber])
 
   // --- Filtering & Calculations ---
@@ -312,11 +311,15 @@ export default function SpendingsPage() {
         {/* Transactions List */}
         <div className="mt-12 w-full bg-white rounded-xl p-8 shadow-sm border border-gray-100">
           <h2 className="text-xl font-bold text-gray-900 mb-6">Transaction Records</h2>
-          {loadingOrders ? (
-            <div className="p-8 flex justify-center"><div className="animate-spin h-8 w-8 border-b-2 border-[#21421B] rounded-full" /></div>
-          ) : visibleOrders.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">No transactions found.</div>
-          ) : (
+            {loadingOrders ? (
+              <div className="p-8 flex justify-center">
+                <div className="animate-spin h-8 w-8 border-b-2 border-[#21421B] rounded-full" />
+              </div>
+            ) : ordersError ? (
+              <div className="text-center py-12 text-red-600 text-sm">{ordersError}</div>
+            ) : visibleOrders.length === 0 ? (
+              <div className="text-center py-12 text-gray-500">No transactions found.</div>
+            ) : (
             <div className="space-y-4">
               {visibleOrders.map(order => (
                 <div
@@ -409,7 +412,7 @@ export default function SpendingsPage() {
 
 // --- Components ---
 
-function BudgetAlertModal({ data, onClose, onEdit }) {
+function BudgetAlertModal({ data, onClose }) {
   const isLimit = data?.type === "limit"
 
   return (
