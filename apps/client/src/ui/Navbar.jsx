@@ -376,25 +376,34 @@ export default function Navbar() {
             ))}
 
             {status === 'authenticated' ? (
-              <button
-                type="button"
-                onClick={async () => {
-                  await handleLogout();
-                  closeMobileMenu();
-                }}
-                disabled={authLoading}
-                className="flex items-center gap-3 rounded-2xl border border-[#21421B] px-4 py-3 text-left"
-              >
-                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#21421B] text-base font-semibold text-white">
-                  {profileInitial}
-                </span>
-                <div>
-                  <p className="text-sm font-semibold text-[#1C201D]">{profileIdentifier}</p>
-                  <p className="text-xs text-[#6d7f68]">
-                    {authLoading ? 'Signing out...' : 'Tap to sign out'}
-                  </p>
-                </div>
-              </button>
+              <div className="flex gap-4 w-full">
+                <Link
+                  to="/profile"
+                  onClick={closeMobileMenu}
+                  className="flex flex-1 items-center gap-3 rounded-2xl border border-[#21421B] px-4 py-3 text-left"
+                >
+                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#21421B] text-base font-semibold text-white">
+                    {profileInitial}
+                  </span>
+                  <p className="text-lg font-semibold text-[#1C201D]">{profileIdentifier}</p>
+                </Link>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await handleLogout();
+                    closeMobileMenu();
+                  }}
+                  disabled={authLoading}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-[#21421B] bg-[#21421B] px-4 py-3 text-white font-medium"
+                >
+                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                    <polyline points="16 17 21 12 16 7" />
+                    <line x1="21" y1="12" x2="9" y2="12" />
+                  </svg>
+                  {authLoading ? 'Signing out...' : 'Log out'}
+                </button>
+              </div>
             ) : (
               <Link
                 to="/login"
