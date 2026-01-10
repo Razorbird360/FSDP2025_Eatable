@@ -17,7 +17,7 @@ export interface Stall {
   cuisineType: string | null;
   imageUrl: string | null; // from media uploads or stall.image_url
   dietaryTags?: string[];
-  avgPriceCents?: number;
+  maxPriceCents?: number;
   maxPrepTimeMins?: number;
   menuItemCount: number;
 }

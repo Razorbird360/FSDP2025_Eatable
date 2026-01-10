@@ -131,8 +131,8 @@ async function getRandomStallsBySlug(slug, limit = 3) {
     const prices = stall.menuItems
       .map((item) => item.priceCents)
       .filter((value) => typeof value === 'number');
-    const avgPriceCents = prices.length
-      ? Math.round(prices.reduce((sum, value) => sum + value, 0) / prices.length)
+    const maxPriceCents = prices.length
+      ? Math.max(...prices)
       : null;
 
     return {
@@ -142,7 +142,7 @@ async function getRandomStallsBySlug(slug, limit = 3) {
       dietaryTags: stall.dietaryTags ?? [],
       imageUrl: stall.image_url,
       maxPrepTimeMins,
-      avgPriceCents,
+      maxPriceCents,
       menuItemCount: stall._count.menuItems
     };
   });
@@ -180,10 +180,10 @@ async function getHawkerStallsById(hawkerId) {
       const prices = stall.menuItems
         .map((item) => item.priceCents)
         .filter((value) => typeof value === 'number');
-      const avgPriceCents = prices.length
-        ? Math.round(prices.reduce((sum, value) => sum + value, 0) / prices.length)
+      const maxPriceCents = prices.length
+        ? Math.max(...prices)
         : null;
-      return { ...stall, maxPrepTimeMins, avgPriceCents };
+      return { ...stall, maxPrepTimeMins, maxPriceCents };
     });
   } catch (error) {
     console.error(`Error fetching stalls for hawkerId ${hawkerId}:`, error);

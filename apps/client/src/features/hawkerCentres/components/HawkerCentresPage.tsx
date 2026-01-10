@@ -42,13 +42,13 @@ const HawkerCentresPage = () => {
         const filteredStalls = stalls.filter((stall) => {
           const stallCuisine = stall.cuisineType ?? '';
           const stallDietary = Array.isArray(stall.dietaryTags) ? stall.dietaryTags : [];
-          if (typeof stall.avgPriceCents !== 'number') {
+          if (typeof stall.maxPriceCents !== 'number') {
             return false;
           }
           if (applyPriceFilter) {
             const priceMatches = selectedPriceRanges.some((range) => {
               const matcher = priceRangeMatchers[range];
-              return matcher ? matcher(stall.avgPriceCents!) : false;
+              return matcher ? matcher(stall.maxPriceCents!) : false;
             });
             if (!priceMatches) {
               return false;
@@ -196,7 +196,6 @@ const HawkerCentresPage = () => {
                         name={stall.name}
                         cuisineType={stall.cuisineType}
                         imageUrl={stall.imageUrl}
-                        avgPriceCents={stall.avgPriceCents}
                       />
                     </div>
                   ))}
