@@ -99,7 +99,7 @@ export default function ProfileLayout() {
 
                     {/* Header Card */}
                     {!loading && profile && (
-                        <div className="bg-white rounded-xl p-4 md:p-6 shadow-sm border border-gray-100">
+                        <div className="mt-4 md:mt-0 bg-white rounded-xl p-4 md:p-6 shadow-sm border border-gray-100">
                             <div className="flex items-center gap-4 md:gap-6">
                                 {/* Avatar */}
                                 <div className="w-14 h-14 md:w-20 md:h-20 rounded-full bg-gradient-to-br from-[#6B6BCE] to-[#8B8BDE] flex items-center justify-center text-white text-xl md:text-3xl font-medium shadow-lg">

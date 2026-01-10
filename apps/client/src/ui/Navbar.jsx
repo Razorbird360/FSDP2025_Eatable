@@ -195,24 +195,22 @@ export default function Navbar() {
 
             {status === 'authenticated' ? (
               <div className="relative" ref={profileMenuRef}>
-                <Tooltip label="Profile Menu">
-                  <button
-                    type="button"
-                    onClick={() => setIsProfileMenuOpen((prev) => !prev)}
-                    disabled={authLoading}
-                    className="flex items-center gap-2 rounded-2xl border border-[#E7EEE7] bg-white px-3 py-1.5 text-left transition-colors hover:border-[#21421B]"
-                  >
-                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#21421B] text-sm font-semibold text-white">
-                      {profileInitial}
-                    </span>
-                    <span className="text-sm font-semibold text-[#1C201D]">
-                      {profileIdentifier}
-                    </span>
-                  </button>
-                </Tooltip>
+                <button
+                  type="button"
+                  onClick={() => setIsProfileMenuOpen((prev) => !prev)}
+                  disabled={authLoading}
+                  className="flex items-center gap-2 rounded-2xl border border-[#E7EEE7] bg-white px-3 py-1.5 text-left transition-colors hover:border-[#21421B]"
+                >
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#21421B] text-sm font-semibold text-white">
+                    {profileInitial}
+                  </span>
+                  <span className="text-sm font-semibold text-[#1C201D]">
+                    {profileIdentifier}
+                  </span>
+                </button>
 
                 {isProfileMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-40 rounded-2xl border border-[#E7EEE7] bg-white py-1 shadow-[0_10px_25px_rgba(0,0,0,0.08)]">
+                  <div className="absolute right-0 mt-2 min-w-full whitespace-nowrap rounded-2xl border border-[#E7EEE7] bg-white py-1 shadow-[0_10px_25px_rgba(0,0,0,0.08)]">
                     <Link
                       to="/profile"
                       onClick={() => setIsProfileMenuOpen(false)}
