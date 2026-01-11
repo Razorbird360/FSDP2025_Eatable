@@ -60,7 +60,7 @@ export const VouchersPage = () => {
     };
 
     return (
-        <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
+        <div className="bg-white rounded-xl border border-gray-100 p-4 md:p-6 shadow-sm">
             <div className="flex items-center justify-between mb-5">
                 <h1 className="text-xl font-bold text-gray-900">My Vouchers</h1>
                 {/* TODO: REMOVE - Replace mockVouchers.length with actual voucher count */}
@@ -209,7 +209,7 @@ export const AchievementsPage = () => {
     const unlockedCount = mockAchievements.filter(a => a.unlocked).length;
 
     return (
-        <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
+        <div className="bg-white rounded-xl border border-gray-100 p-4 md:p-6 shadow-sm">
             <div className="flex items-center justify-between mb-5">
                 <h1 className="text-xl font-bold text-gray-900">Achievements</h1>
                 <div className="flex items-center gap-2 text-sm">
@@ -342,7 +342,7 @@ export const SettingsPage = () => {
     return (
         <div className="space-y-4">
             {/* Notifications */}
-            <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-xl border border-gray-100 p-4 md:p-6 shadow-sm overflow-hidden">
                 <h2 className="text-lg font-bold text-gray-900 mb-3">Notifications</h2>
                 
                 <SettingItem icon={FiBell} label="Push Notifications" description="Receive alerts on your device">
@@ -359,7 +359,7 @@ export const SettingsPage = () => {
             </div>
 
             {/* Preferences */}
-            <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-xl border border-gray-100 p-4 md:p-6 shadow-sm overflow-hidden">
                 <h2 className="text-lg font-bold text-gray-900 mb-3">Preferences</h2>
                 
                 <SettingItem icon={FiMoon} label="Dark Mode" description="Switch to dark theme">
@@ -372,7 +372,7 @@ export const SettingsPage = () => {
             </div>
 
             {/* Security */}
-            <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-xl border border-gray-100 p-4 md:p-6 shadow-sm overflow-hidden">
                 <h2 className="text-lg font-bold text-gray-900 mb-3">Security</h2>
                 
                 <SettingItem icon={FiLock} label="Change Password" description="Update your password">
@@ -381,7 +381,7 @@ export const SettingsPage = () => {
             </div>
 
             {/* Danger Zone */}
-            <div className="bg-white rounded-xl border border-red-100 p-4 shadow-sm">
+            <div className="bg-white rounded-xl border border-red-100 p-4 md:p-6 shadow-sm">
                 <h2 className="text-lg font-bold text-red-600 mb-4">Danger Zone</h2>
                 <button className="w-full py-3.5 border border-red-200 text-red-600 font-medium rounded-xl hover:bg-red-50 transition-colors text-base">
                     Delete Account
@@ -392,7 +392,7 @@ export const SettingsPage = () => {
 };
 
 export const BusinessPage = () => (
-    <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
+    <div className="bg-white rounded-xl border border-gray-100 p-4 md:p-6 shadow-sm">
         <div className="text-center">
             {/* Icon */}
             <div className="w-20 h-20 bg-gradient-to-br from-[#E7F3E6] to-[#D4EAD2] rounded-3xl flex items-center justify-center mx-auto mb-5">
@@ -444,7 +444,7 @@ export const HelpPage = () => {
     return (
         <div className="space-y-4">
             {/* Contact Options */}
-            <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
+            <div className="bg-white rounded-xl border border-gray-100 p-4 md:p-6 shadow-sm">
                 <h2 className="text-lg font-bold text-gray-900 mb-4">Contact Us</h2>
                 
                 {/* Stacked buttons for thin mobile */}
@@ -472,7 +472,7 @@ export const HelpPage = () => {
 
             {/* FAQ */}
             {/* TODO: REMOVE - Replace faqItems with actual FAQ data from backend */}
-            <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
+            <div className="bg-white rounded-xl border border-gray-100 p-4 md:p-6 shadow-sm">
                 <h2 className="text-lg font-bold text-gray-900 mb-4">Frequently Asked Questions</h2>
                 
                 <div className="space-y-2">
@@ -496,7 +496,7 @@ export const HelpPage = () => {
             </div>
 
             {/* Help Center Link */}
-            <div className="bg-gradient-to-r from-[#21421B] to-[#3a6b35] rounded-xl p-5 text-white text-center">
+            <div className="bg-gradient-to-r from-[#21421B] to-[#3a6b35] rounded-xl p-5 md:p-6 text-white text-center">
                 <FiHelpCircle className="w-10 h-10 mx-auto mb-3 opacity-80" />
                 <h3 className="font-semibold text-lg mb-2">Need more help?</h3>
                 <p className="text-sm opacity-80 mb-4">Visit our full help center for guides and tutorials.</p>
