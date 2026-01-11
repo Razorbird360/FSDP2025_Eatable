@@ -12,8 +12,7 @@ export default function ProfilePage() {
     setSaving(true);
 
     try {
-      const res = await api.post("/profile/update", profile);
-      const data = res.data;
+      await api.post("/profile/update", profile);
 
       setIsEditing(false);
       alert("Profile updated!");
