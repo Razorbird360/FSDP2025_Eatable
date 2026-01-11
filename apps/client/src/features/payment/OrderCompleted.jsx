@@ -198,9 +198,9 @@ export default function OrderCompletedModal({ onClose, orderId: propsOrderId }) 
         )}
 
         {/* Two Column Layout */}
-        <div className="flex flex-col lg:flex-row gap-6 p-6">
+        <div className="flex flex-col lg:flex-row gap-4 p-4">
           {/* Left Column - Order Info */}
-          <div className="flex-1 space-y-4">
+          <div className="flex-1 space-y-3">
             {/* Order Meta Info */}
             <div className="space-y-2">
               <div className="flex items-center gap-2">
@@ -251,17 +251,15 @@ export default function OrderCompletedModal({ onClose, orderId: propsOrderId }) 
             </div>
 
             {/* QR Code Section */}
-            <div className="flex flex-col items-center p-4 bg-gray-50 rounded-xl">
-              <h3 className="text-base font-semibold text-gray-900 underline mb-2">
+            <div className="flex flex-col items-center justify-center pt-4 pb-2 px-2 bg-gray-50 rounded-xl">
+              <h3 className="text-base font-semibold text-gray-900 mb-2">
                 Pick Up QR
               </h3>
-              <div className="bg-white p-3 rounded-xl shadow-sm">
-                <img
-                  src={qrImg}
-                  alt="Pick up QR"
-                  className="w-64 h-64 object-contain"
-                />
-              </div>
+              <img
+                src={qrImg}
+                alt="Pick up QR"
+                className="w-48 h-48 md:w-56 md:h-56 object-contain"
+              />
             </div>
 
             {/* Return Button */}
