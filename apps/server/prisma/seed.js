@@ -80,6 +80,38 @@ async function main() {
       longitude: 103.8332,
       imageUrl: "https://i.ibb.co/LXNfV2pr/Tiong-Bahru-Market.png",
     },
+    {
+      name: "Woodlands Centre Road Food Centre",
+      slug: "woodlands-centre-road-food-centre",
+      address: "4A Woodlands Centre Rd, Singapore",
+      postalCode: "731004",
+      latitude: 1.4408,
+      longitude: 103.7701,
+    },
+    {
+      name: "Marsiling Mall Hawker Centre",
+      slug: "marsiling-mall-hawker-centre",
+      address: "4 Woodlands Street 12, Singapore",
+      postalCode: "738623",
+      latitude: 1.4335,
+      longitude: 103.7797,
+    },
+    {
+      name: "Punggol East Container Park Hawker",
+      slug: "punggol-east-container-park",
+      address: "50 Punggol East, Singapore",
+      postalCode: "828824",
+      latitude: 1.4047,
+      longitude: 103.9169,
+    },
+    {
+      name: "Pioneer Food Centre",
+      slug: "pioneer-food-centre",
+      address: "49 Sims Place, Singapore",
+      postalCode: "380049",
+      latitude: 1.3169,
+      longitude: 103.8780,
+    },
   ];
 
   const stallsByCentre = {
@@ -187,6 +219,50 @@ async function main() {
         tags: ["pau", "dim sum", "snack"],
         image_url:
           "https://cdn.foodadvisor.com.sg/1/500/tccrg/1687335810_fsjwsk_waous1970965/tiong-bahru-pau-snack-outram.jpg",
+      },
+    ],
+    "woodlands-centre-road-food-centre": [
+      {
+        name: "Lai Heng Handmade Noodles",
+        description: "Traditional handmade noodles with minced meat.",
+        location: "Stall 01-32",
+        cuisineType: "Chinese",
+        tags: ["noodles", "minced meat"],
+        image_url:
+          "https://sethlui.com/wp-content/uploads/2021/11/Tiong-Bahru-Hainanese-Chicken-Rice-12..jpg",
+      },
+    ],
+    "marsiling-mall-hawker-centre": [
+      {
+        name: "Ah Ma Chi Mian",
+        description: "Old-school wanton mee with handmade noodles.",
+        location: "Stall 02-15",
+        cuisineType: "Chinese",
+        tags: ["wantan mee", "noodles"],
+        image_url:
+          "https://sethlui.com/wp-content/uploads/2021/11/Tiong-Bahru-Hainanese-Chicken-Rice-12..jpg",
+      },
+    ],
+    "punggol-east-container-park": [
+      {
+        name: "Punggol Western Grill",
+        description: "Western food with large portions near the coast.",
+        location: "Container 05",
+        cuisineType: "Western",
+        tags: ["grill", "western"],
+        image_url:
+          "https://sethlui.com/wp-content/uploads/2021/11/Tiong-Bahru-Hainanese-Chicken-Rice-12..jpg",
+      },
+    ],
+    "pioneer-food-centre": [
+      {
+        name: "Muslim Nasi Padang",
+        description: "Affordable nasi padang with many side dishes.",
+        location: "Stall 01-08",
+        cuisineType: "Malay",
+        tags: ["nasi padang", "rice"],
+        image_url:
+          "https://sethlui.com/wp-content/uploads/2021/11/Tiong-Bahru-Hainanese-Chicken-Rice-12..jpg",
       },
     ],
   };

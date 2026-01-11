@@ -29,6 +29,7 @@
     "pnpm": ">=8.0.0"
   },
   "dependencies": {
+    "@react-google-maps/api": "^2.20.7",
     "axios": "^1.13.1",
     "event-source-polyfill": "^1.0.31",
     "eventsource": "^4.0.0"

@@ -4,6 +4,7 @@ import foodStallIcon from "./Assets/FoodStall_Icon.png";
 import StallGallery from "../../stalls/components/StallGallery";
 import { useCart } from "../../orders/components/CartContext";
 import api from "../../../lib/api"; // ⬅️ adjust path if needed
+import { useNavigate } from "react-router-dom"
 
 const Icon = {
   MapPin: (props) => (
@@ -243,6 +244,7 @@ export default function StallEmenu() {
 
   const { addToCart } = useCart();
   const [toast, setToast] = useState(null);
+  const navigate = useNavigate()
 
   // Fetch stall from API
   useEffect(() => {
@@ -520,9 +522,16 @@ export default function StallEmenu() {
                 </div>
               </div>
             </div>
-
             {/* View on map button */}
-            <button className="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium rounded-full bg-white md:bg-[#21421B] text-[#21421B] md:text-white w-max hover:bg-white/90 md:hover:bg-[#21421B]/90 transition-colors">
+            <button
+              onClick={() => {
+                const centreId = stall?.hawkerCentreId;
+                if (centreId) {
+                  navigate(`/hawker-centres/map?centreId=${encodeURIComponent(centreId)}`);
+                }
+              }}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium rounded-full bg-white md:bg-[#21421B] text-[#21421B] md:text-white w-max hover:bg-white/90 md:hover:bg-[#21421B]/90 transition-colors"
+            >
               <svg
                 viewBox="0 0 24 24"
                 className="w-4 h-4"

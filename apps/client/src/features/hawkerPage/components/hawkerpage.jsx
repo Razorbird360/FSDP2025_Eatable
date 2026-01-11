@@ -114,7 +114,8 @@ function StallCard({ stall }) {
 
 const HawkerCentreDetailPage = () => {
   const { hawkerId } = useParams();
-  const [activeTab, setActiveTab] = useState("dishes"); // "stalls" | "dishes"
+  const navigate = useNavigate(); // 1. Initialize navigate hook
+  const [activeTab, setActiveTab] = useState("dishes");
 
   // Centre info from /info/:hawkerId + some UI-only fields
   const [centre, setCentre] = useState({
@@ -212,7 +213,7 @@ const HawkerCentreDetailPage = () => {
           ...prev,
           ...info,
           stallCount: mappedStalls.length,
-          openCount: mappedStalls.length, // placeholder: treat all as open
+          openCount: mappedStalls.length,
         }));
       } catch (err) {
         console.error("[HawkerCentreDetailPage] Failed to load data", err);
@@ -425,7 +426,15 @@ const HawkerCentreDetailPage = () => {
           </div>
 
           {/* CTA */}
-          <button className="inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-medium rounded-full bg-white md:bg-brand text-brand md:text-white w-max hover:bg-white/90 md:hover:bg-brand/90 transition-colors">
+          <button
+            onClick={() => {
+              const id = centre.id || hawkerId;
+              if (id) {
+                navigate(`/hawker-centres/map?centreId=${encodeURIComponent(id)}`);
+              }
+            }}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-medium rounded-full bg-white md:bg-brand text-brand md:text-white w-max hover:bg-white/90 md:hover:bg-brand/90 transition-colors"
+          >
             <svg
               viewBox="0 0 24 24"
               className="w-4 h-4"

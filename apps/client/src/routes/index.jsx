@@ -37,7 +37,7 @@ import PhotoUpload from "../features/photos/components/PhotoUpload";
 import UploadDetails from "../features/photos/components/UploadDetails";
 import PhotoUploadLayout from "../features/photos/layouts/PhotoUploadLayout";
 
-
+import HawkerMap from "../features/hawkerMap/components/hawkerMap";
 // Placeholder pages - to be replaced with actual feature pages
 const Stalls = () => <div className="p-8"><h1 className="text-3xl font-bold">Stalls</h1></div>;
 const Cart = () => <div className="p-8"><h1 className="text-3xl font-bold">Cart</h1></div>;
@@ -56,6 +56,7 @@ function AppRoutes() {
         {/* Public Pages */}
         <Route path="/home" element={<HomePage />} />
         <Route path="/stalls" element={<Stalls />} />
+        <Route path="/hawker-centres/map" element={<HawkerMap />} />
         <Route path="/hawker-centres" element={<HawkerCentresPage />} />
         <Route path="/hawker-centres/:hawkerId" element={<HawkerPage />} />
 
@@ -63,6 +64,7 @@ function AppRoutes() {
         <Route path="/community" element={<CommunityPage />} />
         <Route path="/stalls/:stallId" element={<StallEmenu />} />
         <Route path="/stalls/:stallId/gallery" element={<StallGallery />} />
+
 
         {/* Payment Pages */}
         <Route path="/ordercompleted/:orderid" element={<OrderCompleted />} />
