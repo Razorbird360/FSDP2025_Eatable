@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import logo_full from '../../../assets/logo/logo_full.png';
 import qrImg from '../../../assets/logo/QrPlaceholder.png';
@@ -77,7 +78,7 @@ export default function OrderDetailsModal({ order, onClose }) {
     const isPaid = s === 'completed' || s === 'paid';
     const isPending = s === 'pending';
 
-    return (
+    return createPortal(
         <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
             onClick={onClose}
@@ -255,6 +256,7 @@ export default function OrderDetailsModal({ order, onClose }) {
                     </div>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }
