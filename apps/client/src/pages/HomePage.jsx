@@ -90,7 +90,7 @@ function HomePage() {
   useEffect(() => {
     const interval = setInterval(() => {
       setActiveCuisineIndex((prev) => (prev + 1) % CUISINE_TYPES.length);
-    }, 4000);
+    }, 3000);
     return () => clearInterval(interval);
   }, []);
 
