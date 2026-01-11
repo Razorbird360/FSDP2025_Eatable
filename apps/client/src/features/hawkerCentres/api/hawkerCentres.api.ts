@@ -6,14 +6,22 @@ const CLEMENTI_MRT_LNG = 103.76508385110719;
 
 const API_BASE_URL = '/api/hawker-centres';
 
+type Coords = { lat: number; lng: number };
+
 /**
- * Fetch nearby hawker centres sorted by distance from Clementi MRT
+ * Fetch nearby hawker centres sorted by distance from provided coordinates
  * @param limit - Maximum number of hawker centres to fetch (default: 10)
+ * @param coords - Optional coordinates (defaults to Clementi MRT)
  * @returns Promise<HawkerCentre[]>
  */
-export async function getNearbyHawkerCentres(limit = 10): Promise<HawkerCentre[]> {
+export async function getNearbyHawkerCentres(
+  limit = 10,
+  coords?: Coords
+): Promise<HawkerCentre[]> {
+  const lat = coords?.lat ?? CLEMENTI_MRT_LAT;
+  const lng = coords?.lng ?? CLEMENTI_MRT_LNG;
   const response = await fetch(
-    `${API_BASE_URL}?lat=${CLEMENTI_MRT_LAT}&lng=${CLEMENTI_MRT_LNG}&limit=${limit}`
+    `${API_BASE_URL}?lat=${lat}&lng=${lng}&limit=${limit}`
   );
 
   if (!response.ok) {

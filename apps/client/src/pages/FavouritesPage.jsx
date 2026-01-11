@@ -279,7 +279,7 @@ const FavouritesPage = () => {
     };
 
     return (
-        <div className="bg-white rounded-xl border border-gray-100 p-8 shadow-sm">
+        <div className="bg-white rounded-xl border border-gray-100 p-4 md:p-8 shadow-sm">
             <h1 className="text-xl font-bold mb-6 text-gray-900">My Votes</h1>
 
             {/* Vote Filter Toggle */}

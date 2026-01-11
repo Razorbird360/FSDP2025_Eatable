@@ -1,47 +1,45 @@
 import { useCallback, useEffect, useState } from "react";
-import { Outlet } from 'react-router-dom';
-import { supabase } from "../lib/supabase";
+import { Outlet, Link, useLocation } from 'react-router-dom';
 import ProfileSidebar from '../components/ProfileSidebar';
+import {
+    FiUser,
+    FiClock,
+    FiUploadCloud,
+    FiHeart,
+    FiGift,
+    FiAward,
+    FiSettings,
+    FiBriefcase,
+    FiHelpCircle
+} from "react-icons/fi";
+import api from "../lib/api";
+
+const mobileNavItems = [
+    { icon: FiUser, label: "Profile", to: "/profile" },
+    { icon: FiClock, label: "Orders", to: "/orders" },
+    { icon: FiUploadCloud, label: "Uploads", to: "/my-collection" },
+    { icon: FiHeart, label: "Favourites", to: "/favourites" },
+    { icon: FiGift, label: "Vouchers", to: "/vouchers" },
+    { icon: FiAward, label: "Achievements", to: "/achievements" },
+];
+
+const mobileSecondaryNavItems = [
+    { icon: FiSettings, label: "Settings", to: "/settings" },
+    { icon: FiBriefcase, label: "Business", to: "/business" },
+    { icon: FiHelpCircle, label: "Help", to: "/help" },
+];
 
 export default function ProfileLayout() {
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
+    const location = useLocation();
 
-    // ---------------------------
-    //  Get current JWT access token
-    // ---------------------------
-    async function getToken() {
-        const session = await supabase.auth.getSession();
-        return session.data.session?.access_token;
-    }
-
-    // ---------------------------
-    //   Load profile from backend
-    // ---------------------------
     const loadProfile = useCallback(async () => {
         setLoading(true);
 
-        const token = await getToken();
-        if (!token) {
-            console.error("No auth token found.");
-            setLoading(false);
-            return;
-        }
-
         try {
-            const res = await fetch("http://localhost:3000/api/profile", {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
-            });
-
-            if (res.ok) {
-                const data = await res.json();
-                console.log("PROFILE LOADED FROM API (Layout):", data);
-                setProfile(data);
-            } else {
-                console.error("Failed to fetch profile:", res.status);
-            }
+            const res = await api.get("/profile");
+            setProfile(res.data);
         } catch (error) {
             console.error("Error loading profile:", error);
         } finally {
@@ -64,30 +62,86 @@ export default function ProfileLayout() {
     const email = profile?.email || "";
     const initials = getInitials(profile);
 
+    const isActive = (path) => location.pathname === path;
+
     return (
         <div className="flex min-h-[calc(100vh-64px)] bg-[#F8FDF3]">
-            <ProfileSidebar />
-            <main className="flex-1 p-8 bg-[#F8FDF3]">
-                <div className="max-w-4xl mx-auto space-y-6">
+            {/* Desktop Sidebar - hidden on mobile */}
+            <div className="hidden md:block">
+                <ProfileSidebar />
+            </div>
 
-                    {/* Header Card - Only show if not loading and profile exists */}
+            <main className="flex-1 p-4 md:p-8 bg-[#F8FDF3]">
+                <div className="max-w-4xl mx-auto space-y-4 md:space-y-6">
+
+                    {/* Header Card */}
                     {!loading && profile && (
-                        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 flex items-center gap-6">
-                            <div className="w-20 h-20 rounded-full bg-[#6B6BCE] flex items-center justify-center text-white text-3xl font-medium shadow-sm">
-                                {initials}
-                            </div>
-                            <div>
-                                <h1 className="text-xl font-bold text-gray-900">{displayName}</h1>
-                                <p className="text-gray-500 text-sm">{email}</p>
+                        <div className="mt-4 md:mt-0 bg-white rounded-xl p-4 md:p-6 shadow-sm border border-gray-100">
+                            <div className="flex items-center gap-4 md:gap-6">
+                                {/* Avatar */}
+                                <div className="w-14 h-14 md:w-20 md:h-20 rounded-full bg-gradient-to-br from-[#6B6BCE] to-[#8B8BDE] flex items-center justify-center text-white text-xl md:text-3xl font-medium shadow-lg">
+                                    {initials}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <h1 className="text-lg md:text-xl font-bold text-gray-900 truncate">{displayName}</h1>
+                                    <p className="text-gray-500 text-xs md:text-sm truncate">{email}</p>
+                                </div>
                             </div>
                         </div>
                     )}
 
-                    {/* If loading, maybe show a skeleton or just nothing? 
-                        ProfilePage handles its own loading state, but we want the header to be consistent.
-                        Let's show a simple loading state for the header if strictly needed, 
-                        but for now let's just render Outlet.
-                    */}
+                    {/* Mobile Navigation Tabs - hidden on desktop */}
+                    <div className="md:hidden space-y-3">
+                        {/* Primary navigation - vertical list for thin screens */}
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3">
+                            <div className="grid grid-cols-3 gap-2">
+                                {mobileNavItems.map((item) => {
+                                    const Icon = item.icon;
+                                    const active = isActive(item.to);
+                                    return (
+                                        <Link
+                                            key={item.to}
+                                            to={item.to}
+                                            className={`flex flex-col items-center justify-center py-3 px-2 rounded-xl transition-all ${
+                                                active
+                                                    ? 'bg-[#E7F3E6] text-[#21421B]'
+                                                    : 'text-gray-500 hover:bg-gray-50'
+                                            }`}
+                                        >
+                                            <Icon className={`w-6 h-6 mb-1.5 ${active ? 'text-[#21421B]' : 'text-gray-400'}`} />
+                                            <span className={`text-xs font-medium ${active ? 'text-[#21421B]' : 'text-gray-500'}`}>
+                                                {item.label}
+                                            </span>
+                                        </Link>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* Secondary navigation - stacked for thin screens */}
+                        <div className="grid grid-cols-3 gap-2">
+                            {mobileSecondaryNavItems.map((item) => {
+                                const Icon = item.icon;
+                                const active = isActive(item.to);
+                                return (
+                                    <Link
+                                        key={item.to}
+                                        to={item.to}
+                                        className={`flex flex-col items-center justify-center py-3 px-2 rounded-xl border transition-all ${
+                                            active
+                                                ? 'bg-[#E7F3E6] border-[#21421B] text-[#21421B]'
+                                                : 'bg-white border-gray-100 text-gray-500 hover:bg-gray-50'
+                                        }`}
+                                    >
+                                        <Icon className={`w-5 h-5 mb-1 ${active ? 'text-[#21421B]' : 'text-gray-400'}`} />
+                                        <span className={`text-xs font-medium ${active ? 'text-[#21421B]' : 'text-gray-500'}`}>
+                                            {item.label}
+                                        </span>
+                                    </Link>
+                                );
+                            })}
+                        </div>
+                    </div>
 
                     <Outlet context={{ profile, setProfile, loading, refreshProfile: loadProfile }} />
                 </div>
