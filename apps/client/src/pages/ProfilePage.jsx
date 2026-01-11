@@ -1,35 +1,19 @@
 import { useState } from "react";
 import { useOutletContext } from "react-router-dom";
-import { supabase } from "../lib/supabase";
 import { FiCheck, FiEdit3 } from "react-icons/fi";
+import api from "../lib/api";
 
 export default function ProfilePage() {
   const { profile, setProfile, loading } = useOutletContext();
   const [saving, setSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
-  async function getToken() {
-    const session = await supabase.auth.getSession();
-    return session.data.session?.access_token;
-  }
-
   async function saveProfile() {
     setSaving(true);
 
-    const token = await getToken();
-
     try {
-      const res = await fetch("http://localhost:3000/api/profile/update", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(profile),
-      });
-
-      const data = await res.json();
-      console.log("UPDATE RESPONSE:", data);
+      const res = await api.post("/profile/update", profile);
+      const data = res.data;
 
       setIsEditing(false);
       alert("Profile updated!");

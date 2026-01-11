@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { supabase } from "../lib/supabase";
 import ProfileSidebar from '../components/ProfileSidebar';
 import {
     FiUser,
@@ -13,6 +12,7 @@ import {
     FiBriefcase,
     FiHelpCircle
 } from "react-icons/fi";
+import api from "../lib/api";
 
 const mobileNavItems = [
     { icon: FiUser, label: "Profile", to: "/profile" },
@@ -34,35 +34,12 @@ export default function ProfileLayout() {
     const [loading, setLoading] = useState(true);
     const location = useLocation();
 
-    async function getToken() {
-        const session = await supabase.auth.getSession();
-        return session.data.session?.access_token;
-    }
-
     const loadProfile = useCallback(async () => {
         setLoading(true);
 
-        const token = await getToken();
-        if (!token) {
-            console.error("No auth token found.");
-            setLoading(false);
-            return;
-        }
-
         try {
-            const res = await fetch("http://localhost:3000/api/profile", {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
-            });
-
-            if (res.ok) {
-                const data = await res.json();
-                console.log("PROFILE LOADED FROM API (Layout):", data);
-                setProfile(data);
-            } else {
-                console.error("Failed to fetch profile:", res.status);
-            }
+            const res = await api.get("/profile");
+            setProfile(res.data);
         } catch (error) {
             console.error("Error loading profile:", error);
         } finally {
