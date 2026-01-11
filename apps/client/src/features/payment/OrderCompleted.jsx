@@ -176,7 +176,7 @@ export default function OrderCompletedModal({ onClose, orderId: propsOrderId }) 
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 sticky top-0 bg-white z-10">
           <h1 className="text-2xl font-semibold text-gray-900">
-            Order Confirmation
+            Your Order Has Been Confirmed
           </h1>
           <img
             className="h-10 object-contain"
