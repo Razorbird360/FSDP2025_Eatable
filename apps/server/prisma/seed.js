@@ -2328,15 +2328,6 @@ async function main() {
 
   const vouchersToSeed = [
     {
-      code: 'VOTER_REWARD',
-      description: 'Reward for being an active voter!',
-      discountAmount: 200, // $2.00
-      discountType: 'fixed',
-      minSpend: 500, // $5.00
-      expiryDate: new Date('2026-12-31'),
-      expiryOnReceiveMonths: 1,
-    },
-    {
       code: "WELCOME5",
       description: "$5 off your first order",
       discountAmount: 500, // cents
@@ -2391,7 +2382,21 @@ async function main() {
       }
     });
     console.log(`Assigned voucher ${v.code} to user.`);
+
   }
+
+  await prisma.existingVoucher.create({
+    data: {
+      code: 'VOTER_REWARD',
+      description: 'Reward for being an active voter!',
+      discountAmount: 200, // $2.00
+      discountType: 'fixed',
+      minSpend: 500, // $5.00
+      expiryDate: new Date('2026-12-31'),
+      expiryOnReceiveMonths: 1,
+    }
+  });
+
 
 
   const achievementDefinitions = [
