@@ -11,7 +11,7 @@ if ! command -v python3 &> /dev/null; then
 fi
 
 # Check Python version (recommend 3.13+)
-PYTHON_VERSION=$(python3 --version | grep -oP '\d+\.\d+' || python3 --version | sed 's/Python \([0-9]*\.[0-9]*\).*/\1/')
+PYTHON_VERSION=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
 MAJOR_VERSION=$(echo $PYTHON_VERSION | cut -d. -f1)
 MINOR_VERSION=$(echo $PYTHON_VERSION | cut -d. -f2)
 

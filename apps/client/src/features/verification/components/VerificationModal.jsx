@@ -1,31 +1,50 @@
-/* eslint-disable react-hooks/exhaustive-deps */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Button, HStack, Text, VStack } from '@chakra-ui/react';
 import { toaster } from '../../../components/ui/toaster';
 
 const TARGET_RATIO = 1.75;
-const FRAME_INTERVAL = 200;
+const FRAME_INTERVAL = 180;
+const WS_URL = import.meta.env.VITE_AI_WS_URL || 'ws://localhost:8000/id/ws';
 
 export default function VerificationModal({ isOpen, onClose, onSuccess: _onSuccess }) {
   const videoRef = useRef(null);
   const containerRef = useRef(null);
   const captureCanvasRef = useRef(null);
-  const workerRef = useRef(null);
-  const workerReadyRef = useRef(false);
+  const wsRef = useRef(null);
+  const mediaStreamRef = useRef(null);
   const frameTimerRef = useRef(null);
-  const previewActiveRef = useRef(false);
-  const imagePreviewValueRef = useRef(null);
-  const cameraDetectionCountRef = useRef(0);
-  const lastFrameDataRef = useRef(null);
+  const sendInFlightRef = useRef(false);
+  const uploadFrameRef = useRef(null);
+  const statusRef = useRef('SEARCHING');
+
   const [cameraError, setCameraError] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
+  const [uploadPreview, setUploadPreview] = useState(null);
   const [videoReady, setVideoReady] = useState(false);
   const [cardDetected, setCardDetected] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [status, setStatus] = useState('SEARCHING');
+  const [statusText, setStatusText] = useState('Show card');
+  const [bbox, setBbox] = useState(null);
+  const [frameMeta, setFrameMeta] = useState(null);
+  const [tooSmall, setTooSmall] = useState(false);
+  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+
   useEffect(() => {
-    previewActiveRef.current = Boolean(imagePreview);
-    imagePreviewValueRef.current = imagePreview;
-  }, [imagePreview]);
+    statusRef.current = status;
+  }, [status]);
+
+  useEffect(() => {
+    if (status === 'LOCKED') {
+      setStatusText('Captured');
+    } else if (status === 'LOCKING') {
+      setStatusText('Hold still');
+    } else if (tooSmall) {
+      setStatusText('Move card closer');
+    } else {
+      setStatusText('Show card');
+    }
+  }, [status, tooSmall]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -42,188 +61,206 @@ export default function VerificationModal({ isOpen, onClose, onSuccess: _onSucce
     };
   }, [isOpen]);
 
-  const clearOverlay = useCallback(() => {
-    setCardDetected(false);
-    cameraDetectionCountRef.current = 0;
-  }, []);
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    const container = containerRef.current;
+    if (!container) return undefined;
 
-  const stopLiveProcessing = useCallback(() => {
+    const updateSize = () => {
+      setContainerSize({
+        width: container.clientWidth,
+        height: container.clientHeight,
+      });
+    };
+
+    updateSize();
+    const observer = new ResizeObserver(updateSize);
+    observer.observe(container);
+
+    return () => observer.disconnect();
+  }, [isOpen]);
+
+  const stopCaptureLoop = useCallback(() => {
     if (frameTimerRef.current) {
       clearInterval(frameTimerRef.current);
       frameTimerRef.current = null;
     }
   }, []);
 
-  const startLiveProcessing = useCallback(() => {
-    if (frameTimerRef.current || !workerRef.current || !workerReadyRef.current) {
+  const stopCamera = useCallback(() => {
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+      mediaStreamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+  }, []);
+
+  const resetDetectionState = useCallback(() => {
+    setStatus('SEARCHING');
+    setCardDetected(false);
+    setBbox(null);
+    setFrameMeta(null);
+    setTooSmall(false);
+    sendInFlightRef.current = false;
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send('reset');
+    }
+  }, []);
+
+  const startCamera = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+      });
+      setCameraError(null);
+      mediaStreamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (error) {
+      console.error('Camera init error:', error);
+      setCameraError('Unable to access camera');
+    }
+  }, []);
+
+  const sendFrameBlob = useCallback(async (blob) => {
+    if (!blob || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
       return;
     }
+    if (sendInFlightRef.current || statusRef.current === 'LOCKED') {
+      return;
+    }
+    sendInFlightRef.current = true;
+    try {
+      const buffer = await blob.arrayBuffer();
+      wsRef.current.send(buffer);
+    } catch (error) {
+      sendInFlightRef.current = false;
+    }
+  }, []);
+
+  const captureFrame = useCallback(() => {
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN || statusRef.current === 'LOCKED') {
+      return;
+    }
+
+    if (uploadFrameRef.current) {
+      sendFrameBlob(uploadFrameRef.current);
+      return;
+    }
+
     const video = videoRef.current;
     const canvas = captureCanvasRef.current;
-    if (!video || !canvas) return;
+    if (!video || !canvas || !videoReady || video.readyState < 2) {
+      return;
+    }
+
+    const width = video.videoWidth;
+    const height = video.videoHeight;
+    if (!width || !height) {
+      return;
+    }
+
+    if (canvas.width !== width || canvas.height !== height) {
+      canvas.width = width;
+      canvas.height = height;
+    }
+
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+    ctx.drawImage(video, 0, 0, width, height);
+    canvas.toBlob((blob) => {
+      if (blob) {
+        sendFrameBlob(blob);
+      }
+    }, 'image/jpeg', 0.75);
+  }, [sendFrameBlob, videoReady]);
 
-    const captureFrame = () => {
-      if (!workerRef.current || !videoRef.current || previewActiveRef.current) {
-        return;
-      }
-      const currentVideo = videoRef.current;
-      if (!currentVideo || currentVideo.readyState < 2) {
-        return;
-      }
-      const { videoWidth: width, videoHeight: height } = currentVideo;
-      if (!width || !height) {
-        return;
-      }
-      if (canvas.width !== width || canvas.height !== height) {
-        canvas.width = width;
-        canvas.height = height;
-      }
-      ctx.drawImage(currentVideo, 0, 0, width, height);
-      try {
-        lastFrameDataRef.current = canvas.toDataURL('image/jpeg', 0.9);
-      } catch (error) {
-        console.warn('Unable to capture frame data', error);
-      }
-      const imageData = ctx.getImageData(0, 0, width, height);
-      const payload = { type: 'frame', width, height, buffer: imageData.data.buffer };
-      workerRef.current.postMessage(payload, [payload.buffer]);
-    };
-
+  const startCaptureLoop = useCallback(() => {
+    if (frameTimerRef.current) return;
     captureFrame();
     frameTimerRef.current = setInterval(captureFrame, FRAME_INTERVAL);
-  }, []);
-
-  const runImageDetection = useCallback((dataUrl) => {
-    if (!dataUrl || !workerRef.current || !workerReadyRef.current || !captureCanvasRef.current) {
-      return;
-    }
-    const img = new Image();
-    img.onload = () => {
-      const canvas = captureCanvasRef.current;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const payload = { type: 'image', width: canvas.width, height: canvas.height, buffer: imageData.data.buffer };
-      workerRef.current.postMessage(payload, [payload.buffer]);
-    };
-    img.onerror = () => console.error('Unable to load uploaded image for detection');
-    img.src = dataUrl;
-  }, []);
+  }, [captureFrame]);
 
   useEffect(() => {
-    if (!isOpen || !workerReadyRef.current) {
-      stopLiveProcessing();
-      return;
-    }
-    if (imagePreview) {
-      stopLiveProcessing();
-      runImageDetection(imagePreview);
-    } else if (videoReady) {
-      startLiveProcessing();
-    }
-  }, [imagePreview, isOpen, videoReady, runImageDetection, startLiveProcessing, stopLiveProcessing]);
+    if (!isOpen) return undefined;
+    const ws = new WebSocket(WS_URL);
+    ws.binaryType = 'arraybuffer';
+    wsRef.current = ws;
 
-  useEffect(() => {
-    if (!isOpen) {
-      return undefined;
-    }
-
-    const worker = new Worker(new URL('../workers/idWorker.js', import.meta.url));
-    workerRef.current = worker;
-
-    const handleMessage = (event) => {
-      const { type, points, coverage } = event.data;
-      if (type === 'ready') {
-        workerReadyRef.current = true;
-        if (imagePreviewValueRef.current) {
-          runImageDetection(imagePreviewValueRef.current);
-        } else {
-          startLiveProcessing();
-        }
-      } else if (type === 'detection') {
-        const detected = Boolean(points && points.length === 4);
-        if (previewActiveRef.current) {
-          setCardDetected(detected);
-          if (!detected) {
-            toaster.create({ title: 'No card detected', description: 'Try adjusting lighting or framing.', type: 'info' });
-          }
-        } else {
-          if (detected) {
-            cameraDetectionCountRef.current += 1;
-            if (cameraDetectionCountRef.current >= 3 && lastFrameDataRef.current) {
-              stopLiveProcessing();
-              const frameData = lastFrameDataRef.current;
-              previewActiveRef.current = true;
-              imagePreviewValueRef.current = frameData;
-              setImagePreview(frameData);
-              setCardDetected(true);
-              cameraDetectionCountRef.current = 0;
-            }
-          } else {
-            cameraDetectionCountRef.current = 0;
-          }
-        }
-        if (coverage && coverage >= 0.5) {
-          console.log(`[ID Overlay] high-coverage detection ${(coverage * 100).toFixed(1)}%`);
-        }
-      }
-    };
-
-    worker.addEventListener('message', handleMessage);
-
-    return () => {
-      worker.removeEventListener('message', handleMessage);
-      worker.terminate();
-      workerRef.current = null;
-      workerReadyRef.current = false;
-    };
-  }, [isOpen, runImageDetection, startLiveProcessing]);
-
-  useEffect(() => {
-    let localStream;
-    const startCamera = async () => {
+    ws.onopen = () => {};
+    ws.onclose = () => {};
+    ws.onerror = () => {};
+    ws.onmessage = (event) => {
+      sendInFlightRef.current = false;
+      let payload;
       try {
-        localStream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: { ideal: 'environment' },
-            width: 640,
-            height: 480,
-          },
-        });
-        setCameraError(null);
-        if (videoRef.current) {
-          videoRef.current.srcObject = localStream;
-        }
+        payload = JSON.parse(event.data);
       } catch (error) {
-        console.error('Camera init error:', error);
-        setCameraError('Unable to access camera');
+        return;
+      }
+
+      setStatus(payload.state || 'SEARCHING');
+      setBbox(payload.bbox || null);
+      setFrameMeta(payload.frame || null);
+      setTooSmall(Boolean(payload.too_small));
+
+      if (payload.state === 'LOCKED') {
+        setCardDetected(true);
+        if (payload.crop) {
+          setImagePreview(payload.crop);
+        }
+        setUploadPreview(null);
+        stopCaptureLoop();
+        stopCamera();
       }
     };
-
-    if (isOpen) {
-      startCamera();
-    }
 
     return () => {
-      if (localStream) {
-        localStream.getTracks().forEach((track) => track.stop());
-      }
-      stopLiveProcessing();
-      clearOverlay();
-      setImagePreview(null);
-      if (videoRef.current) {
-        videoRef.current.srcObject = null;
-      }
+      ws.close();
+      wsRef.current = null;
+      sendInFlightRef.current = false;
     };
-  }, [isOpen, stopLiveProcessing, clearOverlay]);
+  }, [isOpen, stopCamera, stopCaptureLoop]);
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    startCamera();
+
+    return () => {
+      stopCaptureLoop();
+      stopCamera();
+    };
+  }, [isOpen, startCamera, stopCamera, stopCaptureLoop]);
+
+  useEffect(() => {
+    if (isOpen) return;
+    setImagePreview(null);
+    setUploadPreview(null);
+    uploadFrameRef.current = null;
+    resetDetectionState();
+  }, [isOpen, resetDetectionState]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (imagePreview) {
+      stopCaptureLoop();
+      return;
+    }
+    if (videoReady || uploadFrameRef.current) {
+      startCaptureLoop();
+    }
+  }, [imagePreview, isOpen, startCaptureLoop, stopCaptureLoop, videoReady]);
 
   const handleFileSelect = async (event) => {
     const file = event.target.files?.[0];
+    event.target.value = '';
     if (!file) return;
     if (!file.type.startsWith('image/')) {
       toaster.create({ title: 'Invalid file', description: 'Please choose an image', type: 'error' });
@@ -233,22 +270,27 @@ export default function VerificationModal({ isOpen, onClose, onSuccess: _onSucce
       toaster.create({ title: 'File too large', description: 'Max size 5MB', type: 'error' });
       return;
     }
-    const dataUrl = await cropDataUrl(await fileToDataUrl(file));
-    clearOverlay();
-    setImagePreview(dataUrl);
+
+    const previewUrl = await fileToDataUrl(file);
+    uploadFrameRef.current = file;
+    setUploadPreview(previewUrl);
+    setImagePreview(null);
+    resetDetectionState();
+    stopCamera();
+    startCaptureLoop();
   };
 
   const handleRetake = useCallback(() => {
     setImagePreview(null);
-    clearOverlay();
-    if (workerReadyRef.current) {
-      startLiveProcessing();
-    }
-  }, [clearOverlay, startLiveProcessing]);
+    setUploadPreview(null);
+    uploadFrameRef.current = null;
+    resetDetectionState();
+    startCamera();
+  }, [resetDetectionState, startCamera]);
 
   const handleSubmit = async () => {
     if (!imagePreview || !cardDetected) {
-      toaster.create({ title: 'Verification', description: 'Capture or upload a valid ID first', type: 'info' });
+      toaster.create({ title: 'Verification', description: 'Capture a valid ID first', type: 'info' });
       return;
     }
     setSubmitting(true);
@@ -264,6 +306,27 @@ export default function VerificationModal({ isOpen, onClose, onSuccess: _onSucce
       setSubmitting(false);
     }
   };
+
+  const previewImage = imagePreview || uploadPreview;
+
+  const overlayStyle = useMemo(() => {
+    if (!bbox || !frameMeta || !containerSize.width || !containerSize.height) {
+      return null;
+    }
+    const [x1, y1, x2, y2] = bbox;
+    const scale = Math.max(containerSize.width / frameMeta.width, containerSize.height / frameMeta.height);
+    const displayWidth = frameMeta.width * scale;
+    const displayHeight = frameMeta.height * scale;
+    const offsetX = (containerSize.width - displayWidth) / 2;
+    const offsetY = (containerSize.height - displayHeight) / 2;
+
+    return {
+      left: x1 * scale + offsetX,
+      top: y1 * scale + offsetY,
+      width: (x2 - x1) * scale,
+      height: (y2 - y1) * scale,
+    };
+  }, [bbox, containerSize, frameMeta]);
 
   if (!isOpen) return null;
 
@@ -305,12 +368,27 @@ export default function VerificationModal({ isOpen, onClose, onSuccess: _onSucce
             width="100%"
             style={{ aspectRatio: TARGET_RATIO }}
           >
-            {imagePreview ? (
-              <img src={imagePreview} alt="ID preview" className="h-full w-full object-cover" />
+            {previewImage ? (
+              <img src={previewImage} alt="ID preview" className="h-full w-full object-cover" />
             ) : (
               <video ref={videoRef} autoPlay playsInline muted className="h-full w-full object-cover" />
             )}
-            {imagePreview && (
+
+            {overlayStyle && !imagePreview && (
+              <Box
+                position="absolute"
+                left={`${overlayStyle.left}px`}
+                top={`${overlayStyle.top}px`}
+                width={`${overlayStyle.width}px`}
+                height={`${overlayStyle.height}px`}
+                border="2px solid"
+                borderColor={status === 'LOCKING' ? 'yellow.300' : 'green.300'}
+                borderRadius="6px"
+                pointerEvents="none"
+              />
+            )}
+
+            {previewImage && (
               <Button
                 size="sm"
                 rounded="full"
@@ -327,6 +405,7 @@ export default function VerificationModal({ isOpen, onClose, onSuccess: _onSucce
                 Retake
               </Button>
             )}
+
             {!imagePreview && (
               <Box
                 position="absolute"
@@ -343,10 +422,11 @@ export default function VerificationModal({ isOpen, onClose, onSuccess: _onSucce
                 textTransform="uppercase"
                 whiteSpace="nowrap"
               >
-                Center your ID
+                {statusText}
               </Box>
             )}
-            {cameraError && !imagePreview && (
+
+            {cameraError && !previewImage && (
               <Text position="absolute" bottom="3" left="50%" transform="translateX(-50%)" color="white" fontSize="xs">
                 {cameraError}
               </Text>
@@ -402,35 +482,6 @@ export default function VerificationModal({ isOpen, onClose, onSuccess: _onSucce
       </Box>
     </Box>
   );
-}
-
-
-function cropDataUrl(dataUrl) {
-  const img = document.createElement('img');
-  return new Promise((resolve) => {
-    img.onload = () => {
-      const targetRatio = TARGET_RATIO;
-      let cropWidth = img.width;
-      let cropHeight = img.height;
-      let offsetX = 0;
-      let offsetY = 0;
-      const currentRatio = img.width / img.height;
-      if (currentRatio > targetRatio) {
-        cropWidth = img.height * targetRatio;
-        offsetX = (img.width - cropWidth) / 2;
-      } else {
-        cropHeight = img.width / targetRatio;
-        offsetY = (img.height - cropHeight) / 2;
-      }
-      const canvas = document.createElement('canvas');
-      canvas.width = cropWidth;
-      canvas.height = cropHeight;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, offsetX, offsetY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
-      resolve(canvas.toDataURL('image/jpeg', 0.95));
-    };
-    img.src = dataUrl;
-  });
 }
 
 function fileToDataUrl(file) {
