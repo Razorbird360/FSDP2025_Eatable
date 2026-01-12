@@ -31,6 +31,8 @@ async def id_verification_ws(websocket: WebSocket):
     try:
         while True:
             message = await websocket.receive()
+            if message.get("type") == "websocket.disconnect":
+                break
             if "text" in message and message["text"]:
                 text = message["text"].strip().lower()
                 if text == "reset":
@@ -53,6 +55,8 @@ async def id_verification_ws(websocket: WebSocket):
             payload = state.update(detection, resized_frame)
             await websocket.send_text(json.dumps(_payload_to_dict(payload)))
     except WebSocketDisconnect:
+        return
+    except RuntimeError:
         return
 
 
