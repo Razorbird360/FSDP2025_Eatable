@@ -61,6 +61,7 @@ async function getNearbyHawkerCentres({ lat, lng, limit = 10 }) {
     postalCode: centre.postalCode,
     latitude: centre.latitude,
     longitude: centre.longitude,
+    imageUrl: centre.imageUrl,
     distance: calculateDistance(lat, lng, centre.latitude, centre.longitude),
     stallCount: centre._count.stalls
   }));
@@ -109,8 +110,10 @@ async function getRandomStallsBySlug(slug, limit = 3) {
     }
   });
 
+  const stallsWithActiveMenuItems = stalls.filter((stall) => stall.menuItems.length > 0);
+
   // Shuffle stalls array and take first N items
-  const shuffled = stalls.sort(() => 0.5 - Math.random());
+  const shuffled = stallsWithActiveMenuItems.sort(() => 0.5 - Math.random());
   const randomStalls = shuffled.slice(0, limit);
 
   // Format stalls with image URL
@@ -121,12 +124,25 @@ async function getRandomStallsBySlug(slug, limit = 3) {
     if (stall.menuItems.length > 0 && stall.menuItems[0].mediaUploads.length > 0) {
       imageUrl = stall.menuItems[0].mediaUploads[0].imageUrl;
     }
+    const prepTimes = stall.menuItems
+      .map((item) => item.prepTimeMins)
+      .filter((value) => typeof value === 'number');
+    const maxPrepTimeMins = prepTimes.length ? Math.max(...prepTimes) : 5;
+    const prices = stall.menuItems
+      .map((item) => item.priceCents)
+      .filter((value) => typeof value === 'number');
+    const maxPriceCents = prices.length
+      ? Math.max(...prices)
+      : null;
 
     return {
       id: stall.id,
       name: stall.name,
       cuisineType: stall.cuisineType,
+      dietaryTags: stall.dietaryTags ?? [],
       imageUrl: stall.image_url,
+      maxPrepTimeMins,
+      maxPriceCents,
       menuItemCount: stall._count.menuItems
     };
   });
@@ -155,7 +171,20 @@ async function getHawkerStallsById(hawkerId) {
         }
       }
     });
-    return stalls;
+    const stallsWithActiveMenuItems = stalls.filter((stall) => stall.menuItems.length > 0);
+    return stallsWithActiveMenuItems.map((stall) => {
+      const prepTimes = stall.menuItems
+        .map((item) => item.prepTimeMins)
+        .filter((value) => typeof value === 'number');
+      const maxPrepTimeMins = prepTimes.length ? Math.max(...prepTimes) : 5;
+      const prices = stall.menuItems
+        .map((item) => item.priceCents)
+        .filter((value) => typeof value === 'number');
+      const maxPriceCents = prices.length
+        ? Math.max(...prices)
+        : null;
+      return { ...stall, maxPrepTimeMins, maxPriceCents };
+    });
   } catch (error) {
     console.error(`Error fetching stalls for hawkerId ${hawkerId}:`, error);
     throw new Error('Failed to fetch stalls');
@@ -178,7 +207,30 @@ async function getHawkerDishesById(hawkerId) {
         },
       }
     });
-    return dishes;
+    if (dishes.length === 0) {
+      return dishes;
+    }
+
+    const dishIds = dishes.map((dish) => dish.id);
+    const upvoteTotals = await prisma.mediaUpload.groupBy({
+      by: ['menuItemId'],
+      where: {
+        menuItemId: { in: dishIds },
+        validationStatus: 'approved',
+      },
+      _sum: {
+        upvoteCount: true,
+      },
+    });
+
+    const upvoteByItem = new Map(
+      upvoteTotals.map((row) => [row.menuItemId, row._sum.upvoteCount ?? 0])
+    );
+
+    return dishes.map((dish) => ({
+      ...dish,
+      upvoteCount: upvoteByItem.get(dish.id) ?? 0,
+    }));
   } catch (error) {
     console.error(`Error fetching dishes for hawkerId ${hawkerId}:`, error);
     throw new Error('Failed to fetch dishes');

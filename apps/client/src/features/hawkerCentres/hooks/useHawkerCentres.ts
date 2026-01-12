@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { getNearbyHawkerCentres, getRandomStalls } from '../api/hawkerCentres.api';
+import { useUserLocation } from './useUserLocation';
 import type { HawkerCentreWithStalls } from '../types/hawker.types';
 
 interface UseHawkerCentresResult {
   hawkerCentres: HawkerCentreWithStalls[];
   loading: boolean;
   error: Error | null;
+  locationStatus: 'pending' | 'granted' | 'denied';
 }
 
 /**
@@ -14,6 +16,7 @@ interface UseHawkerCentresResult {
  * @returns Object containing hawkerCentres data, loading state, and error
  */
 export const useHawkerCentres = (limit = 10): UseHawkerCentresResult => {
+  const { coords, status: locationStatus } = useUserLocation();
   const [hawkerCentres, setHawkerCentres] = useState<HawkerCentreWithStalls[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -25,7 +28,10 @@ export const useHawkerCentres = (limit = 10): UseHawkerCentresResult => {
         setError(null);
 
         // 1. Fetch nearby hawker centres
-        const centres = await getNearbyHawkerCentres(limit);
+        const centres = await getNearbyHawkerCentres(
+          limit,
+          locationStatus === 'granted' ? coords ?? undefined : undefined
+        );
 
         // 2. For each centre, fetch 3 random stalls
         const centresWithStalls = await Promise.all(
@@ -57,7 +63,7 @@ export const useHawkerCentres = (limit = 10): UseHawkerCentresResult => {
     };
 
     fetchData();
-  }, [limit]);
+  }, [limit, coords, locationStatus]);
 
-  return { hawkerCentres, loading, error };
+  return { hawkerCentres, loading, error, locationStatus };
 };
