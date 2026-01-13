@@ -69,8 +69,6 @@ async function main() {
 
   // --- Hawker centres data ---
 
-  // hawkerCentresData (Maxwell + Tiong Bahru unchanged)
-
   const hawkerCentresData = [
     {
       name: "Maxwell Food Centre",
@@ -79,6 +77,7 @@ async function main() {
       postalCode: "069184",
       latitude: 1.2803,
       longitude: 103.8445,
+      imageUrl: "https://i.ibb.co/wr06V8kP/Maxwell-Food-Centre.png",
     },
     {
       name: "Tiong Bahru Market",
@@ -87,9 +86,8 @@ async function main() {
       postalCode: "168898",
       latitude: 1.2839,
       longitude: 103.8332,
+      imageUrl: "https://i.ibb.co/LXNfV2pr/Tiong-Bahru-Market.png",
     },
-
-    // NS9 — Woodlands
     {
       name: "Woodlands Centre Road Food Centre",
       slug: "woodlands-centre-road-food-centre",
@@ -98,8 +96,6 @@ async function main() {
       latitude: 1.4408,
       longitude: 103.7701,
     },
-
-    // NS8 — Marsiling
     {
       name: "Marsiling Mall Hawker Centre",
       slug: "marsiling-mall-hawker-centre",
@@ -108,8 +104,6 @@ async function main() {
       latitude: 1.4335,
       longitude: 103.7797,
     },
-
-    // NE17 — Punggol
     {
       name: "Punggol East Container Park Hawker",
       slug: "punggol-east-container-park",
@@ -118,8 +112,6 @@ async function main() {
       latitude: 1.4047,
       longitude: 103.9169,
     },
-
-    // EW28 — Pioneer
     {
       name: "Pioneer Food Centre",
       slug: "pioneer-food-centre",
@@ -130,9 +122,6 @@ async function main() {
     },
   ];
 
-
-  // stallsByCentre (only non-central ones changed)
-
   const stallsByCentre = {
     "maxwell-food-centre": [
       {
@@ -141,6 +130,7 @@ async function main() {
           "Famous Hainanese chicken rice with fragrant rice and chilli.",
         location: "Stall 01-10",
         cuisineType: "Chinese",
+        dietaryTags: ["No Pork"],
         tags: ["chicken rice", "rice", "chilli"],
         image_url:
           "https://cache-wak-wak-hawker-com.s3-ap-southeast-1.amazonaws.com/data/images/stall/70/870/block/HPEmAfesLHnuUZk0.jpg?v=1612194201",
@@ -149,7 +139,8 @@ async function main() {
         name: "Zhen Zhen Porridge",
         description: "Comforting Teochew porridge with generous ingredients.",
         location: "Stall 01-54",
-        cuisineType: "Chinese",
+        cuisineType: "Local",
+        dietaryTags: ["Gluten-Free"],
         tags: ["porridge", "breakfast", "teochew"],
         image_url:
           "https://sethlui.com/wp-content/uploads/2017/07/Hong-Heng-Fried-Sotong-Prawn-Mee-1.jpg",
@@ -158,7 +149,8 @@ async function main() {
         name: "Maxwell Fuzhou Oyster Cake",
         description: "Crispy oyster cake with minced meat and peanuts.",
         location: "Stall 01-31",
-        cuisineType: "Chinese",
+        cuisineType: "Desserts",
+        dietaryTags: [],
         tags: ["snack", "oyster", "fritters"],
         image_url:
           "https://axwwgrkdco.cloudimg.io/v7/__gmpics3__/3d24ce46531e4f4d8eb6bde98bea447c.jpeg?w=300&h=300&org_if_sml=1",
@@ -168,7 +160,8 @@ async function main() {
         description:
           "Chee cheong fun, yam cake and traditional breakfast items.",
         location: "Stall 01-28",
-        cuisineType: "Chinese",
+        cuisineType: "Local",
+        dietaryTags: [],
         tags: ["chee cheong fun", "yam cake", "breakfast"],
         image_url: "https://i.ytimg.com/vi/mk4gXZP2fnw/maxresdefault.jpg",
       },
@@ -177,6 +170,7 @@ async function main() {
         description: "Iced kopi, teh, lime juice and local drinks.",
         location: "Stall 01-70",
         cuisineType: "Drinks",
+        dietaryTags: ["Halal", "Vegetarian", "Vegan", "Gluten-Free"],
         tags: ["kopi", "teh", "lime juice"],
         image_url:
           "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTsOPTGAi5HXngTPbb2YtnZAHmsCw9eptQgZw&s",
@@ -188,6 +182,7 @@ async function main() {
         description: "Juicy boneless chicken rice with old-school vibes.",
         location: "Stall 02-82",
         cuisineType: "Chinese",
+        dietaryTags: ["No Pork"],
         tags: ["chicken rice", "boneless", "rice"],
         image_url:
           "https://sethlui.com/wp-content/uploads/2021/11/Tiong-Bahru-Hainanese-Chicken-Rice-12..jpg",
@@ -197,6 +192,7 @@ async function main() {
         description: "Famous hokkien mee fried with prawn and sotong.",
         location: "Stall 02-01",
         cuisineType: "Chinese",
+        dietaryTags: [],
         tags: ["hokkien mee", "noodles", "seafood"],
         image_url:
           "https://sethlui.com/wp-content/uploads/2017/07/Hong-Heng-Fried-Sotong-Prawn-Mee-1.jpg",
@@ -206,6 +202,7 @@ async function main() {
         description: "Rich pork and prawn broth with yellow noodles.",
         location: "Stall 02-31",
         cuisineType: "Chinese",
+        dietaryTags: [],
         tags: ["prawn mee", "pork ribs", "soup"],
         image_url:
           "https://danielfooddiary.com/wp-content/uploads/2025/07/minnan4.jpg",
@@ -214,7 +211,8 @@ async function main() {
         name: "Liang Liang Garden Economical Rice",
         description: "Economic mixed vegetable rice with many dishes.",
         location: "Stall 02-60",
-        cuisineType: "Chinese",
+        cuisineType: "Vegetarian",
+        dietaryTags: ["Vegetarian"],
         tags: ["economic rice", "mixed veg", "rice"],
         image_url:
           "https://sethlui.com/wp-content/uploads/2020/02/liang-liang-garden-desserts.jpg",
@@ -224,13 +222,13 @@ async function main() {
         description:
           "Traditional paus and dim sum snacks, great for breakfast.",
         location: "Stall 02-18",
-        cuisineType: "Chinese",
+        cuisineType: "Local",
+        dietaryTags: [],
         tags: ["pau", "dim sum", "snack"],
         image_url:
           "https://cdn.foodadvisor.com.sg/1/500/tccrg/1687335810_fsjwsk_waous1970965/tiong-bahru-pau-snack-outram.jpg",
       },
     ],
-
     "woodlands-centre-road-food-centre": [
       {
         name: "Lai Heng Handmade Noodles",
@@ -238,11 +236,10 @@ async function main() {
         location: "Stall 01-32",
         cuisineType: "Chinese",
         tags: ["noodles", "minced meat"],
-        // CHANGED: Use a reliable testing URL
-        image_url: "https://sethlui.com/wp-content/uploads/2023/07/20230727020805_IMG_9253-1.jpg",
+        image_url:
+          "https://sethlui.com/wp-content/uploads/2021/11/Tiong-Bahru-Hainanese-Chicken-Rice-12..jpg",
       },
     ],
-
     "marsiling-mall-hawker-centre": [
       {
         name: "Ah Ma Chi Mian",
@@ -250,11 +247,10 @@ async function main() {
         location: "Stall 02-15",
         cuisineType: "Chinese",
         tags: ["wantan mee", "noodles"],
-        // CHANGED: Use a reliable testing URL
-        image_url: "https://live.staticflickr.com/65535/51996521522_0e794e928e_b.jpg",
+        image_url:
+          "https://sethlui.com/wp-content/uploads/2021/11/Tiong-Bahru-Hainanese-Chicken-Rice-12..jpg",
       },
     ],
-
     "punggol-east-container-park": [
       {
         name: "Punggol Western Grill",
@@ -262,11 +258,10 @@ async function main() {
         location: "Container 05",
         cuisineType: "Western",
         tags: ["grill", "western"],
-        // CHANGED: Use a reliable testing URL
-        image_url: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSokVAZs1crqSygNFgETCyV1-tgIni5OIrZTA&s",
+        image_url:
+          "https://sethlui.com/wp-content/uploads/2021/11/Tiong-Bahru-Hainanese-Chicken-Rice-12..jpg",
       },
     ],
-
     "pioneer-food-centre": [
       {
         name: "Muslim Nasi Padang",
@@ -274,12 +269,11 @@ async function main() {
         location: "Stall 01-08",
         cuisineType: "Malay",
         tags: ["nasi padang", "rice"],
-        // CHANGED: Use a reliable testing URL
-        image_url: "https://cdn-sg.orstatic.com/userphoto/doorphoto/0/AU/002571B8993CCE19458777lx.jpg?og=1",
+        image_url:
+          "https://sethlui.com/wp-content/uploads/2021/11/Tiong-Bahru-Hainanese-Chicken-Rice-12..jpg",
       },
     ],
   };
-
 
   // Menu items per stall (5 items each, realistic hawker food)
   const menuItemsByStallName = {
@@ -708,6 +702,7 @@ async function main() {
         postalCode: hcData.postalCode,
         latitude: hcData.latitude,
         longitude: hcData.longitude,
+        imageUrl: hcData.imageUrl ?? null,
       },
     });
 
@@ -722,6 +717,8 @@ async function main() {
           description: stallTemplate.description,
           location: stallTemplate.location,
           cuisineType: stallTemplate.cuisineType,
+          dietaryTags: stallTemplate.dietaryTags ?? [],
+          tags: stallTemplate.tags,
           hawkerCentre: {
             connect: { id: hc.id },
           },

@@ -63,10 +63,20 @@ export const stallsService = {
         },
       },
     });
-
     if (!stall) {
       return null;
     }
+
+    const prepTimes = stall.menuItems
+      .map((item) => item.prepTimeMins)
+      .filter((value) => typeof value === 'number');
+    const maxPrepTimeMins = prepTimes.length ? Math.max(...prepTimes) : 5;
+    const prices = stall.menuItems
+      .map((item) => item.priceCents)
+      .filter((value) => typeof value === 'number');
+    const avgPriceCents = prices.length
+      ? Math.round(prices.reduce((sum, value) => sum + value, 0) / prices.length)
+      : null;
 
     const menuItems = stall.menuItems || [];
     if (menuItems.length === 0) {
@@ -92,6 +102,8 @@ export const stallsService = {
       menuItems: menuItems.map((item) => ({
         ...item,
         approvedUploadCount: uploadCountsByMenuItem.get(item.id) || 0,
+        maxPrepTimeMins,
+        avgPriceCents
       })),
     };
   },

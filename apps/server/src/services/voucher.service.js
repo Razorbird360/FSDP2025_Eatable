@@ -4,6 +4,22 @@ import { cartService } from './cart.service.js';
 const prisma = new PrismaClient();
 
 class VoucherService {
+  getEffectiveExpiry(userVoucher) {
+    if (!userVoucher) return null;
+    if (userVoucher.expiryDate) return userVoucher.expiryDate;
+
+    const voucher = userVoucher.voucher;
+    if (voucher?.expiryDate) return voucher.expiryDate;
+
+    if (voucher?.expiryOnReceiveMonths && userVoucher.createdAt) {
+      const expiry = new Date(userVoucher.createdAt);
+      expiry.setMonth(expiry.getMonth() + voucher.expiryOnReceiveMonths);
+      return expiry;
+    }
+
+    return null;
+  }
+
   async getUserVouchers(userId) {
     try {
       const userVouchers = await prisma.userVoucher.findMany({
@@ -18,22 +34,81 @@ class VoucherService {
       const now = new Date();
 
       // Flatten the structure to return a list of vouchers with usage info and expiry status
-      return userVouchers.map(uv => {
-        const expiryDate = uv.expiryDate || uv.voucher.expiryDate;
-        const isExpired = expiryDate ? new Date(expiryDate) < now : false;
+      return userVouchers
+        .map(uv => {
+          const expiryDate = this.getEffectiveExpiry(uv);
+          const isExpired = expiryDate ? new Date(expiryDate) < now : false;
 
-        return {
-          ...uv.voucher,
-          userVoucherId: uv.id,
-          isUsed: uv.isUsed,
-          used: uv.isUsed, // Add 'used' field for frontend compatibility
-          expiryDate: expiryDate, // Prefer UserVoucher expiry, fallback to voucher
-          isExpired: isExpired, // Calculated on backend based on server time
-          acquiredAt: uv.createdAt
-        };
-      });
+          return {
+            ...uv.voucher,
+            userVoucherId: uv.id,
+            isUsed: uv.isUsed,
+            used: uv.isUsed, // Add 'used' field for frontend compatibility
+            expiryDate: expiryDate, // Prefer UserVoucher expiry, fallback to voucher
+            isExpired: isExpired, // Calculated on backend based on server time
+            acquiredAt: uv.createdAt
+          };
+        })
+        .filter(voucher => !voucher.isExpired);
     } catch (error) {
       throw new Error(`Error fetching user vouchers: ${error.message}`);
+    }
+  }
+
+  async getPendingVoucher(userId) {
+    try {
+      const pending = await prisma.discounts_charges.findFirst({
+        where: {
+          userId,
+          type: 'voucher',
+          orderId: null,
+        },
+        include: {
+          userVoucher: {
+            include: { voucher: true },
+          },
+        },
+      });
+
+      const userVoucher = pending?.userVoucher;
+      if (!pending || !userVoucher) {
+        return null;
+      }
+
+      const expiryDate = this.getEffectiveExpiry(userVoucher);
+      const isExpired = expiryDate ? new Date(expiryDate) < new Date() : false;
+      if (userVoucher.userId !== userId || userVoucher.isUsed || isExpired) {
+        await prisma.discounts_charges.delete({ where: { id: pending.id } });
+        return null;
+      }
+
+      return {
+        ...userVoucher.voucher,
+        userVoucherId: userVoucher.id,
+        isUsed: userVoucher.isUsed,
+        used: userVoucher.isUsed,
+        expiryDate,
+        isExpired,
+        acquiredAt: userVoucher.createdAt,
+      };
+    } catch (error) {
+      throw new Error(`Error fetching pending voucher: ${error.message}`);
+    }
+  }
+
+  async clearPendingVoucher(userId) {
+    try {
+      const result = await prisma.discounts_charges.deleteMany({
+        where: {
+          userId,
+          type: 'voucher',
+          orderId: null,
+        },
+      });
+
+      return { cleared: result.count };
+    } catch (error) {
+      throw new Error(`Error clearing pending voucher: ${error.message}`);
     }
   }
 
@@ -72,6 +147,10 @@ class VoucherService {
       }
 
       const voucher = userVoucher.voucher;
+      const expiryDate = this.getEffectiveExpiry(userVoucher);
+      if (expiryDate && new Date(expiryDate) < new Date()) {
+        throw new Error("Voucher expired");
+      }
 
       // 3. Validate min spend
       if (subtotalCents < voucher.minSpend) {

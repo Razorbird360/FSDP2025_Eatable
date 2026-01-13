@@ -5,6 +5,8 @@ import { authMiddleware } from '../middleware/auth.middleware.js'; // Assuming t
 const router = Router();
 
 router.get('/user', authMiddleware, voucherController.getUserVouchers);
+router.get('/pending', authMiddleware, voucherController.getPendingVoucher);
+router.delete('/pending', authMiddleware, voucherController.clearPendingVoucher);
 router.post('/apply/:voucherId', authMiddleware, voucherController.applyVoucher);
 
 export default router;

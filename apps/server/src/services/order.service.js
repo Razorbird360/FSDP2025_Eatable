@@ -1,6 +1,27 @@
 import prisma from '../lib/prisma.js';
 import { cartService } from './cart.service.js';
 
+const getEffectiveVoucherExpiry = (userVoucher) => {
+    if (!userVoucher) return null;
+    if (userVoucher.expiryDate) return userVoucher.expiryDate;
+
+    const voucher = userVoucher.voucher;
+    if (voucher?.expiryDate) return voucher.expiryDate;
+
+    if (voucher?.expiryOnReceiveMonths && userVoucher.createdAt) {
+        const expiry = new Date(userVoucher.createdAt);
+        expiry.setMonth(expiry.getMonth() + voucher.expiryOnReceiveMonths);
+        return expiry;
+    }
+
+    return null;
+};
+
+const isVoucherExpired = (expiryDate) => {
+    if (!expiryDate) return false;
+    return new Date(expiryDate) < new Date();
+};
+
 
 export const orderService = {
     async getServiceFees(req, res, next) {
@@ -115,32 +136,67 @@ export const orderService = {
             });
 
             if (pendingVoucherDiscount) {
-                // Link discount to order
-                await tx.discounts_charges.update({
-                    where: { id: pendingVoucherDiscount.id },
-                    data: { orderId: order.id },
-                });
+                const userVoucherId = pendingVoucherDiscount.userVoucherId;
 
-                // Update order total
-                const discountAmount = pendingVoucherDiscount.amountCents || 0;
-                await tx.order.update({
-                    where: { id: order.id },
-                    data: {
-                        totalCents: {
-                            decrement: discountAmount,
-                        },
-                    },
-                });
-
-                // Update local order object to reflect the change
-                order.totalCents -= discountAmount;
-
-                // Mark the UserVoucher as used
-                if (pendingVoucherDiscount.userVoucherId) {
-                    await tx.userVoucher.update({
-                        where: { id: pendingVoucherDiscount.userVoucherId },
-                        data: { isUsed: true },
+                if (!userVoucherId) {
+                    await tx.discounts_charges.delete({
+                        where: { id: pendingVoucherDiscount.id },
                     });
+                } else {
+                    const userVoucher = await tx.userVoucher.findUnique({
+                        where: { id: userVoucherId },
+                        include: { voucher: true },
+                    });
+
+                    const voucher = userVoucher?.voucher;
+                    const expiryDate = getEffectiveVoucherExpiry(userVoucher);
+                    const isInvalid =
+                        !userVoucher ||
+                        userVoucher.userId !== userId ||
+                        userVoucher.isUsed ||
+                        isVoucherExpired(expiryDate) ||
+                        (voucher?.minSpend && totalCents < voucher.minSpend);
+
+                    if (isInvalid) {
+                        await tx.discounts_charges.delete({
+                            where: { id: pendingVoucherDiscount.id },
+                        });
+                    } else {
+                        let discountAmount = 0;
+                        if (voucher.discountType === 'percentage') {
+                            discountAmount = Math.round(totalCents * (voucher.discountAmount / 100));
+                        } else {
+                            discountAmount = voucher.discountAmount;
+                        }
+
+                        if (discountAmount > totalCents) {
+                            discountAmount = totalCents;
+                        }
+
+                        await tx.discounts_charges.update({
+                            where: { id: pendingVoucherDiscount.id },
+                            data: {
+                                orderId: order.id,
+                                amountCents: discountAmount,
+                            },
+                        });
+
+                        await tx.order.update({
+                            where: { id: order.id },
+                            data: {
+                                totalCents: {
+                                    decrement: discountAmount,
+                                },
+                            },
+                        });
+
+                        order.totalCents -= discountAmount;
+
+                        await tx.userVoucher.update({
+                            where: { id: userVoucherId },
+                            data: { isUsed: true },
+                        });
+                    }
                 }
             }
 

@@ -5,7 +5,7 @@ import OnboardingStep1 from "./OnboardingSteps/OnboardingStep1";
 import OnboardingStep2 from "./OnboardingSteps/OnboardingStep2";
 import OnboardingStep3 from "./OnboardingSteps/OnboardingStep3";
 import OnboardingStep4 from "./OnboardingSteps/OnboardingStep4";
-import api from "../../../lib/api";
+import api from "@lib/api";
 
 export default function Onboarding() {
   const [showPopup, setShowPopup] = useState(false);

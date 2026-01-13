@@ -1,201 +1,260 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+import { useEffect, useState } from 'react';
+import { FiAward, FiCamera, FiCheck, FiStar, FiThumbsUp } from 'react-icons/fi';
+import api from '@lib/api';
+
+const getActionText = (type) => {
+  if (type === 'vote') return 'Votes';
+  if (type === 'upload') return 'Uploads';
+  return 'Actions';
+};
+
+const getAchievementIcon = (type) => {
+  if (type === 'vote') return FiThumbsUp;
+  if (type === 'upload') return FiCamera;
+  return FiStar;
+};
+
+const getProgressPercent = (achievement) => {
+  if (Number.isFinite(achievement?.percentage)) {
+    return Math.max(0, Math.min(100, achievement.percentage));
+  }
+
+  const current = Number(achievement?.current ?? 0);
+  const target = Number(achievement?.target ?? 0);
+  if (!target) return 0;
+  return Math.max(0, Math.min(100, (current / target) * 100));
+};
 
 export default function AchievementsPage() {
-    const [achievements, setAchievements] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [activeFilter, setActiveFilter] = useState('available');
+  const [achievements, setAchievements] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('available');
 
-    async function getToken() {
-        const session = await supabase.auth.getSession();
-        return session.data.session?.access_token;
-    }
+  useEffect(() => {
+    let ignore = false;
 
     async function loadAchievements() {
-        setLoading(true);
-        try {
-            const token = await getToken();
-            const res = await fetch('http://localhost:3000/api/achievements/status', {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
-            });
-
-            if (res.ok) {
-                const data = await res.json();
-                console.log('ACHIEVEMENTS DATA:', data);
-                setAchievements(data.achievements || []);
-            }
-        } catch (error) {
-            console.error('Error loading achievements:', error);
-        } finally {
-            setLoading(false);
+      setLoading(true);
+      try {
+        const res = await api.get('/achievements/status');
+        if (!ignore) {
+          setAchievements(res.data?.achievements || []);
         }
+      } catch (error) {
+        console.error('Error loading achievements:', error);
+      } finally {
+        if (!ignore) {
+          setLoading(false);
+        }
+      }
     }
 
-    useEffect(() => {
-        loadAchievements();
-    }, []);
-
-    const getActionText = (type) => {
-        if (type === 'vote') return 'Votes';
-        if (type === 'upload') return 'Uploads';
-        return 'Actions';
+    loadAchievements();
+    return () => {
+      ignore = true;
     };
+  }, []);
 
-    // Filter achievements to show progressive unlocking
-    const getVisibleAchievements = () => {
-        if (activeFilter === 'completed') {
-            return achievements
-                .filter(a => a.completed)
-                .sort((a, b) => {
-                    if (a.type !== b.type) {
-                        return a.type.localeCompare(b.type);
-                    }
-                    return a.target - b.target;
-                });
-        }
+  const unlockedCount = achievements.filter((achievement) => achievement.completed).length;
+  const totalCount = achievements.length;
+  const summaryPercent = totalCount ? Math.round((unlockedCount / totalCount) * 100) : 0;
 
-        // Group achievements by type
-        const voteAchievements = achievements.filter(a => a.type === 'vote').sort((a, b) => a.target - b.target);
-        const uploadAchievements = achievements.filter(a => a.type === 'upload').sort((a, b) => a.target - b.target);
+  const completedAchievements = achievements
+    .filter((achievement) => achievement.completed)
+    .sort((a, b) => {
+      const typeCompare = (a.type || '').localeCompare(b.type || '');
+      if (typeCompare !== 0) return typeCompare;
+      return (a.target ?? 0) - (b.target ?? 0);
+    });
 
-        const visible = [];
+  const availableAchievements = (() => {
+    const byType = new Map();
+    achievements.forEach((achievement) => {
+      const key = achievement.type || 'other';
+      if (!byType.has(key)) {
+        byType.set(key, []);
+      }
+      byType.get(key).push(achievement);
+    });
 
-        const nextVoteAchievement = voteAchievements.find(a => !a.completed);
-        if (nextVoteAchievement) {
-            visible.push(nextVoteAchievement);
-        }
+    const nextByType = [];
+    byType.forEach((list) => {
+      const sorted = list.slice().sort((a, b) => (a.target ?? 0) - (b.target ?? 0));
+      const next = sorted.find((achievement) => !achievement.completed);
+      if (next) nextByType.push(next);
+    });
 
-        const nextUploadAchievement = uploadAchievements.find(a => !a.completed);
-        if (nextUploadAchievement) {
-            visible.push(nextUploadAchievement);
-        }
+    return nextByType.sort((a, b) => {
+      const typeCompare = (a.type || '').localeCompare(b.type || '');
+      if (typeCompare !== 0) return typeCompare;
+      return (a.target ?? 0) - (b.target ?? 0);
+    });
+  })();
 
-        return visible;
-    };
+  const activeList = activeTab === 'available' ? availableAchievements : completedAchievements;
 
-    if (loading) {
-        return (
-            <div className="p-8 text-center">
-                <div className="text-gray-500">Loading achievements...</div>
-            </div>
-        );
-    }
-
-    const visibleAchievements = getVisibleAchievements();
-
+  if (loading) {
     return (
-        <div className="bg-white rounded-xl border border-gray-100 p-6 shadow-sm space-y-6">
-            {/* Header */}
-            <div className="space-y-4">
-                <div>
-                    <h2 className="text-2xl font-bold text-gray-900 mb-2">Achievements</h2>
-                    <p className="text-gray-600">Track your monthly progress and unlock rewards</p>
-                </div>
-                <div className="flex justify-start">
-                    <div className="relative inline-flex items-center rounded-full bg-gray-100 p-1">
-                        <span
-                            className={`absolute top-1 left-1 h-8 w-[120px] rounded-full bg-white shadow-sm transition-transform duration-300 ${activeFilter === 'completed'
-                                ? 'translate-x-[120px]'
-                                : 'translate-x-0'
-                                }`}
-                        ></span>
-                        <button
-                            type="button"
-                            className={`relative z-10 h-8 w-[120px] rounded-full text-sm font-semibold transition-colors ${activeFilter === 'available'
-                                ? 'text-gray-900'
-                                : 'text-gray-500'
-                                }`}
-                            onClick={() => setActiveFilter('available')}
-                            aria-pressed={activeFilter === 'available'}
-                        >
-                            Available
-                        </button>
-                        <button
-                            type="button"
-                            className={`relative z-10 h-8 w-[120px] rounded-full text-sm font-semibold transition-colors ${activeFilter === 'completed'
-                                ? 'text-gray-900'
-                                : 'text-gray-500'
-                                }`}
-                            onClick={() => setActiveFilter('completed')}
-                            aria-pressed={activeFilter === 'completed'}
-                        >
-                            Completed
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            {visibleAchievements.length === 0 ? (
-                <div className="text-center text-sm text-gray-500 py-10">
-                    {activeFilter === 'completed'
-                        ? 'No completed achievements yet. Keep going!'
-                        : 'No available achievements right now.'}
-                </div>
-            ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {visibleAchievements.map((achievement) => (
-                        <div
-                            key={achievement.id}
-                            className="bg-gray-50 rounded-lg p-6 border border-gray-100"
-                        >
-                            {/* Header */}
-                            <div className="flex items-start justify-between mb-4">
-                                <div className="flex-1">
-                                    <h3 className="text-lg font-bold text-gray-900 mb-1">{achievement.name}</h3>
-                                    <p className="text-sm text-gray-500">
-                                        {getActionText(achievement.type)} - {achievement.isOneTime ? 'One-time' : 'Monthly'} Challenge
-                                    </p>
-                                </div>
-                                {achievement.completed ? (
-                                    <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full">
-                                        Complete
-                                    </span>
-                                ) : (
-                                    <span className="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-bold rounded-full">
-                                        In Progress
-                                    </span>
-                                )}
-                            </div>
-
-                            {/* Progress */}
-                            <div className="space-y-3">
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-gray-600">Progress</span>
-                                    <span className="font-bold text-gray-900">
-                                        {achievement.current} / {achievement.target}
-                                    </span>
-                                </div>
-
-                                <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
-                                    <div
-                                        className={`h-full rounded-full transition-all duration-500 ${achievement.completed
-                                            ? 'bg-green-500'
-                                            : 'bg-[#1B3C18]'
-                                            }`}
-                                        style={{ width: `${achievement.percentage}%` }}
-                                    ></div>
-                                </div>
-
-                                <p className="text-xs text-gray-500">
-                                    {achievement.completed
-                                        ? 'Completed! Great work this month.'
-                                        : `${achievement.remaining} more ${getActionText(achievement.type).toLowerCase()} needed`}
-                                </p>
-
-                                {achievement.reward && achievement.completed && (
-                                    <div className="pt-2 border-t border-gray-200">
-                                        <span className="text-xs bg-yellow-50 text-yellow-800 px-2 py-1 rounded font-medium inline-flex items-center gap-1">
-                                            Reward Unlocked
-                                        </span>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            )}
-        </div>
+      <div className="bg-white rounded-xl border border-gray-100 p-8 shadow-sm">
+        <div className="text-gray-500">Loading achievements...</div>
+      </div>
     );
+  }
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-100 p-4 md:p-6 shadow-sm">
+      <div className="flex items-center justify-between mb-5">
+        <h1 className="text-xl font-bold text-gray-900">Achievements</h1>
+        <div className="flex items-center gap-2 text-sm">
+          <FiAward className="w-5 h-5 text-amber-500" />
+          <span className="text-gray-600">
+            {unlockedCount}/{totalCount}
+          </span>
+        </div>
+      </div>
+
+      <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl p-4 mb-5 border border-amber-100">
+        <div className="flex items-center gap-4">
+          <div className="w-14 h-14 bg-gradient-to-br from-amber-400 to-orange-500 rounded-2xl flex items-center justify-center text-white shadow-lg flex-shrink-0">
+            <FiAward className="w-7 h-7" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold text-gray-900 text-base">Achievement progress</h3>
+            <p className="text-sm text-gray-600">
+              {totalCount > 0
+                ? `${summaryPercent}% unlocked - ${unlockedCount} of ${totalCount} earned`
+                : 'Start earning achievements by completing orders.'}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {totalCount === 0 ? (
+        <div className="flex flex-col items-center justify-center py-14 bg-[#F8FDF3] rounded-2xl border border-dashed border-[#E7EEE7]">
+          <div className="w-16 h-16 bg-[#EFF8EE] rounded-full flex items-center justify-center mb-4">
+            <FiAward className="w-8 h-8 text-[#21421B]" />
+          </div>
+          <h3 className="text-lg font-semibold text-[#1C201D] mb-2">No achievements yet</h3>
+          <p className="text-[#4A554B] text-center px-4">
+            Upload photos and collect votes to unlock your first badge.
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="flex justify-start mb-5">
+            <div className="relative inline-flex items-center rounded-full bg-gray-100 p-1">
+              <span
+                className={`absolute top-1 left-1 h-8 w-[120px] rounded-full bg-white shadow-sm transition-transform duration-300 ${activeTab === 'completed' ? 'translate-x-[120px]' : 'translate-x-0'
+                  }`}
+              />
+              <button
+                type="button"
+                className={`relative z-10 h-8 w-[120px] rounded-full text-sm font-semibold transition-colors ${activeTab === 'available' ? 'text-gray-900' : 'text-gray-500'
+                  }`}
+                onClick={() => setActiveTab('available')}
+                aria-pressed={activeTab === 'available'}
+              >
+                Available
+              </button>
+              <button
+                type="button"
+                className={`relative z-10 h-8 w-[120px] rounded-full text-sm font-semibold transition-colors ${activeTab === 'completed' ? 'text-gray-900' : 'text-gray-500'
+                  }`}
+                onClick={() => setActiveTab('completed')}
+                aria-pressed={activeTab === 'completed'}
+              >
+                Completed
+              </button>
+            </div>
+          </div>
+
+          {activeList.length === 0 ? (
+            <div className="text-center text-sm text-gray-500 py-10">
+              {activeTab === 'available'
+                ? 'No available achievements right now.'
+                : 'No completed achievements yet. Keep going!'}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {activeList.map((achievement) => {
+                const isUnlocked = Boolean(achievement.completed);
+                const Icon = getAchievementIcon(achievement.type);
+                const progressPercent = getProgressPercent(achievement);
+                const current = Number(achievement.current ?? 0);
+                const target = Number(achievement.target ?? 0);
+                const description =
+                  achievement.description ||
+                  `${getActionText(achievement.type)} - ${achievement.isOneTime ? 'One-time' : 'Monthly'
+                  } challenge`;
+
+                return (
+                  <div
+                    key={achievement.id}
+                    className={`relative rounded-2xl border p-4 transition-all ${isUnlocked ? 'bg-white border-amber-200 shadow-sm' : 'bg-gray-50 border-gray-100'
+                      }`}
+                  >
+                    <div className="flex items-start gap-4">
+                      <div
+                        className={`w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 ${isUnlocked
+                            ? 'bg-gradient-to-br from-amber-100 to-orange-100'
+                            : 'bg-gray-100 grayscale opacity-50'
+                          }`}
+                      >
+                        <Icon className="w-7 h-7 text-[#21421B]" />
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <h3
+                              className={`font-semibold text-base mb-0.5 ${isUnlocked ? 'text-gray-900' : 'text-gray-500'
+                                }`}
+                            >
+                              {achievement.name}
+                            </h3>
+                            <p className={`text-sm ${isUnlocked ? 'text-gray-600' : 'text-gray-400'}`}>
+                              {description}
+                            </p>
+                          </div>
+
+                          {isUnlocked && (
+                            <div className="w-7 h-7 bg-emerald-500 rounded-full flex items-center justify-center shadow-md flex-shrink-0">
+                              <FiCheck className="w-4 h-4 text-white" />
+                            </div>
+                          )}
+                        </div>
+
+                        {!isUnlocked && (
+                          <div className="mt-3 space-y-1.5">
+                            <div className="flex justify-between text-sm text-gray-500">
+                              <span>
+                                {current}/{target}
+                              </span>
+                              <span>{Math.round(progressPercent)}%</span>
+                            </div>
+                            <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-gradient-to-r from-[#21421B] to-[#3a6b35] rounded-full transition-all"
+                                style={{ width: `${progressPercent}%` }}
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        {isUnlocked && achievement.reward && (
+                          <span className="mt-3 inline-flex items-center text-xs px-2.5 py-1 rounded-full bg-amber-100 text-amber-700">
+                            Reward unlocked
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
 }

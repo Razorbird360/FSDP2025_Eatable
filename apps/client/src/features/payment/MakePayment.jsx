@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import NetsLogo from "../../assets/payment/netsQrLogo.png";
 import NetsQrPopup from "./NetsQrPopup";
 import OrderCompletedModal from "./OrderCompleted"; // ⭐ NEW IMPORT
-import api from "../../lib/api";
+import api from "@lib/api";
 
 // Helper: map raw orderItem -> UI-friendly item
 function mapOrderItem(raw) {

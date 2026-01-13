@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import api from '../lib/api';
+import api from '@lib/api';
 import { supabase } from '../lib/supabase';
 import { formatDate } from '../utils/helpers';
 import UpvoteIcon from '../features/stalls/assets/upvote.svg';
@@ -298,7 +298,7 @@ const FavouritesPage = () => {
         : null;
 
     return (
-        <div className="bg-white rounded-xl border border-gray-100 p-8 shadow-sm">
+        <div className="bg-white rounded-xl border border-gray-100 p-4 md:p-8 shadow-sm">
             <h1 className="text-xl font-bold mb-6 text-gray-900">My Votes</h1>
 
             {/* Vote Filter Toggle */}

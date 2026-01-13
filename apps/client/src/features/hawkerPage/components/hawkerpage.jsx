@@ -5,7 +5,13 @@ import arrowRight from "../../../assets/hawker/arrow-right.svg";
 import locationIcon from "../../../assets/hawker/location.svg";
 import Filters from "../../hawkerCentres/components/Filters";
 import FiltersMobile from "../../hawkerCentres/components/FiltersMobile";
-import api from "../../../lib/api";
+import api from "@lib/api";
+import trendUp from "../../../assets/icons/trend-up.svg";
+import clockIcon from "../../../assets/icons/clock.svg";
+import stallsIcon from "../../../assets/hawker/Stalls-dark.svg";
+import dishesIcon from "../../../assets/hawker/Dishes-dark.svg";
+import { useFilters } from "../../hawkerCentres/hooks/useFilters";
+import { useUserLocation } from "../../hawkerCentres/hooks/useUserLocation";
 import { resolveTagConflicts } from "../../../utils/tagging";
 
 const fallbackHeroImg =
@@ -41,9 +47,9 @@ function DishCard({ dish }) {
   return (
     <div
       onClick={() => navigate(`/stalls/${dish.stallId}`)}
-      className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden cursor-pointer transition-transform hover:-translate-y-0.5 hover:shadow-md"
+      className="bg-white rounded-xl shadow-[0_2px_12px_rgba(0,0,0,0.08)] overflow-hidden cursor-pointer transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_8px_24px_rgba(0,0,0,0.12)]"
     >
-      <div className="h-44 w-full overflow-hidden relative">
+      <div className="aspect-[4/3] w-full overflow-hidden">
         <img
           src={dish.imageUrl || fallbackDishImg}
           alt={dish.name}
@@ -51,57 +57,37 @@ function DishCard({ dish }) {
         />
       </div>
 
-      <div className="p-4 flex flex-col gap-1">
-        <h3 className="text-sm font-semibold text-slate-900 line-clamp-2">
+      {/* Card content */}
+      <div className="p-3">
+        <h3 className="text-sm font-semibold text-slate-900 line-clamp-2 mb-1">
           {dish.name}
         </h3>
-        <p className="text-xs text-gray-500">
-          {dish.cuisine} · {dish.stallName}
+        <p className="text-xs text-gray-500 mb-3">
+          {dish.cuisine}
         </p>
         <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] text-slate-500">
           <span>{verifiedLabel}</span>
           {lastUploadLabel && <span>Last upload {lastUploadLabel}</span>}
         </div>
 
-        <div className="mt-3 flex items-center justify-between text-[11px] text-slate-500">
-          <div className="flex items-center gap-4">
+        {/* Stats row */}
+        <div className="flex items-center justify-between text-xs text-slate-500">
+          <div className="flex items-center gap-3">
+            {/* Orders/upvotes with trend-up icon */}
             <div className="flex items-center gap-1">
-              <svg
-                viewBox="0 0 24 24"
-                className="w-3 h-3 text-slate-400"
-                fill="none"
-                stroke="currentColor"
-              >
-                <path
-                  d="M4 20v-6m5 6V8m5 12V4m5 16"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
+              <img src={trendUp} alt="" className="w-4 h-4" />
               <span>{dish.orders ?? "–"}</span>
             </div>
 
+            {/* Prep time with clock icon */}
             <div className="flex items-center gap-1">
-              <svg
-                viewBox="0 0 24 24"
-                className="w-3 h-3 text-slate-400"
-                fill="none"
-                stroke="currentColor"
-              >
-                <circle cx="12" cy="12" r="8" strokeWidth="1.5" />
-                <path
-                  d="M12 8v4l2 2"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
+              <img src={clockIcon} alt="" className="w-4 h-4" />
               <span>{dish.prepTime}</span>
             </div>
           </div>
 
-          <div className="font-semibold text-slate-900 text-xs">
+          {/* Price */}
+          <div className="font-semibold text-slate-900">
             ${dish.price.toFixed(2)}
           </div>
         </div>
@@ -112,8 +98,8 @@ function DishCard({ dish }) {
 
 function StallCard({ stall }) {
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 flex gap-3">
-      <div className="w-20 h-20 rounded-xl overflow-hidden flex-shrink-0 bg-slate-100">
+    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-3 flex items-center gap-4">
+      <div className="w-24 h-24 rounded-xl overflow-hidden flex-shrink-0 bg-slate-100">
         <img
           src={stall.image_url}
           alt={stall.name}
@@ -162,6 +148,31 @@ const HawkerCentreDetailPage = () => {
   const [stalls, setStalls] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const filters = useFilters();
+  const { coords, status: locationStatus } = useUserLocation();
+
+  const prepTimeLimit = filters.prepTime[0];
+  const selectedPriceRanges = filters.selectedPriceRanges;
+  const selectedCuisines = filters.selectedCuisines;
+  const selectedDietary = filters.selectedDietary;
+  const cuisineOptions = filters.cuisines;
+
+  const applyPrepTimeFilter = prepTimeLimit > 0 && prepTimeLimit < 20;
+  const applyPriceFilter =
+    selectedPriceRanges.length > 0 && !selectedPriceRanges.includes("All");
+  const applyCuisineFilter =
+    selectedCuisines.length > 0 && !selectedCuisines.includes("All");
+  const applyDietaryFilter = selectedDietary.length > 0;
+  const knownCuisines = cuisineOptions.filter(
+    (cuisine) => cuisine !== "All" && cuisine !== "Other"
+  );
+
+  const priceRangeMatchers = {
+    "Under $5": (value) => value < 500,
+    "$5 - $10": (value) => value >= 500 && value < 1000,
+    "$10 - $15": (value) => value >= 1000 && value < 1500,
+    "Above $15": (value) => value >= 1500,
+  };
 
   useEffect(() => {
     if (!hawkerId) return;
@@ -221,12 +232,12 @@ const HawkerCentreDetailPage = () => {
             expectations:
               resolvedTags.length > 0
                 ? resolvedTags
-                    .map((tag) => tag.label)
-                    .filter(Boolean)
-                    .slice(0, 2)
-                    .join(", ")
+                  .map((tag) => tag.label)
+                  .filter(Boolean)
+                  .slice(0, 2)
+                  .join(", ")
                 : null,
-            orders: dish.orders ?? null,
+            orders: typeof dish.upvoteCount === "number" ? dish.upvoteCount : null,
           };
         });
 
@@ -259,6 +270,91 @@ const HawkerCentreDetailPage = () => {
     };
   }, [hawkerId]);
 
+  const filteredStalls = stalls.filter((stall) => {
+    const stallCuisine = stall.cuisineType ?? "";
+    const stallDietary = Array.isArray(stall.dietaryTags) ? stall.dietaryTags : [];
+
+    if (applyCuisineFilter) {
+      const cuisineMatches = selectedCuisines.some((selectedCuisine) => {
+        if (selectedCuisine === "Other") {
+          return stallCuisine === "" || !knownCuisines.includes(stallCuisine);
+        }
+        return stallCuisine === selectedCuisine;
+      });
+      if (!cuisineMatches) return false;
+    }
+
+    if (applyDietaryFilter) {
+      const dietaryMatches = selectedDietary.some((tag) => stallDietary.includes(tag));
+      if (!dietaryMatches) return false;
+    }
+
+    return true;
+  });
+
+  const filteredDishes = dishes.filter((dish) => {
+    const stallForDish = stalls.find((stall) => stall.id === dish.stallId);
+    if (!stallForDish) return false;
+
+    const stallCuisine = stallForDish.cuisineType ?? "";
+    const stallDietary = Array.isArray(stallForDish.dietaryTags)
+      ? stallForDish.dietaryTags
+      : [];
+
+    if (applyCuisineFilter) {
+      const cuisineMatches = selectedCuisines.some((selectedCuisine) => {
+        if (selectedCuisine === "Other") {
+          return stallCuisine === "" || !knownCuisines.includes(stallCuisine);
+        }
+        return stallCuisine === selectedCuisine;
+      });
+      if (!cuisineMatches) return false;
+    }
+
+    if (applyDietaryFilter) {
+      const dietaryMatches = selectedDietary.some((tag) => stallDietary.includes(tag));
+      if (!dietaryMatches) return false;
+    }
+
+    if (applyPriceFilter) {
+      if (typeof dish.priceCents !== "number") return false;
+      const priceMatches = selectedPriceRanges.some((range) => {
+        const matcher = priceRangeMatchers[range];
+        return matcher ? matcher(dish.priceCents) : false;
+      });
+      if (!priceMatches) return false;
+    }
+
+    if (applyPrepTimeFilter) {
+      const prepTimeValue =
+        typeof dish.prepTimeMins === "number" ? dish.prepTimeMins : 5;
+      if (prepTimeValue > prepTimeLimit) return false;
+    }
+
+    return true;
+  });
+
+  const distanceKm =
+    locationStatus === "granted" &&
+      coords &&
+      typeof centre.latitude === "number" &&
+      typeof centre.longitude === "number"
+      ? (() => {
+        const toRad = (degrees) => (degrees * Math.PI) / 180;
+        const R = 6371;
+        const dLat = toRad(centre.latitude - coords.lat);
+        const dLon = toRad(centre.longitude - coords.lng);
+        const a =
+          Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+          Math.cos(toRad(coords.lat)) *
+          Math.cos(toRad(centre.latitude)) *
+          Math.sin(dLon / 2) *
+          Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
+      })()
+      : null;
+
   return (
     <section className="px-[4vw] py-8 w-full min-h-screen bg-[#f5f7f4] font-sans">
       {/* Breadcrumbs */}
@@ -272,7 +368,7 @@ const HawkerCentreDetailPage = () => {
           </Link>
           <img src={arrowRight} alt=">" className="w-3 h-3" />
           <Link
-            to="/hawkers"
+            to="/hawker-centres"
             className="hover:text-brand hover:underline hover:decoration-gray-400 cursor-pointer"
           >
             Hawkers
@@ -285,92 +381,99 @@ const HawkerCentreDetailPage = () => {
       </div>
 
       {/* Top summary card */}
-      <div className="w-full bg-white border border-slate-200 rounded-2xl p-4 md:p-6 flex flex-col gap-5">
-        {/* Title + stats */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+      <div
+        className="w-full rounded-2xl py-6 pl-6 pr-4 md:p-6 flex flex-col md:flex-row md:items-center gap-5 shadow-[0_2px_12px_rgba(0,0,0,0.06)] relative overflow-hidden md:bg-white md:border md:border-slate-200"
+      >
+        {/* Background image for mobile */}
+        <div
+          className="absolute inset-0 md:hidden bg-cover bg-center"
+          style={{ backgroundImage: `url(${centre.imageUrl || fallbackHeroImg})` }}
+        />
+
+        {/* Dark overlay for mobile */}
+        <div className="absolute inset-0 bg-black/50 md:hidden" />
+
+        {/* White background for desktop */}
+        <div className="hidden md:block absolute inset-0 bg-white" />
+
+        {/* Hero image - visible on desktop */}
+        <div className="hidden md:block w-44 h-44 flex-shrink-0 rounded-xl overflow-hidden relative z-10">
+          <img
+            src={centre.imageUrl || fallbackHeroImg}
+            alt={centre.name}
+            className="w-full h-full object-cover"
+          />
+        </div>
+
+        {/* Content section */}
+        <div className="flex-1 flex flex-col gap-4 relative z-10 justify-center md:justify-start">
+          {/* Title + stats */}
           <div>
-            <h2 className="text-xl md:text-2xl font-semibold text-slate-900">
+            <h2 className="text-xl md:text-2xl font-semibold text-white md:text-slate-900">
               {centre.name || "Hawker Centre"}
             </h2>
-            <p className="mt-1 text-xs md:text-sm text-gray-600">
+            <p className="mt-1 text-xs md:text-sm text-white/90 md:text-gray-600">
               <span className="font-semibold">{centre.stallCount}</span> stalls
               <span className="mx-1.5">•</span>
-              <span className="font-semibold text-brand">
+              <span className="font-semibold text-white md:text-brand">
                 {centre.openCount} open
               </span>
             </p>
           </div>
-        </div>
 
-        {/* Location + Hours row */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs md:text-sm text-gray-600">
-          {/* Location */}
-          <div className="flex items-start gap-2">
-            <div className="mt-[2px] flex h-5 w-5 items-center justify-center rounded-full border border-gray-300">
-              <img src={locationIcon} alt="" className="w-3 h-3" />
-            </div>
-            <div>
-              <p className="text-[11px] uppercase tracking-wide text-gray-500">
-                Location
-              </p>
-              <p className="text-sm">
-                {centre.distanceKm != null
-                  ? `${centre.distanceKm.toFixed(1)} km from you`
-                  : "Distance unavailable"}
-              </p>
-              {centre.address && (
-                <p className="text-[11px] text-gray-500">
-                  {centre.address}
-                  {centre.postalCode && ` · S(${centre.postalCode})`}
+          {/* Location + Hours row */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs md:text-sm text-white/90 md:text-gray-600">
+            {/* Location */}
+            <div className="flex items-start gap-2">
+              <div className="mt-[2px] flex h-5 w-5 items-center justify-center rounded-full border border-white/50 md:border-gray-300">
+                <img src={locationIcon} alt="" className="w-3 h-3 brightness-0 invert md:brightness-100 md:invert-0" />
+              </div>
+              <div>
+                <p className="text-[11px] uppercase tracking-wide text-white/70 md:text-gray-500">
+                  Location
                 </p>
-              )}
+                <p className="text-sm text-white md:text-gray-600">
+                  {distanceKm != null
+                    ? `${distanceKm.toFixed(1)} km from you`
+                    : locationStatus === "pending"
+                      ? "Locating..."
+                      : "Distance unavailable"}
+                </p>
+              </div>
+            </div>
+
+            {/* Hours */}
+            <div className="flex items-start gap-2">
+              <div className="mt-[2px] flex h-5 w-5 items-center justify-center rounded-full border border-white/50 md:border-gray-300">
+                <img src={clockIcon} alt="" className="w-3 h-3 brightness-0 invert md:brightness-100 md:invert-0" />
+              </div>
+              <div>
+                <p className="text-[11px] uppercase tracking-wide text-white/70 md:text-gray-500">
+                  Hours
+                </p>
+                <p className="text-sm text-white md:text-gray-600">
+                  {centre.hours || "6:00 AM - 10:00 PM"}
+                </p>
+                <p className="text-[11px] text-white/70 md:text-gray-500">
+                  {centre.days || "Daily"}
+                </p>
+              </div>
             </div>
           </div>
 
-          {/* Hours */}
-          <div className="flex items-start gap-2">
-            <div className="mt-[2px] flex h-5 w-5 items-center justify-center rounded-full border border-gray-300">
-              <svg
-                viewBox="0 0 24 24"
-                className="w-3 h-3"
-                fill="none"
-                stroke="currentColor"
-              >
-                <circle cx="12" cy="12" r="8" strokeWidth="1.5" />
-                <path
-                  d="M12 8v4l2 2"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </div>
-            <div>
-              <p className="text-[11px] uppercase tracking-wide text-gray-500">
-                Hours
-              </p>
-              <p className="text-sm">
-                {centre.hours || "6:00 AM - 10:00 PM"}
-              </p>
-              <p className="text-[11px] text-gray-500">
-                {centre.days || "Daily"}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* CTA - 2. Connect View on Map button */}
-        <button
-          onClick={() => {
-            const id = centre.id || hawkerId;
-            navigate(`/hawker-centres/map?centreId=${encodeURIComponent(id)}`);
-          }}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-medium rounded-full bg-brand text-white w-max hover:bg-brand/90 transition-colors"
-        >
-          <span className="inline-flex h-4 w-4 items-center justify-center rounded border border-white/60 text-[9px]">
+          {/* CTA */}
+          <button
+            onClick={() => {
+              const id = centre.id || hawkerId;
+              if (id) {
+                navigate(`/hawker-centres/map?centreId=${encodeURIComponent(id)}`);
+              }
+            }}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-medium rounded-full bg-white md:bg-brand text-brand md:text-white w-max hover:bg-white/90 md:hover:bg-brand/90 transition-colors"
+          >
             <svg
               viewBox="0 0 24 24"
-              className="w-3 h-3"
+              className="w-4 h-4"
               fill="none"
               stroke="currentColor"
             >
@@ -381,36 +484,44 @@ const HawkerCentreDetailPage = () => {
                 strokeLinejoin="round"
               />
             </svg>
-          </span>
-          View on map
-        </button>
+            View on map
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center justify-between mb-4 mt-10">
-        <div className="inline-flex bg-[#e9EFE4] rounded-full p-1">
+      <div className="flex items-center justify-between my-4 md:mb-4 md:mt-10">
+        <div className="inline-flex bg-white border border-[#E5E5E5] rounded-xl p-1 gap-[3px]">
           <button
             type="button"
             onClick={() => setActiveTab("stalls")}
-            className={`px-4 py-1.5 text-xs md:text-sm rounded-full font-medium transition-colors
-              ${
-                activeTab === "stalls"
-                  ? "bg-white text-brand shadow-sm"
-                  : "text-gray-600"
+            className={`flex items-center gap-2 pl-[18px] pr-5 py-2 text-sm rounded-lg font-medium transition-colors
+              ${activeTab === "stalls"
+                ? "bg-brand text-white"
+                : "text-gray-400"
               }`}
           >
+            <img
+              src={stallsIcon}
+              alt=""
+              className={`w-4 h-4 ${activeTab === "stalls" ? "brightness-0 invert" : ""}`}
+            />
             Stalls
           </button>
           <button
             type="button"
             onClick={() => setActiveTab("dishes")}
-            className={`px-4 py-1.5 text-xs md:text-sm rounded-full font-medium transition-colors
-              ${
-                activeTab === "dishes"
-                  ? "bg-white text-brand shadow-sm"
-                  : "text-gray-600"
+            className={`flex items-center gap-2 pl-[18px] pr-5 py-2 text-sm rounded-lg font-medium transition-colors
+              ${activeTab === "dishes"
+                ? "bg-brand text-white"
+                : "text-gray-400"
               }`}
           >
+            <img
+              src={dishesIcon}
+              alt=""
+              className={`w-4 h-4 ${activeTab === "dishes" ? "brightness-0 invert" : ""}`}
+            />
             Dishes
           </button>
         </div>
@@ -420,14 +531,14 @@ const HawkerCentreDetailPage = () => {
       <div className="w-full flex gap-6">
         {/* Desktop filters */}
         <div className="hidden lg:block w-[22vw] sticky top-24">
-          <Filters />
+          <Filters filters={filters} />
         </div>
 
         {/* Main content */}
         <div className="w-full lg:w-[72vw] pb-10">
           {/* Mobile filters */}
           <div className="lg:hidden mb-4">
-            <FiltersMobile />
+            <FiltersMobile filters={filters} />
           </div>
 
           {loading && (
@@ -443,10 +554,10 @@ const HawkerCentreDetailPage = () => {
             <>
               {activeTab === "dishes" && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-5">
-                  {dishes.map((dish) => (
+                  {filteredDishes.map((dish) => (
                     <DishCard key={dish.id} dish={dish} />
                   ))}
-                  {dishes.length === 0 && (
+                  {filteredDishes.length === 0 && (
                     <p className="text-sm text-gray-500 col-span-full">
                       No dishes found for this hawker centre yet.
                     </p>
@@ -456,10 +567,10 @@ const HawkerCentreDetailPage = () => {
 
               {activeTab === "stalls" && (
                 <div className="space-y-3 text-sm text-gray-700">
-                  {stalls.map((stall) => (
+                  {filteredStalls.map((stall) => (
                     <StallCard key={stall.id} stall={stall} />
                   ))}
-                  {stalls.length === 0 && (
+                  {filteredStalls.length === 0 && (
                     <p className="text-sm text-gray-500">
                       No stalls found for this hawker centre yet.
                     </p>

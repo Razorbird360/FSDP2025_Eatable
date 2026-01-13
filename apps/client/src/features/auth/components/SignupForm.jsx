@@ -14,7 +14,7 @@ import {
 import { LuEye, LuEyeOff } from 'react-icons/lu';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../useAuth';
-import api from '../../../lib/api';
+import api from '@lib/api';
 import LogoImage from '../../../assets/logo/logo_full.png';
 import BannerImage from '../../../assets/Login/Banner.jpg';
 import GoogleIcon from '../../../assets/Login/google.png';

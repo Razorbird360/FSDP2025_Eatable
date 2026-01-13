@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import LogoImage from "../../../assets/logo/logo_full.png";
-import api from "../../../lib/api";
+import api from "@lib/api";
 import { useCart } from "./CartContext";
 import { useState, useEffect } from "react";
 
@@ -26,9 +26,12 @@ export default function OrderSummary() {
   // You can either recompute subtotal here or just use cartTotal
   const subtotal = cartTotal;     // placeholder – adjust if needed
 
+  const selectedMinSpend = selectedVoucher ? selectedVoucher.minSpend / 100 : 0;
+  const isSelectedVoucherEligible = selectedVoucher ? subtotal >= selectedMinSpend : false;
+
   // Calculate voucher discount
   let voucherApplied = 0.0;
-  if (selectedVoucher) {
+  if (selectedVoucher && isSelectedVoucherEligible) {
     if (selectedVoucher.discountType === 'percentage') {
       // discountAmount is likely percentage value (e.g. 10 for 10%) or factor? 
       // Schema says Int, usually percentage is stored as integer (e.g. 10).
@@ -54,6 +57,10 @@ export default function OrderSummary() {
       // Filter out used vouchers so they don't appear in the list
       const availableVouchers = res.data.filter(v => !v.isUsed && !v.used);
       setVouchers(availableVouchers);
+      if (selectedVoucher?.userVoucherId) {
+        const refreshed = availableVouchers.find(v => v.userVoucherId === selectedVoucher.userVoucherId);
+        if (refreshed) setSelectedVoucher(refreshed);
+      }
     } catch (err) {
       console.error("Failed to fetch vouchers:", err);
     } finally {
@@ -75,9 +82,13 @@ export default function OrderSummary() {
 
     // Toggle selection: if already selected, deselect
     if (selectedVoucher && selectedVoucher.userVoucherId === voucher.userVoucherId) {
-      setSelectedVoucher(null);
-      // Ideally call backend to remove voucher too, but for now we just clear local state.
-      // If we want to be strict, we should have a remove endpoint or pass null to apply.
+      try {
+        await api.delete('/vouchers/pending');
+        setSelectedVoucher(null);
+      } catch (err) {
+        console.error("Failed to clear voucher:", err);
+        alert("Failed to clear voucher. Please try again.");
+      }
     } else {
       try {
         // Call backend to apply voucher
@@ -95,6 +106,18 @@ export default function OrderSummary() {
   };
 
   useEffect(() => {
+    async function fetchPendingVoucher() {
+      try {
+        const res = await api.get('/vouchers/pending');
+        const pendingVoucher = res.data?.voucher;
+        if (pendingVoucher) {
+          setSelectedVoucher(pendingVoucher);
+        }
+      } catch (err) {
+        console.error("Failed to fetch pending voucher:", err);
+      }
+    }
+
     async function fetchServiceFee() {
       try {
         const res = await api.get("/orders/serviceFees");
@@ -109,6 +132,7 @@ export default function OrderSummary() {
       }
     }
 
+    fetchPendingVoucher();
     fetchServiceFee();
   }, []);
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import api from '../lib/api';
+import api from '@lib/api';
 
 const formatDate = (value) => {
   if (!value) return '—';

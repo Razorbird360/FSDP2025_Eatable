@@ -1,4 +1,4 @@
-
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import logo_full from '../../../assets/logo/logo_full.png';
 import qrImg from '../../../assets/logo/QrPlaceholder.png';
@@ -6,6 +6,12 @@ import locationImg from '../../../assets/logo/LocationIcon.png';
 import clockImg from '../../../assets/logo/Clock.png';
 
 const fallbackFoodImg = "https://app.yakun.com/media/catalog/product/cache/f77d76b011e98ab379caeb79cadeeecd/f/r/french-toast-with-kaya.jpg";
+
+function generateOrderCode(orderId) {
+    if (!orderId || orderId === "—") return "—";
+    const hash = orderId.replace(/-/g, "").slice(0, 8).toUpperCase();
+    return `EA-${hash}`;
+}
 
 export default function OrderDetailsModal({ order, onClose }) {
     const navigate = useNavigate();
@@ -37,7 +43,7 @@ export default function OrderDetailsModal({ order, onClose }) {
         hour12: false,
     }) : '—';
 
-    let estimatedPickupText = 'Awaiting confirmation';
+    let estimatedPickupText = 'Awaiting stall confirmation';
     if (estimatedReadyTime) {
         const d = new Date(estimatedReadyTime);
         if (!isNaN(d)) {
@@ -56,190 +62,231 @@ export default function OrderDetailsModal({ order, onClose }) {
     // Extract voucher info directly from the nested relation
     const voucherInfo = voucherDiscount?.userVoucher?.voucher;
 
-    const displayOrderNumber = orderId && orderId.length > 24
-        ? `${orderId.slice(0, 8)}-${orderId.slice(-4)}`
-        : orderId;
+    const displayOrderCode = generateOrderCode(orderId);
 
-    const displayStatus = status ? status.charAt(0).toUpperCase() + status.slice(1) : '—';
-    console.log(orderItems)
+    const rawStatus = status || '—';
+    const displayStatus = typeof rawStatus === 'string'
+        ? rawStatus.charAt(0).toUpperCase() + rawStatus.slice(1).toLowerCase()
+        : rawStatus;
 
-    console.log('OrderDetailsModal - Order Status:', status);
+    // Determine status badge color
+    const getStatusBadgeClass = () => {
+        const s = status?.toLowerCase();
+        if (s === 'completed' || s === 'paid') return 'bg-green-100 text-green-800';
+        if (s === 'pending') return 'bg-yellow-100 text-yellow-800';
+        if (s === 'cancelled') return 'bg-red-100 text-red-800';
+        return 'bg-gray-100 text-gray-800';
+    };
 
     // Determine if we show QR or Pay button
     const s = status?.toLowerCase();
     const isPaid = s === 'completed' || s === 'paid';
     const isPending = s === 'pending';
 
-    return (
+    return createPortal(
         <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
             onClick={onClose}
         >
             <div
-                className="relative bg-white shadow-[0px_4px_4px_rgba(0,0,0,0.25)] rounded-xl w-[1182px] h-[829px] max-w-full overflow-hidden scale-[0.6] md:scale-[0.7] origin-center"
+                className="relative bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-y-auto"
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Header */}
-                <div className="w-[899px] h-10 left-[108px] top-[42px] absolute flex items-center text-neutral-900 text-3xl font-medium leading-8">
-                    Order Details
+                <div className="flex items-center justify-between px-4 md:px-6 py-4 border-b border-gray-200 sticky top-0 bg-white z-10">
+                    <h1 className="text-xl md:text-2xl font-semibold text-gray-900">
+                        Order Details
+                    </h1>
+                    <img
+                        className="h-8 md:h-10 object-contain"
+                        src={logo_full}
+                        alt="Eatable Logo"
+                    />
                 </div>
 
-                <img
-                    className="w-24 h-24 left-[1003px] top-[12px] absolute object-contain"
-                    src={logo_full}
-                    alt="Eatable Logo"
-                />
-
-                <div className="w-[1056px] h-px left-[46px] top-[90.5px] absolute bg-black" />
-
-                {/* Order Meta */}
-                <div className="w-80 h-10 left-[125px] top-[130px] absolute flex items-center text-black text-lg font-medium leading-8">
-                    Order Number:&nbsp;{displayOrderNumber}
-                </div>
-                <div className="w-80 h-10 left-[125px] top-[160px] absolute flex items-center text-black text-lg font-medium leading-8">
-                    Order Status:&nbsp; {displayStatus}
-                </div>
-                <div className="w-[320px] h-10 left-[125px] top-[190px] absolute flex items-center text-black text-sm font-normal leading-5">
-                    Placed on:&nbsp;{placedAtText}
-                </div>
-
-                {/* Stall Info */}
-                <div className="w-60 h-10 left-[169px] top-[240px] absolute flex items-center">
-                    <span className="block w-full text-neutral-900 text-xl font-semibold leading-8 truncate">
-                        {stallName}
-                    </span>
-                </div>
-                <div className="w-72 h-10 left-[169px] top-[264px] absolute flex items-center text-stone-400 text-base font-medium leading-8">
-                    {stallLocation}
-                </div>
-                <img
-                    src={locationImg}
-                    alt="Location"
-                    className="w-7 h-7 left-[134px] top-[268px] absolute object-contain"
-                />
-
-                {/* Estimated Time */}
-                <div className="w-60 h-10 left-[169px] top-[320px] absolute flex items-center text-neutral-900 text-xl font-semibold leading-8">
-                    Estimated Pick-Up Time
-                </div>
-                <div className="w-72 h-10 left-[169px] top-[345px] absolute flex items-center text-stone-400 text-base font-medium leading-8">
-                    {estimatedPickupText}
-                </div>
-                <img
-                    src={clockImg}
-                    alt="Clock"
-                    className="w-7 h-7 left-[134px] top-[349px] absolute object-contain"
-                />
-
-                {/* Action Area: QR or Pay Button */}
-                {isPaid && (
-                    <>
-                        <div className="w-28 h-10 left-[220px] top-[420px] absolute flex items-center justify-center text-neutral-900 text-xl font-semibold underline leading-8">
-                            Pick Up QR
-                        </div>
-                        <div className="w-[196px] h-[196px] left-[178px] top-[460px] absolute">
-                            <img
-                                src={qrImg}
-                                alt="Pick up QR"
-                                className="w-full h-full object-contain"
-                            />
-                        </div>
-                    </>
-                )}
-
-                {isPending && (
-                    <div className="absolute left-[159px] top-[500px]">
-                        <button
-                            className="w-60 h-12 bg-[#21421B] rounded-xl text-white text-lg font-semibold shadow-md hover:bg-[#162e12] transition-colors"
-                            onClick={() => navigate(`/makepayment/${orderId}`)}
-                        >
-                            Make Payment
-                        </button>
-                    </div>
-                )}
-
-                {/* Close Button */}
-                <button
-                    className="w-60 h-10 left-[159px] top-[708px] absolute bg-gray-200 rounded-[10px] text-center text-gray-800 text-lg leading-8 shadow-sm hover:bg-gray-300"
-                    onClick={onClose}
-                >
-                    Close
-                </button>
-
-                {/* RIGHT SIDE: ORDER DETAILS CARD */}
-                <div className="w-[478px] h-[571px] left-[596px] top-[196px] absolute bg-white rounded-[10px] shadow-[0px_4px_4px_rgba(0,0,0,0.25)] border border-zinc-400 overflow-hidden">
-                    {/* Header */}
-                    <div className="w-full px-4 pt-5 pb-3 flex flex-col items-center">
-                        <div className="text-neutral-900 text-2xl font-medium leading-8">
-                            Order Details
-                        </div>
-                        <div className="text-neutral-900 text-xl font-medium leading-8 text-center mt-1">
-                            {stallName}
-                        </div>
-                    </div>
-
-                    <div className="w-full h-px bg-zinc-400" />
-
-                    {/* Items list */}
-                    <div className="px-4 py-4 space-y-3 max-h-[230px] overflow-y-auto">
-                        {orderItems?.length === 0 ? (
-                            <p className="text-sm text-gray-500 text-center">No items found.</p>
-                        ) : (
-                            orderItems?.map((item) => (
-                                <div key={item.id} className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <img
-                                            src={item.menuItem?.mediaUploads?.[0]?.imageUrl || item.menuItem?.image_url || fallbackFoodImg}
-                                            alt={item.menuItem?.name}
-                                            className="w-16 h-16 rounded-[5px] object-cover"
-                                        />
-                                        <div>
-                                            <div className="text-black text-base font-medium leading-5">
-                                                {item.menuItem?.name || 'Unknown Item'}
-                                            </div>
-                                            <div className="text-black text-base leading-5">
-                                                x{item.quantity}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="text-black text-base font-medium leading-5">
-                                        $ {(item.unitCents / 100).toFixed(2)}
-                                    </div>
-                                </div>
-                            ))
-                        )}
-                    </div>
-
-                    <div className="w-full h-px bg-zinc-400 mt-2" />
-
-                    {/* Totals */}
-                    <div className="px-8 pt-3 pb-2 text-neutral-900 text-base font-medium leading-8 space-y-1.5">
-                        <div className="flex justify-between">
-                            <span>Subtotal</span>
-                            <span>$ {subtotal.toFixed(2)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                            <span>Service Fees</span>
-                            <span>$ {serviceFee.toFixed(2)}</span>
-                        </div>
-                        {voucherApplied > 0 && (
-                            <div className="flex justify-between">
-                                <span>
-                                    Applied Voucher {voucherInfo && `(${voucherInfo.code})`}
+                {/* Two Column Layout */}
+                <div className="flex flex-col lg:flex-row gap-4 p-3 md:p-4">
+                    {/* Left Column - Order Info */}
+                    <div className="flex-1 space-y-3">
+                        {/* Order Meta Info */}
+                        <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                                <span className="text-gray-700 font-medium">Order Code:</span>
+                                <span className="text-gray-900 font-semibold text-lg tracking-wide">
+                                    {displayOrderCode}
                                 </span>
-                                <span className="text-green-600">- $ {voucherApplied.toFixed(2)}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <span className="text-gray-700 font-medium">Status:</span>
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium ${getStatusBadgeClass()}`}>
+                                    {displayStatus}
+                                </span>
+                            </div>
+                            <p className="text-sm text-gray-500">Placed on: {placedAtText}</p>
+                        </div>
+
+                        {/* Stall Info */}
+                        <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl">
+                            <img
+                                src={locationImg}
+                                alt="Location"
+                                className="w-5 h-5 mt-0.5 object-contain"
+                            />
+                            <div>
+                                <h3 className="text-base font-semibold text-gray-900">
+                                    {stallName}
+                                </h3>
+                                <p className="text-gray-500 text-sm">
+                                    {stallLocation}
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Estimated Pickup Time */}
+                        <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl">
+                            <img
+                                src={clockImg}
+                                alt="Clock"
+                                className="w-5 h-5 mt-0.5 object-contain"
+                            />
+                            <div>
+                                <h3 className="text-base font-semibold text-gray-900">
+                                    Estimated Pick-Up Time
+                                </h3>
+                                <p className="text-gray-500 text-sm">{estimatedPickupText}</p>
+                            </div>
+                        </div>
+
+                        {/* QR Code Section (only for paid orders) */}
+                        {isPaid && (
+                            <div className="flex flex-col items-center justify-center pt-4 pb-2 px-2 bg-gray-50 rounded-xl">
+                                <h3 className="text-base font-semibold text-gray-900 mb-2">
+                                    Pick Up QR
+                                </h3>
+                                <img
+                                    src={qrImg}
+                                    alt="Pick up QR"
+                                    className="w-48 h-48 md:w-56 md:h-56 object-contain"
+                                />
                             </div>
                         )}
+
+                        {/* Make Payment Button (only for pending orders) */}
+                        {isPending && (
+                            <button
+                                className="w-full py-2.5 bg-[#21421B] hover:bg-[#162e12] text-white font-medium rounded-xl transition-colors shadow-sm"
+                                onClick={() => navigate(`/makepayment/${orderId}`)}
+                            >
+                                Make Payment
+                            </button>
+                        )}
+
+                        {/* Close Button */}
+                        <button
+                            className="w-full py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium rounded-xl transition-colors shadow-sm"
+                            onClick={onClose}
+                        >
+                            Close
+                        </button>
                     </div>
 
-                    <div className="w-full h-px bg-zinc-400" />
+                    {/* Right Column - Order Details Card */}
+                    <div className="flex-1 lg:max-w-md">
+                        <div className="bg-white rounded-xl border border-gray-200 shadow-lg overflow-hidden h-full flex flex-col">
+                            {/* Card Header */}
+                            <div className="px-6 py-4 text-center border-b border-gray-200">
+                                <h3 className="text-xl font-semibold text-gray-900">
+                                    Order Details
+                                </h3>
+                                <p className="text-gray-600 mt-1">{stallName}</p>
+                            </div>
 
-                    <div className="px-8 py-3 flex justify-between text-neutral-900 text-base font-medium leading-8">
-                        <span>Total</span>
-                        <span>$ {total.toFixed(2)}</span>
+                            {/* Items List */}
+                            <div className="flex-1 px-4 md:px-6 py-4 overflow-y-auto max-h-64">
+                                {orderItems?.length === 0 ? (
+                                    <p className="text-gray-500 text-center py-4">
+                                        No items found for this order.
+                                    </p>
+                                ) : (
+                                    <div className="space-y-4">
+                                        {orderItems?.map((item) => {
+                                            const qty = Number(item.quantity ?? 1);
+                                            const menuPriceCents =
+                                                typeof item.menuItem?.priceCents === 'number'
+                                                    ? item.menuItem.priceCents
+                                                    : typeof item.menuItem?.price_cents === 'number'
+                                                        ? item.menuItem.price_cents
+                                                        : null;
+                                            const rawUnitCents =
+                                                typeof item.unitCents === 'number'
+                                                    ? item.unitCents
+                                                    : typeof item.unit_cents === 'number'
+                                                        ? item.unit_cents
+                                                        : null;
+                                            const unitPriceCents =
+                                                Number.isFinite(menuPriceCents)
+                                                    ? menuPriceCents
+                                                    : Number.isFinite(rawUnitCents) && qty > 0
+                                                        ? Math.round(rawUnitCents / qty)
+                                                        : 0;
+                                            const lineTotalCents = unitPriceCents * qty;
+
+                                            return (
+                                            <div
+                                                key={item.id}
+                                                className="flex items-center justify-between gap-3"
+                                            >
+                                                <div className="flex items-center gap-3 flex-1 min-w-0">
+                                                    <img
+                                                        src={item.menuItem?.mediaUploads?.[0]?.imageUrl || item.menuItem?.image_url || fallbackFoodImg}
+                                                        alt={item.menuItem?.name}
+                                                        className="w-12 h-12 md:w-14 md:h-14 rounded-lg object-cover flex-shrink-0"
+                                                    />
+                                                    <div className="min-w-0">
+                                                        <p className="font-medium text-gray-900 truncate">
+                                                            {item.menuItem?.name || 'Unknown Item'}
+                                                        </p>
+                                                        <p className="text-gray-500 text-sm">x{item.quantity}</p>
+                                                    </div>
+                                                </div>
+                                                <span className="font-medium text-gray-900 flex-shrink-0">
+                                                    ${(lineTotalCents / 100).toFixed(2)}
+                                                </span>
+                                            </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Totals Section */}
+                            <div className="border-t border-gray-200">
+                                <div className="px-4 md:px-6 py-3 space-y-2 text-sm">
+                                    <div className="flex justify-between text-gray-600">
+                                        <span>Subtotal</span>
+                                        <span>${subtotal.toFixed(2)}</span>
+                                    </div>
+                                    <div className="flex justify-between text-gray-600">
+                                        <span>Service Fees</span>
+                                        <span>${serviceFee.toFixed(2)}</span>
+                                    </div>
+                                    <div className="flex justify-between text-gray-600">
+                                        <span>
+                                            Applied Voucher{voucherInfo?.code ? ` (${voucherInfo.code})` : ""}
+                                        </span>
+                                        <span>-${voucherApplied.toFixed(2)}</span>
+                                    </div>
+                                </div>
+                                <div className="px-4 md:px-6 py-3 flex justify-between font-semibold text-gray-900 border-t border-gray-200">
+                                    <span>Total</span>
+                                    <span>${total.toFixed(2)}</span>
+                                </div>
+                            </div>
+                    </div>
                     </div>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }

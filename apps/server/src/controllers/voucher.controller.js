@@ -28,6 +28,28 @@ class VoucherController {
             res.status(400).json({ error: error.message });
         }
     }
+
+    async getPendingVoucher(req, res) {
+        try {
+            const userId = req.user.id;
+            const voucher = await voucherService.getPendingVoucher(userId);
+            res.json({ voucher });
+        } catch (error) {
+            console.error('Error in getPendingVoucher:', error);
+            res.status(500).json({ error: 'Failed to fetch pending voucher' });
+        }
+    }
+
+    async clearPendingVoucher(req, res) {
+        try {
+            const userId = req.user.id;
+            const result = await voucherService.clearPendingVoucher(userId);
+            res.json(result);
+        } catch (error) {
+            console.error('Error in clearPendingVoucher:', error);
+            res.status(500).json({ error: 'Failed to clear pending voucher' });
+        }
+    }
 }
 
 export default new VoucherController();

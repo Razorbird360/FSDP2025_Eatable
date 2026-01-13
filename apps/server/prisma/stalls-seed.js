@@ -259,8 +259,42 @@ let stallTemplates = [
     description: 'Modern smashed burgers served hawker-style.',
     imageUrl:
       'https://images.unsplash.com/photo-1550317138-10000687a72b?auto=format&fit=crop&w=1200&q=80',
+    tags: ['burger', 'fusion', 'modern hawker'],
   },
 ];
+
+const dietaryTagsByTemplateKey = {
+  chicken_rice: ['No Pork'],
+  fishball_noodles: ['No Pork'],
+  laksa: [],
+  satay: ['Halal'],
+  prawn_noodles: [],
+  nasi_lemak: ['Halal'],
+  vegetarian: ['Vegetarian', 'Vegan'],
+  desserts: ['Vegetarian'],
+  western: [],
+  carrot_cake: [],
+  economic_rice: [],
+  rojak: ['Vegetarian'],
+  kaya_toast: ['Vegetarian'],
+  prata: ['Halal'],
+  mee_goreng: ['Halal'],
+  claypot_rice: [],
+  yong_tau_foo: ['Vegetarian'],
+  dim_sum: [],
+  bbq_stingray: ['No Pork'],
+  seafood_platter: ['No Pork'],
+  lei_cha: ['Vegetarian', 'Vegan'],
+  porridge: ['Gluten-Free'],
+  ban_mian: [],
+  korean_bbq: [],
+  sushi_bento: ['No Pork'],
+  bubble_tea: ['Vegetarian'],
+  kway_chap: [],
+  bak_kut_teh: [],
+  soy_dessert: ['Vegetarian', 'Vegan', 'Gluten-Free'],
+  burger_joint: [],
+};
 
 let foodMenuTemplates = [
   {
@@ -656,6 +690,8 @@ function buildStallSeed(centre, centreIndex, slotIndex, template) {
     description: `${template.description} Served daily at ${shortName}.`,
     location: formatLocation(centreIndex, slotIndex),
     cuisineType: template.cuisineType,
+    dietaryTags: dietaryTagsByTemplateKey[template.key] ?? [],
+    tags: template.tags,
     image_url: template.imageUrl,
   };
 }

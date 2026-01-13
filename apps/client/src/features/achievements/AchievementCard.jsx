@@ -1,9 +1,8 @@
-import React from 'react';
 
 export default function AchievementCard({ closestAchievement }) {
     if (!closestAchievement) return null;
 
-    const { name, type, target, current, progress, percentage, completed, remaining } = closestAchievement;
+    const { name, type, target, current, percentage, completed, remaining } = closestAchievement;
 
     const getIcon = () => {
         if (type === 'vote') return 'V';

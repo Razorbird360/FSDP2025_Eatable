@@ -3,7 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import foodStallIcon from "./Assets/FoodStall_Icon.png";
 import StallGallery from "../../stalls/components/StallGallery";
 import { useCart } from "../../orders/components/CartContext";
-import api from "../../../lib/api"; // ⬅️ adjust path if needed
+import api from "@lib/api"; // ⬅️ adjust path if needed
 import { resolveTagConflicts } from "../../../utils/tagging";
 import { useNavigate } from "react-router-dom"
 
@@ -274,7 +274,6 @@ export default function StallEmenu() {
   const navigate = useNavigate()
 
   // Fetch stall from API
-  // Fetch stall from API
   useEffect(() => {
     let cancelled = false;
 
@@ -410,7 +409,7 @@ export default function StallEmenu() {
 
   const crumbs = [
     { label: "Home", to: "/" },
-    { label: "Hawkers", to: "/stalls" },
+    { label: "Hawkers", to: "/hawker-centres" },
     { label: STALL_META?.market || "Stall" },
   ];
 
@@ -453,7 +452,7 @@ export default function StallEmenu() {
       <div className="fixed inset-0 -z-10 bg-[#F5F7F2]" />
 
       <main className="relative z-10 mx-auto w-full max-w-[430px] px-3 py-5 sm:px-4 md:max-w-6xl">
-        <nav className="mb-2">
+        <nav className="mt-4 mb-3 md:mt-0">
           <ol className="flex items-center gap-1.5 text-xs md:text-sm">
             {crumbs.map((c, i) => {
               const isLast = i === crumbs.length - 1;
@@ -480,118 +479,169 @@ export default function StallEmenu() {
           </ol>
         </nav>
 
-        <section className="flex gap-3 rounded-2xl border bg-white p-3 md:gap-4 md:p-6">
-          <img
-            src={stallPfp || foodStallIcon}
-            alt="stall"
-            className="h-20 w-20 rounded-xl border object-cover md:h-40 md:w-40"
+        <section className="rounded-2xl py-6 px-5 md:p-6 flex flex-col md:flex-row md:items-center gap-5 shadow-[0_2px_12px_rgba(0,0,0,0.06)] relative overflow-hidden md:bg-white md:border md:border-slate-200">
+          {/* Background image for mobile */}
+          <div 
+            className="absolute inset-0 md:hidden bg-cover bg-center"
+            style={{ backgroundImage: `url(${stallPfp || foodStallIcon})` }}
           />
-          <div className="flex-1">
-            <h1 className="text-base font-semibold md:text-xl">
-              {STALL_META.name}{" "}
-              <span className="font-normal text-gray-600">
-                ({STALL_META.market})
-              </span>
-            </h1>
-            <p className="mt-1 text-[11px] leading-snug text-gray-600 md:text-sm">
-              {blurb}
-              {isMobile && STALL_META.blurb.length > blurbLimit && (
-                <button
-                  onClick={() => setShowFullBlurb((v) => !v)}
-                  className="ml-1 font-medium text-[#21421B] hover:underline"
-                >
-                  {showFullBlurb ? "show less" : "more"}
-                </button>
-              )}
-            </p>
+          
+          {/* Dark overlay for mobile */}
+          <div className="absolute inset-0 bg-black/60 md:hidden" />
+          
+          {/* White background for desktop */}
+          <div className="hidden md:block absolute inset-0 bg-white" />
 
-            <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-              <div className="flex items-start gap-1.5 text-[12px]">
-                <Icon.MapPin className="mt-0.5 h-3.5 w-3.5" />
+          <div className="hidden md:block w-52 h-52 flex-shrink-0 rounded-xl overflow-hidden relative z-10 border">
+            <img
+              src={stallPfp || foodStallIcon}
+              alt="stall"
+              className="w-full h-full object-cover"
+            />
+          </div>
+
+          {/* Content section */}
+          <div className="flex-1 flex flex-col gap-3 relative z-10 justify-center md:justify-start">
+            {/* Title + description */}
+            <div>
+              <h1 className="text-xl md:text-2xl font-semibold text-white md:text-slate-900">
+                {STALL_META.name}
+              </h1>
+              <p className="text-sm font-medium text-white/80 md:text-gray-600 mt-0.5">
+                ({STALL_META.market})
+              </p>
+              <p className="mt-2 text-sm leading-relaxed text-white/90 md:text-gray-600">
+                {blurb}
+                {isMobile && STALL_META.blurb.length > blurbLimit && (
+                  <button
+                    onClick={() => setShowFullBlurb((v) => !v)}
+                    className="ml-1 font-medium text-white underline md:text-[#21421B] md:no-underline md:hover:underline"
+                  >
+                    {showFullBlurb ? "show less" : "more"}
+                  </button>
+                )}
+              </p>
+            </div>
+
+            {/* Location + Wait time row */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-white/90 md:text-gray-600">
+              {/* Location */}
+              <div className="flex items-start gap-2">
+                <div className="mt-[2px] flex h-6 w-6 items-center justify-center rounded-full border border-white/50 md:border-gray-300">
+                  <Icon.MapPin className="h-3.5 w-3.5 text-white md:text-gray-600" />
+                </div>
                 <div>
-                  <div className="font-medium">{STALL_META.address}</div>
-                  <div className="text-[11px] text-gray-600">
+                  <p className="text-xs uppercase tracking-wide text-white/70 md:text-gray-500">
+                    Location
+                  </p>
+                  <p className="text-sm font-medium text-white md:text-gray-800">
+                    {STALL_META.address}
+                  </p>
+                  <p className="text-xs text-white/70 md:text-gray-500">
                     {STALL_META.distance}
-                  </div>
+                  </p>
                 </div>
               </div>
 
-              <div className="flex items-start gap-1.5 text-[12px]">
-                <Icon.Clock className="mt-0.5 h-3.5 w-3.5" />
+              {/* Wait time */}
+              <div className="flex items-start gap-2">
+                <div className="mt-[2px] flex h-6 w-6 items-center justify-center rounded-full border border-white/50 md:border-gray-300">
+                  <Icon.Clock className="h-3.5 w-3.5 text-white md:text-gray-600" />
+                </div>
                 <div>
-                  <div className="font-medium">Estimated waiting time</div>
-                  <div className="text-[11px] text-gray-600">
+                  <p className="text-xs uppercase tracking-wide text-white/70 md:text-gray-500">
+                    Estimated waiting time
+                  </p>
+                  <p className="text-sm font-medium text-white md:text-gray-800">
                     {STALL_META.waitTime}
-                  </div>
+                  </p>
                 </div>
               </div>
             </div>
+            {/* View on map button */}
             <button
-              onClick={() =>
-                navigate(`/hawker-centres/map?centreId=${stall.hawkerCentreId}`)
-              }
-              className="mt-6 inline-flex items-center rounded-lg bg-[#21421B] px-2.5 py-1.5 text-[11px] font-medium text-white hover:bg-[#21421B]/90"
+              onClick={() => {
+                const centreId = stall?.hawkerCentreId;
+                if (centreId) {
+                  navigate(`/hawker-centres/map?centreId=${encodeURIComponent(centreId)}`);
+                }
+              }}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium rounded-full bg-white md:bg-[#21421B] text-[#21421B] md:text-white w-max hover:bg-white/90 md:hover:bg-[#21421B]/90 transition-colors"
             >
+              <svg
+                viewBox="0 0 24 24"
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+              >
+                <path
+                  d="M4 7l6-2 6 2 4-1v11l-4 1-6-2-6 2-4-1V8z"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
               View on map
             </button>
           </div>
         </section>
 
-        <section className="mt-4">
-          <div
-            className="flex items-center justify-between gap-1"
-            ref={controlsRef}
-          >
-            <div className="inline-flex rounded-xl border bg-white p-0.5">
+        <section className="mt-5" ref={controlsRef}>
+          {/* Tab toggles row */}
+          <div className="flex items-center justify-between">
+            <div className="inline-flex bg-white border border-[#E5E5E5] rounded-xl p-1 gap-[3px]">
               <button
                 onClick={() => setTab("menu")}
-                className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-[11px] sm:text-sm ${tab === "menu"
+                className={`flex items-center gap-2 px-4 py-2.5 text-sm rounded-lg font-medium transition-colors ${tab === "menu"
                     ? "bg-[#21421B] text-white"
-                    : "text-gray-700 hover:bg-gray-100"
+                    : "text-gray-400"
                   }`}
               >
-                <Icon.MenuList className="h-3 w-3 sm:h-4 sm:w-4" />
+                <Icon.MenuList className="h-4 w-4" />
                 Menu
               </button>
               <button
                 onClick={() => setTab("photos")}
-                className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-[11px] sm:text-sm ${tab === "photos"
+                className={`flex items-center gap-2 px-4 py-2.5 text-sm rounded-lg font-medium transition-colors ${tab === "photos"
                     ? "bg-[#21421B] text-white"
-                    : "text-gray-700 hover:bg-gray-100"
+                    : "text-gray-400"
                   }`}
               >
-                <Icon.Photo className="h-3 w-3 sm:h-4 sm:w-4" />
+                <Icon.Photo className="h-4 w-4" />
                 Photos
               </button>
               <button
                 onClick={() => setTab("about")}
-                className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-[11px] sm:text-sm ${tab === "about"
+                className={`flex items-center gap-2 px-4 py-2.5 text-sm rounded-lg font-medium transition-colors ${tab === "about"
                     ? "bg-[#21421B] text-white"
-                    : "text-gray-700 hover:bg-gray-100"
+                    : "text-gray-400"
                   }`}
               >
-                <Icon.Info className="h-3 w-3 sm:h-4 sm:w-4" />
+                <Icon.Info className="h-4 w-4" />
                 About
               </button>
             </div>
+          </div>
 
-            {tab === "menu" && (
-              <div className="relative flex items-center gap-1.5">
+          {/* Filter controls row - only shown on menu tab */}
+          {tab === "menu" && (
+            <div className="mt-3 flex items-start gap-2">
+              <div className="relative h-10">
                 <button
                   onClick={() => {
                     setOpenFilter((v) => !v);
                     setShowSearch(false);
                   }}
-                  className="flex h-8 w-24 items-center justify-between rounded-xl border bg-white px-2 text-[11px] text-gray-700 hover:bg-gray-50 sm:h-10 sm:w-40 sm:px-3 sm:text-sm"
+                  className="flex h-10 items-center justify-between gap-2 rounded-xl border bg-white px-3 text-sm text-gray-700 hover:bg-gray-50 min-w-[100px]"
                 >
                   <span className="truncate">
                     {activeSection === "All" ? "Filter" : activeSection}
                   </span>
-                  <Icon.Caret className="h-3 w-3 text-gray-500 sm:h-4 sm:w-4" />
+                  <Icon.Caret className="h-4 w-4 text-gray-500 flex-shrink-0" />
                 </button>
 
                 {openFilter && (
-                  <div className="absolute right-9 top-9 z-20 w-36 rounded-xl border bg-white py-1 shadow-sm sm:right-12 sm:top-12 sm:w-40">
+                  <div className="absolute left-0 top-full mt-1 z-20 w-44 rounded-xl border bg-white py-1 shadow-lg">
                     {sections.map((s) => (
                       <button
                         key={s}
@@ -599,7 +649,7 @@ export default function StallEmenu() {
                           setActiveSection(s);
                           setOpenFilter(false);
                         }}
-                        className={`w-full px-3 py-1.5 text-left text-[11px] hover:bg-gray-100 sm:text-sm ${activeSection === s
+                        className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-100 ${activeSection === s
                             ? "font-medium text-[#21421B]"
                             : "text-gray-800"
                           }`}
@@ -609,27 +659,30 @@ export default function StallEmenu() {
                     ))}
                   </div>
                 )}
+              </div>
 
+              {/* Search button - next to filter */}
+              <div className="relative flex items-center">
                 <button
                   onClick={() => {
                     setShowSearch(true);
                     setOpenFilter(false);
                   }}
-                  className={`grid h-8 w-8 place-items-center rounded-xl border bg-white hover:bg-gray-50 sm:h-10 sm:w-10 ${showSearch ? "hidden" : ""
+                  className={`grid h-10 w-10 place-items-center rounded-xl border bg-white hover:bg-gray-50 ${showSearch ? "hidden" : ""
                     }`}
                   aria-label="Open search"
                 >
-                  <Icon.Search className="h-3.5 w-3.5 text-gray-700 sm:h-4 sm:w-4" />
+                  <Icon.Search className="h-4 w-4 text-gray-700" />
                 </button>
 
                 <div
-                  className={`absolute right-0 top-0 z-30 h-8 overflow-hidden transition-all duration-300 sm:h-10 ${showSearch
-                      ? "w-[8.8rem] opacity-100 sm:w-[14rem]"
+                  className={`absolute left-0 top-0 z-30 h-10 overflow-hidden transition-all duration-300 ${showSearch
+                      ? "w-[200px] opacity-100 sm:w-[240px]"
                       : "pointer-events-none w-0 opacity-0"
                     }`}
                 >
                   <div className="relative h-full">
-                    <Icon.Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-500 sm:h-4 sm:w-4" />
+                    <Icon.Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
                     <input
                       value={query}
                       onChange={(e) => setQuery(e.target.value)}
@@ -637,24 +690,24 @@ export default function StallEmenu() {
                         e.key === "Enter" && e.preventDefault()
                       }
                       placeholder="Search in menu"
-                      className="h-full w-full rounded-xl border bg-white pl-8 pr-8 text-[11px] outline-none focus:border-gray-300 sm:text-sm"
+                      className="h-full w-full rounded-xl border bg-white pl-9 pr-9 text-sm outline-none focus:border-gray-300"
                     />
                     <button
                       onClick={() => {
                         setQuery("");
                         setShowSearch(false);
                       }}
-                      className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-1 hover:bg-gray-100"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 hover:bg-gray-100"
                       aria-label="Close search"
                       type="button"
                     >
-                      <Icon.Close className="h-3.5 w-3.5 text-gray-600 sm:h-4 sm:w-4" />
+                      <Icon.Close className="h-4 w-4 text-gray-600" />
                     </button>
                   </div>
                 </div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {tab === "menu" && (
             <>

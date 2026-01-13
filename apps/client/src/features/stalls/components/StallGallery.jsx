@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useParams } from "react-router-dom";
 import UpvoteIcon from "../assets/upvote.svg";
 import DownvoteIcon from "../assets/downvote.svg";
-import api from "../../../lib/api";
+import api from "@lib/api";
 import { supabase } from "../../../lib/supabase";
 import { formatDate } from "../../../utils/helpers";
 
@@ -542,9 +543,9 @@ export default function StallGallery({ onNavigateToMenuItem }) {
       </div>
 
       {/* ===== IMAGE PREVIEW POPUP ===== */}
-      {popupId && popupItem && (
+      {popupId && popupItem && createPortal(
         <div
-          className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4"
+          className="fixed inset-0 bg-black/60 z-[1000] flex items-center justify-center p-4"
           onClick={() => setPopupId(null)}
         >
           <div
@@ -630,15 +631,15 @@ export default function StallGallery({ onNavigateToMenuItem }) {
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ===== REPORT POPUP FORM ===== */}
-      {reportModalOpen && reportTargetId && (
+      {reportModalOpen && popupId && createPortal(
         <div
-          className="fixed inset-0 bg-black/60 z-50 
-             flex items-start justify-center p-4 pt-20"
-          onClick={closeReportModal}
+          className="fixed inset-0 bg-black/60 z-[1100] flex items-center justify-center p-4"
+          onClick={() => setReportModalOpen(false)}
         >
           <div
             className="bg-white rounded-xl max-w-md w-full p-5 shadow-2xl"
@@ -656,17 +657,24 @@ export default function StallGallery({ onNavigateToMenuItem }) {
                 <label className="block text-sm font-medium mb-1">
                   Reason <span className="text-rose-500">*</span>
                 </label>
-                <select
-                  value={reportReason}
-                  onChange={(e) => setReportReason(e.target.value)}
-                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                >
-                  <option value="">Select a reason</option>
-                  <option value="wrong-stall">Not from this stall</option>
-                  <option value="inappropriate">Inappropriate content</option>
-                  <option value="spam">Spam / misleading</option>
-                  <option value="other">Other</option>
-                </select>
+                <div className="relative">
+                  <select
+                    value={reportReason}
+                    onChange={(e) => setReportReason(e.target.value)}
+                    className="w-full border rounded-lg px-3 pr-10 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 appearance-none bg-white"
+                  >
+                    <option value="">Select a reason</option>
+                    <option value="wrong-stall">Not from this stall</option>
+                    <option value="inappropriate">Inappropriate content</option>
+                    <option value="spam">Spam / misleading</option>
+                    <option value="other">Other</option>
+                  </select>
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                    <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </div>
               </div>
 
               <div>
@@ -677,7 +685,7 @@ export default function StallGallery({ onNavigateToMenuItem }) {
                   value={reportDetails}
                   onChange={(e) => setReportDetails(e.target.value)}
                   rows={3}
-                  placeholder="Tell us what’s wrong with this photo..."
+                  placeholder="Tell us what's wrong with this photo..."
                   className="w-full border rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
@@ -699,7 +707,8 @@ export default function StallGallery({ onNavigateToMenuItem }) {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ===== Bottom Notification Bar ===== */}
