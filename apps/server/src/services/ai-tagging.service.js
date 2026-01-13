@@ -1,7 +1,8 @@
 import axios from 'axios';
-import { z } from 'zod';
+import Joi from 'joi';
 
-const OPENAI_API_URL = process.env.OPENAI_API_URL || 'https://api.openai.com/v1/responses';
+const OPENAI_API_URL =
+  process.env.OPENAI_API_URL || 'https://api.openai.com/v1/responses';
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
 export const TAG_SCHEMA = {
@@ -48,20 +49,37 @@ export const TAG_SCHEMA = {
   },
 };
 
-const TagEvidenceSchema = z.object({
-  from: z.array(z.enum(['image', 'caption', 'history'])).min(1),
-}).strict();
+const TagEvidenceSchema = Joi.object({
+  from: Joi.array()
+    .items(Joi.string().valid('image', 'caption', 'history'))
+    .min(1)
+    .required(),
+})
+  .required()
+  .unknown(false);
 
-const TagSchema = z.object({
-  label: z.string().max(32),
-  confidence: z.number().min(0).max(1),
-  evidence: TagEvidenceSchema,
-}).strict();
+const TagSchema = Joi.object({
+  label: Joi.string().max(32).required(),
+  confidence: Joi.number().min(0).max(1).required(),
+  evidence: TagEvidenceSchema.required(),
+})
+  .required()
+  .unknown(false);
 
-const TagResponseSchema = z.object({
-  is_food: z.boolean(),
-  tags: z.array(TagSchema).max(3),
-}).strict();
+const TagResponseSchema = Joi.object({
+  is_food: Joi.boolean().required(),
+  tags: Joi.array().items(TagSchema).max(3).required(),
+})
+  .required()
+  .unknown(false);
+
+const validateTagResponse = (payload) => {
+  const { error, value } = TagResponseSchema.validate(payload, {
+    abortEarly: false,
+    allowUnknown: false,
+  });
+  return error ? null : value;
+};
 
 const BASE_INSTRUCTIONS = [
   'You are tagging a dish photo for a menu item upload.',
@@ -80,11 +98,10 @@ const BASE_INSTRUCTIONS = [
   'Return only JSON that matches the schema.',
 ].join(' ');
 
-const buildInstructions = (fixSchema) => (
+const buildInstructions = (fixSchema) =>
   fixSchema
     ? `${BASE_INSTRUCTIONS} Fix to schema: respond with JSON that strictly matches the schema.`
-    : BASE_INSTRUCTIONS
-);
+    : BASE_INSTRUCTIONS;
 
 const extractPayload = (data) => {
   if (data?.output_json) {
@@ -102,7 +119,10 @@ const extractPayload = (data) => {
       if (part?.type === 'output_json' && part?.json) {
         return part.json;
       }
-      if ((part?.type === 'output_text' || part?.type === 'text') && typeof part.text === 'string') {
+      if (
+        (part?.type === 'output_text' || part?.type === 'text') &&
+        typeof part.text === 'string'
+      ) {
         return part.text;
       }
     }
@@ -131,7 +151,12 @@ const parseResponsePayload = (payload) => {
   return null;
 };
 
-const requestTags = async ({ caption, imageUrl, previousTagStats, fixSchema }) => {
+const requestTags = async ({
+  caption,
+  imageUrl,
+  previousTagStats,
+  fixSchema,
+}) => {
   if (!OPENAI_API_KEY) {
     throw new Error('OPENAI_API_KEY is not configured');
   }
@@ -189,9 +214,9 @@ export const aiTaggingService = {
       fixSchema: false,
     });
 
-    const firstValidation = TagResponseSchema.safeParse(firstAttempt);
-    if (firstValidation.success) {
-      return firstValidation.data;
+    const firstValidation = validateTagResponse(firstAttempt);
+    if (firstValidation) {
+      return firstValidation;
     }
 
     const retryAttempt = await requestTags({
@@ -201,9 +226,9 @@ export const aiTaggingService = {
       fixSchema: true,
     });
 
-    const retryValidation = TagResponseSchema.safeParse(retryAttempt);
-    if (retryValidation.success) {
-      return retryValidation.data;
+    const retryValidation = validateTagResponse(retryAttempt);
+    if (retryValidation) {
+      return retryValidation;
     }
 
     return null;
