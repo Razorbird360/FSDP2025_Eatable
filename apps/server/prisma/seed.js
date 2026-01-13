@@ -5,7 +5,6 @@ const prisma = new PrismaClient();
 
 async function main() {
   // --- Optional: clean tables in FK-safe order if you're reseeding ---
-
   await prisma.discounts_charges.deleteMany();
   await prisma.userVoucher.deleteMany();
   await prisma.existingVoucher.deleteMany();
@@ -13,7 +12,6 @@ async function main() {
   await prisma.contentReport.deleteMany();
   await prisma.mediaUpload.deleteMany();
   await prisma.orderItem.deleteMany();
-  await prisma.discounts_charges.deleteMany();
   await prisma.order.deleteMany();
   await prisma.userFavorite.deleteMany();
   await prisma.user_cart.deleteMany();
@@ -2442,6 +2440,135 @@ async function main() {
     });
   }
 
+  console.log('Seeding Order for user ' + specificUserId);
+
+  // Targets (per month, dollars): Jan 50, Feb 100, Mar 200, Apr 150, May 30, Jun 40, Jul 250, Aug 100, Sep 150, Oct 100, Nov 50, Dec 120
+  // All totals are in cents (unitCents * quantity). Status set to "completed".
+
+  let ordersToSeed = [];
+
+  // Dynamic generation for June-Dec 2026
+  const tianTianItems = menuItemsByStallName["Tian Tian Hainanese Chicken Rice"];
+  const monthsToSeed = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]; // June (5) to Dec (11)
+
+  for (const monthIndex of monthsToSeed) {
+    // Target total between $50 (5000 cents) and $200 (20000 cents)
+    const targetMonthlyTotal = Math.floor(Math.random() * (20000 - 5000 + 1)) + 5000;
+    let currentMonthlyTotal = 0;
+
+    for (let i = 0; i < 10; i++) {
+      const day = Math.floor(Math.random() * 28) + 1;
+      const hour = Math.floor(Math.random() * (20 - 11) + 11); // 11am to 8pm
+      const minute = Math.floor(Math.random() * 60);
+      const date = new Date(Date.UTC(2026, monthIndex, day, hour, minute));
+
+      // Calculate target for this specific order
+      const remainingOrders = 10 - i;
+      const remainingAmount = targetMonthlyTotal - currentMonthlyTotal;
+
+      // Base target is average of remaining amount
+      let targetOrderAmount = Math.floor(remainingAmount / remainingOrders);
+
+      // Add randomness (0.5x to 1.5x of average), but ensure minimum $5
+      targetOrderAmount = Math.floor(targetOrderAmount * (0.5 + Math.random()));
+      if (targetOrderAmount < 500) targetOrderAmount = 500;
+
+      // Cap at remaining amount if it's the last few orders to avoid overshooting too much
+      if (i === 9) targetOrderAmount = remainingAmount;
+      if (targetOrderAmount < 500 && i === 9) targetOrderAmount = 500; // Ensure last order is at least valid
+
+      const items = [];
+      let currentOrderAmount = 0;
+
+      // Add items until we reach target order amount
+      while (currentOrderAmount < targetOrderAmount) {
+        const randomItem = tianTianItems[Math.floor(Math.random() * tianTianItems.length)];
+        const quantity = 1;
+
+        // Vary unit price slightly (+/- 10%)
+        const variance = 0.9 + Math.random() * 0.2;
+        const unitCents = Math.floor(randomItem.priceCents * variance);
+
+        items.push({
+          name: randomItem.name,
+          quantity: quantity,
+          unitCents: unitCents
+        });
+        currentOrderAmount += unitCents * quantity;
+
+        // Break if we are close enough (within 200 cents) to avoid adding too many items
+        if (currentOrderAmount >= targetOrderAmount - 200) break;
+      }
+
+      currentMonthlyTotal += currentOrderAmount;
+
+      ordersToSeed.push({
+        stallName: "Tian Tian Hainanese Chicken Rice",
+        status: "completed",
+        createdAt: date,
+        items: items,
+      });
+    }
+    console.log(`Generated 10 orders for month ${monthIndex + 1}/2026 with total ${currentMonthlyTotal} cents (Target: ${targetMonthlyTotal})`);
+  }
+
+  for (const orderData of ordersToSeed) {
+    const stall = await prisma.stall.findFirst({
+      where: { 
+        name: {
+            equals: orderData.stallName,
+            mode: "insensitive",
+          }
+      }
+    });
+
+    if (!stall) {
+      console.log(`Stall ${orderData.stallName} not found, skipping order.`);
+      continue;
+    }
+
+    const totalCents = orderData.items.reduce((acc, item) => acc + (item.unitCents * item.quantity), 0);
+
+    const order = await prisma.order.create({
+      data: {
+        userId: specificUserId,
+        stallId: stall.id,
+        status: orderData.status,
+        totalCents: totalCents,
+        createdAt: orderData.createdAt,
+        updatedAt: orderData.createdAt,
+        completedAt: orderData.status === 'completed' ? orderData.createdAt : null,
+      }
+    });
+
+    for (const itemData of orderData.items) {
+      const menuItem = await prisma.menuItem.findFirst({
+        where: {
+          name: {
+            equals: itemData.name,
+            mode: "insensitive",  
+          },
+        }
+      });
+
+      if (!menuItem) {
+        console.log(`Menu item ${itemData.name} not found in stall ${stall.name}, skipping item.`);
+        continue;
+      }
+
+      await prisma.orderItem.create({
+        data: {
+          orderId: order.id,
+          menuItemId: menuItem.id,
+          quantity: itemData.quantity,
+          unitCents: itemData.unitCents,
+          createdAt: orderData.createdAt,
+          updatedAt: orderData.createdAt,
+        }
+      });
+    }
+    console.log(`Seeded order for ${orderData.stallName} with total ${totalCents} cents.`);
+  }
   console.log("Seeding completed successfully (manual uploads).");
 }
 

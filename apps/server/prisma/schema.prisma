@@ -9,21 +9,21 @@ datasource db {
 }
 
 model User {
-  id                      String            @id @default(uuid()) @db.Uuid
-  email                   String            @unique
-  displayName             String            @map("display_name")
-  role                    String            @default("user")
-  createdAt               DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt               DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
-  username                String            @unique
-  skipOnboarding          Boolean           @default(false) @map("skip_Onboarding")
+  id                      String              @id @default(uuid()) @db.Uuid
+  email                   String              @unique
+  displayName             String              @map("display_name")
+  role                    String              @default("user")
+  createdAt               DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+  username                String              @unique
+  skipOnboarding          Boolean             @default(false) @map("skip_Onboarding")
   first_name              String?
   last_name               String?
   location                String?
   description             String?
   verified                Boolean?
-  verificationPhotoUrl    String?           @map("verification_photo_url")
-  verificationSubmittedAt DateTime?         @map("verification_submitted_at") @db.Timestamptz(6)
+  verificationPhotoUrl    String?             @map("verification_photo_url")
+  verificationSubmittedAt DateTime?           @map("verification_submitted_at") @db.Timestamptz(6)
   phone                   String?
   language                String?
   reports                 ContentReport[]
@@ -37,6 +37,7 @@ model User {
   discounts_charges       discounts_charges[]
   achievements            UserAchievement[]
   monthlyActions          UserMonthlyAction[]
+  monthlyBudgets          UserMonthlyBudget[]
 
   @@map("users")
 }
@@ -348,4 +349,25 @@ model UserMonthlyAction {
 
   @@unique([userId, monthYear])
   @@map("user_monthly_actions")
+}
+
+model UserMonthlyBudget {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  userId          String   @map("user_id") @db.Uuid
+  year            Int
+  month           Int        // 1–12
+
+  budgetCents     Int      @map("budget_cents")
+  alertAtPercent  Int      @default(80) @map("alert_at_percent")
+  alerted  Boolean  @default(false)
+  notifiedAlready  Boolean  @default(false)
+
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, year, month])
+  @@map("user_monthly_budgets")
 }

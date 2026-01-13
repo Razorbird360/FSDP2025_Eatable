@@ -1,12 +1,18 @@
 import { useState } from "react";
 import { useOutletContext } from "react-router-dom";
-import { FiCheck, FiEdit3 } from "react-icons/fi";
+import { FiCheck, FiEdit3, FiRefreshCw, FiUser } from "react-icons/fi";
 import api from "@lib/api";
 
 export default function ProfilePage() {
-  const { profile, setProfile, loading } = useOutletContext();
+  const { profile, setProfile, loading, refreshProfile } = useOutletContext();
   const [saving, setSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+
+  const handleRetry = () => {
+    if (refreshProfile) {
+      refreshProfile();
+    }
+  };
 
   async function saveProfile() {
     setSaving(true);
@@ -34,8 +40,49 @@ export default function ProfilePage() {
 
   if (!profile) {
     return (
-      <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100 min-h-[300px] flex items-center justify-center">
-        <p className="text-gray-500">Profile not found.</p>
+      <div className="bg-white rounded-xl p-6 md:p-10 shadow-sm border border-gray-100">
+        <div className="flex flex-col gap-5">
+          <div className="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-[#E7F3E6] flex items-center justify-center">
+            <FiUser className="w-7 h-7 md:w-8 md:h-8 text-[#21421B]" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-[#21421B]">Welcome to Eatable</p>
+            <h2 className="text-xl md:text-2xl font-bold text-gray-900 mt-1">
+              Your profile is getting ready
+            </h2>
+            <p className="text-gray-600 mt-2 max-w-lg">
+              We could not load your profile details yet. Refresh to try again and keep exploring
+              your favorite stalls.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={handleRetry}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#21421B] text-white text-sm font-medium hover:bg-[#1a3515] transition-colors"
+            >
+              <FiRefreshCw className="w-4 h-4" />
+              Refresh Profile
+            </button>
+            <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-[#E7F3E6] bg-[#F8FDF3] text-sm text-gray-600">
+              <span className="w-2 h-2 rounded-full bg-[#21421B]" />
+              Your orders and collections stay safe.
+            </div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-xl border border-[#E7F3E6] bg-[#F8FDF3] p-3">
+              <p className="text-sm font-semibold text-gray-900">Faster checkout</p>
+              <p className="text-xs text-gray-500 mt-1">Save your details once.</p>
+            </div>
+            <div className="rounded-xl border border-[#E7F3E6] bg-[#F8FDF3] p-3">
+              <p className="text-sm font-semibold text-gray-900">Delivery updates</p>
+              <p className="text-xs text-gray-500 mt-1">Keep your phone handy.</p>
+            </div>
+            <div className="rounded-xl border border-[#E7F3E6] bg-[#F8FDF3] p-3">
+              <p className="text-sm font-semibold text-gray-900">Personal touches</p>
+              <p className="text-xs text-gray-500 mt-1">Set your language preference.</p>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
