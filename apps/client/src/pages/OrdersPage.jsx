@@ -13,6 +13,7 @@ const OrdersPage = () => {
         const fetchOrders = async () => {
             try {
                 const response = await api.get('/orders/my');
+                console.log('Fetched orders:', response.data);
                 setOrders(response.data.orders);
             } catch (err) {
                 console.error('Failed to fetch orders:', err);

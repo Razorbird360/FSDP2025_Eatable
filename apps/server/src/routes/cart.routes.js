@@ -11,4 +11,5 @@ router.put('/update', authMiddleware, cartController.updateCartItem);
 router.delete('/remove', authMiddleware, cartController.removeItemFromCart);
 router.delete('/clear', authMiddleware, cartController.clearCart);
 
+
 export default router;

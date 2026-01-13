@@ -9,21 +9,21 @@ datasource db {
 }
 
 model User {
-  id                      String            @id @default(uuid()) @db.Uuid
-  email                   String            @unique
-  displayName             String            @map("display_name")
-  role                    String            @default("user")
-  createdAt               DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt               DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
-  username                String            @unique
-  skipOnboarding          Boolean           @default(false) @map("skip_Onboarding")
+  id                      String              @id @default(uuid()) @db.Uuid
+  email                   String              @unique
+  displayName             String              @map("display_name")
+  role                    String              @default("user")
+  createdAt               DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+  username                String              @unique
+  skipOnboarding          Boolean             @default(false) @map("skip_Onboarding")
   first_name              String?
   last_name               String?
   location                String?
   description             String?
   verified                Boolean?
-  verificationPhotoUrl    String?           @map("verification_photo_url")
-  verificationSubmittedAt DateTime?         @map("verification_submitted_at") @db.Timestamptz(6)
+  verificationPhotoUrl    String?             @map("verification_photo_url")
+  verificationSubmittedAt DateTime?           @map("verification_submitted_at") @db.Timestamptz(6)
   phone                   String?
   language                String?
   reports                 ContentReport[]
@@ -33,6 +33,7 @@ model User {
   ownedStalls             Stall[]
   user_cart               user_cart[]
   favorites               UserFavorite[]
+  monthlyBudgets          UserMonthlyBudget[]
 
   @@map("users")
 }
@@ -82,24 +83,24 @@ model MenuItem {
 }
 
 model MediaUpload {
-  id                String            @id @default(uuid()) @db.Uuid
-  menuItemId        String            @map("menu_item_id") @db.Uuid
-  userId            String            @map("user_id") @db.Uuid
-  imageUrl          String            @map("image_url")
-  caption           String?
-  validationStatus  String            @default("pending") @map("validation_status")
-  reviewedAt        DateTime?         @map("reviewed_at") @db.Timestamptz(6)
-  reviewedBy        String?           @map("reviewed_by") @db.Uuid
-  upvoteCount       Int               @default(0) @map("upvote_count")
-  downvoteCount     Int               @default(0) @map("downvote_count")
-  voteScore         Int               @default(0) @map("vote_score")
-  createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
-  aspectRatio       String?           @map("aspect_ratio")
-  reports           ContentReport[]
-  votes             MediaUploadVote[]
-  menuItem          MenuItem          @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
-  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id               String            @id @default(uuid()) @db.Uuid
+  menuItemId       String            @map("menu_item_id") @db.Uuid
+  userId           String            @map("user_id") @db.Uuid
+  imageUrl         String            @map("image_url")
+  caption          String?
+  validationStatus String            @default("pending") @map("validation_status")
+  reviewedAt       DateTime?         @map("reviewed_at") @db.Timestamptz(6)
+  reviewedBy       String?           @map("reviewed_by") @db.Uuid
+  upvoteCount      Int               @default(0) @map("upvote_count")
+  downvoteCount    Int               @default(0) @map("downvote_count")
+  voteScore        Int               @default(0) @map("vote_score")
+  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  aspectRatio      String?           @map("aspect_ratio")
+  reports          ContentReport[]
+  votes            MediaUploadVote[]
+  menuItem         MenuItem          @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("media_uploads")
 }
@@ -226,3 +227,25 @@ model discounts_charges {
   id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   orders      Order?   @relation(fields: [orderId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
+
+model UserMonthlyBudget {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  userId          String   @map("user_id") @db.Uuid
+  year            Int
+  month           Int        // 1–12
+
+  budgetCents     Int      @map("budget_cents")
+  alertAtPercent  Int      @default(80) @map("alert_at_percent")
+  alerted  Boolean  @default(false)
+  notifiedAlready  Boolean  @default(false)
+
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, year, month])
+  @@map("user_monthly_budgets")
+}
+

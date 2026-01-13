@@ -9,6 +9,7 @@ import cartRoutes from './cart.routes.js';
 import orderRoutes from './order.routes.js';
 import netsRoutes from '../services/payment.service.js';
 import verificationRoutes from './verification.routes.js';
+import budgetRoutes from './budget.routes.js';
 import menuRoutes from './menu.routes.js';
 
 const router = Router();
@@ -27,6 +28,7 @@ router.use('/cart', cartRoutes);
 router.use('/orders', orderRoutes);
 router.use('/nets-qr', netsRoutes);
 router.use('/verification', verificationRoutes);
+router.use('/budget', budgetRoutes);
 router.use('/menu', menuRoutes);
 
 export default router;
