@@ -45,13 +45,42 @@ export const orderService = {
         return order;
     },
 
-    async orderPaymentSuccess(orderId) {
-        const updatedOrder = await prisma.order.update({
-            where: { id: orderId },
-            data: { status: 'PAID' },
+  async orderPaymentSuccess(orderId) {
+    const updatedOrder = await prisma.$transaction(async (tx) => {
+      const order = await tx.order.update({
+        where: { id: orderId },
+        data: { status: 'PAID' },
+      });
+
+      const voucherDiscounts = await tx.discounts_charges.findMany({
+        where: {
+          orderId,
+          type: 'voucher',
+          userVoucherId: { not: null },
+        },
+        select: { userVoucherId: true },
+      });
+
+      const voucherIds = [
+        ...new Set(
+          voucherDiscounts
+            .map((discount) => discount.userVoucherId)
+            .filter(Boolean)
+        ),
+      ];
+
+      if (voucherIds.length > 0) {
+        await tx.userVoucher.updateMany({
+          where: { id: { in: voucherIds }, isUsed: false },
+          data: { isUsed: true },
         });
-        return updatedOrder;
-    },
+      }
+
+      return order;
+    });
+
+    return updatedOrder;
+  },
 
     async createOrderFromCart(userId) {
         // 1) Fetch the user's cart
@@ -192,10 +221,6 @@ export const orderService = {
 
                         order.totalCents -= discountAmount;
 
-                        await tx.userVoucher.update({
-                            where: { id: userVoucherId },
-                            data: { isUsed: true },
-                        });
                     }
                 }
             }
