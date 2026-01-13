@@ -108,6 +108,11 @@ export default function OrderSummary() {
     fetchServiceFee();
   }, [fetchPendingVoucher]);
 
+  useEffect(() => {
+    if (!selectedVoucher?.userVoucherId) return;
+    fetchPendingVoucher();
+  }, [cartTotal, selectedVoucher?.userVoucherId, fetchPendingVoucher]);
+
 
   async function Checkout() {
     try {
