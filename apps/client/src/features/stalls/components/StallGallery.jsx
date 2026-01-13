@@ -636,10 +636,10 @@ export default function StallGallery({ onNavigateToMenuItem }) {
       )}
 
       {/* ===== REPORT POPUP FORM ===== */}
-      {reportModalOpen && popupId && createPortal(
+      {reportModalOpen && reportTargetId && createPortal(
         <div
           className="fixed inset-0 bg-black/60 z-[1100] flex items-center justify-center p-4"
-          onClick={() => setReportModalOpen(false)}
+          onClick={closeReportModal}
         >
           <div
             className="bg-white rounded-xl max-w-md w-full p-5 shadow-2xl"

@@ -275,6 +275,26 @@ async function getHawkerDishesById(hawkerId) {
       upvoteTotals.map((row) => [row.menuItemId, row._sum.upvoteCount ?? 0])
     );
 
+    const uploadStats = await prisma.mediaUpload.groupBy({
+      by: ['menuItemId'],
+      where: {
+        menuItemId: { in: dishIds },
+        validationStatus: 'approved',
+      },
+      _count: { _all: true },
+      _max: { createdAt: true },
+    });
+
+    const uploadStatsByMenuItem = new Map(
+      uploadStats.map((stat) => [
+        stat.menuItemId,
+        {
+          approvedUploadCount: stat._count?._all ?? 0,
+          lastApprovedUploadAt: stat._max?.createdAt ?? null,
+        },
+      ])
+    );
+
     const uploadTags = await prisma.uploadTag.findMany({
       where: {
         upload: {
@@ -324,6 +344,8 @@ async function getHawkerDishesById(hawkerId) {
         });
       }
     }
+
+
 
     return dishes.map((dish) => {
       const stats = uploadStatsByMenuItem.get(dish.id) || {
