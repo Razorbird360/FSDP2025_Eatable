@@ -4,6 +4,7 @@ import foodStallIcon from "./Assets/FoodStall_Icon.png";
 import StallGallery from "../../stalls/components/StallGallery";
 import { useCart } from "../../orders/components/CartContext";
 import api from "../../../lib/api"; // ⬅️ adjust path if needed
+import { resolveTagConflicts } from "../../../utils/tagging";
 import { useNavigate } from "react-router-dom"
 
 const Icon = {
@@ -104,6 +105,19 @@ const Icon = {
   ),
 };
 
+const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+
+const getTagStyle = (percent = 0) => {
+  const safe = clamp(Number(percent) || 0, 0, 100);
+  const hue = Math.round((safe / 100) * 120);
+  return {
+    backgroundColor: `hsl(${hue} 70% 92%)`,
+    borderColor: `hsl(${hue} 60% 45%)`,
+    color: `hsl(${hue} 55% 25%)`,
+  };
+};
+
+
 function ItemDialog({ open, item, onClose, onAdd }) {
   const [qty, setQty] = useState(1);
   const [notes, setNotes] = useState("");
@@ -173,6 +187,19 @@ function ItemDialog({ open, item, onClose, onAdd }) {
           </div>
 
           <p className="mt-2 text-sm text-gray-600">{item.desc}</p>
+          {item.tags && item.tags.length > 0 && (
+            <div className="mt-3 flex items-center gap-2 overflow-x-auto pb-1">
+              {item.tags.map((tag) => (
+                <span
+                  key={tag.label}
+                  className="whitespace-nowrap rounded-full border px-2.5 py-1 text-[11px] font-medium"
+                  style={getTagStyle(tag.reliabilityPercent)}
+                >
+                  {tag.label} · {tag.reliabilityPercent}%
+                </span>
+              ))}
+            </div>
+          )}
 
           <div className="mt-4">
             <label className="mb-1 block text-sm font-medium">
@@ -289,6 +316,15 @@ export default function StallEmenu() {
                   typeof topUpload?.upvoteCount === "number"
                     ? topUpload.upvoteCount
                     : undefined,
+                approvedUploadCount:
+                  typeof m.approvedUploadCount === "number"
+                    ? m.approvedUploadCount
+                    : 0,
+                tags: resolveTagConflicts(
+                  m.menuItemTagAggs || [],
+                  m.approvedUploadCount || 0,
+                  3
+                ),
               };
             }) || [];
 

@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
+import { useParams } from "react-router-dom";
 import UpvoteIcon from "../assets/upvote.svg";
 import DownvoteIcon from "../assets/downvote.svg";
-import { useParams } from "react-router-dom";
 import api from "../../../lib/api";
 import { supabase } from "../../../lib/supabase";
+import { formatDate } from "../../../utils/helpers";
 
 export default function StallGallery({ onNavigateToMenuItem }) {
   const { stallId } = useParams();
@@ -428,6 +429,9 @@ export default function StallGallery({ onNavigateToMenuItem }) {
   const popupItem = popupId ? itemById.get(popupId) : null;
   const uploaderName =
     popupItem?.raw?.user?.displayName || "Anonymous foodie";
+  const postedAt = popupItem?.raw?.createdAt
+    ? formatDate(popupItem.raw.createdAt)
+    : null;
 
   // ===== Render =====
   return (
@@ -570,6 +574,11 @@ export default function StallGallery({ onNavigateToMenuItem }) {
                 <div className="text-xs text-gray-500">
                   Uploaded by <span className="font-medium">{uploaderName}</span>
                 </div>
+                {postedAt && (
+                  <div className="text-xs text-gray-500">
+                    Posted on <span className="font-medium">{postedAt}</span>
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center justify-between shrink-0">

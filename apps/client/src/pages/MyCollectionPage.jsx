@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '../lib/api';
 import { supabase } from '../lib/supabase';
+import { formatDate } from '../utils/helpers';
 import UpvoteIcon from '../features/stalls/assets/upvote.svg';
 import DownvoteIcon from '../features/stalls/assets/downvote.svg';
 
@@ -176,6 +177,13 @@ const MyCollectionPage = () => {
         }
         setReportTargetItem(null);
     };
+
+    const popupPostedAt = popupItem?.upload?.createdAt
+        ? formatDate(popupItem.upload.createdAt)
+        : null;
+    const uploadPostedAt = uploadPopupItem?.createdAt
+        ? formatDate(uploadPopupItem.createdAt)
+        : null;
 
     return (
         <div className="bg-white rounded-xl border border-gray-100 p-8 shadow-sm">
@@ -353,6 +361,11 @@ const MyCollectionPage = () => {
                                 <div className="text-xs text-gray-500">
                                     Uploaded by <span className="font-medium">{popupItem.upload.user?.displayName || 'Anonymous foodie'}</span>
                                 </div>
+                                {popupPostedAt && (
+                                    <div className="text-xs text-gray-500">
+                                        Posted on <span className="font-medium">{popupPostedAt}</span>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="flex flex-col items-start md:flex-row md:items-center md:gap-6 gap-1">
@@ -501,6 +514,11 @@ const MyCollectionPage = () => {
                                 <div className="text-xs text-gray-500">
                                     Uploaded by <span className="font-medium">{uploadPopupItem.user?.displayName || 'You'}</span>
                                 </div>
+                                {uploadPostedAt && (
+                                    <div className="text-xs text-gray-500">
+                                        Posted on <span className="font-medium">{uploadPostedAt}</span>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="flex flex-col items-start md:flex-row md:items-center md:gap-6 gap-1">

@@ -27,7 +27,6 @@ let stallTemplates = [
     description: 'Tender poached chicken with aromatic rice and house-made chilli.',
     imageUrl:
       'https://images.pexels.com/photos/30120279/pexels-photo-30120279.jpeg?auto=compress&cs=tinysrgb&w=1200',
-    tags: ['chicken rice', 'comfort food', 'signature'],
   },
   {
     key: 'fishball_noodles',
@@ -36,7 +35,6 @@ let stallTemplates = [
     description: 'Springy fishballs and mee pok tossed in savoury chilli.',
     imageUrl:
       'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=1200&q=80',
-    tags: ['noodles', 'teochew', 'light bites'],
   },
   {
     key: 'laksa',
@@ -45,7 +43,6 @@ let stallTemplates = [
     description: 'Rich coconut laksa broth with prawns and cockles.',
     imageUrl:
       'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=1200&q=80',
-    tags: ['laksa', 'spicy', 'noodles'],
   },
   {
     key: 'satay',
@@ -54,7 +51,6 @@ let stallTemplates = [
     description: 'Smoky charcoal-grilled satay with homemade peanut sauce.',
     imageUrl:
       'https://images.unsplash.com/photo-1470337458703-46ad1756a187?auto=format&fit=crop&w=1200&q=80',
-    tags: ['satay', 'grill', 'evening'],
   },
   {
     key: 'prawn_noodles',
@@ -63,7 +59,6 @@ let stallTemplates = [
     description: 'Deep prawn broth simmered for hours with pork bones.',
     imageUrl:
       'https://images.unsplash.com/photo-1484723091739-30a097e8f929?auto=format&fit=crop&w=1200&q=80',
-    tags: ['prawn noodles', 'broth', 'hearty'],
   },
   {
     key: 'nasi_lemak',
@@ -72,7 +67,6 @@ let stallTemplates = [
     description: 'Coconut rice with crispy chicken wing and ikan bilis.',
     imageUrl:
       'https://images.unsplash.com/photo-1562967914-608f82629710?auto=format&fit=crop&w=1200&q=80',
-    tags: ['nasi lemak', 'malay cuisine', 'breakfast'],
   },
   {
     key: 'vegetarian',
@@ -81,7 +75,6 @@ let stallTemplates = [
     description: 'Wholesome plant-based bowls with local flavours.',
     imageUrl:
       'https://images.unsplash.com/photo-1478145046317-39f10e56b5e9?auto=format&fit=crop&w=1200&q=80',
-    tags: ['vegetarian', 'light', 'healthy'],
   },
   {
     key: 'desserts',
@@ -90,7 +83,6 @@ let stallTemplates = [
     description: 'Icy treats and local desserts perfect for humid afternoons.',
     imageUrl:
       'https://images.unsplash.com/photo-1504754524776-8f4f37790ca0?auto=format&fit=crop&w=1200&q=80',
-    tags: ['desserts', 'cold drinks', 'sweet'],
   },
   {
     key: 'western',
@@ -99,7 +91,6 @@ let stallTemplates = [
     description: 'Hearty grilled meats and crispy fries.',
     imageUrl:
       'https://images.unsplash.com/photo-1551183053-bf91a1d81141?auto=format&fit=crop&w=1200&q=80',
-    tags: ['western', 'grill', 'steak'],
   },
   {
     key: 'carrot_cake',
@@ -108,7 +99,6 @@ let stallTemplates = [
     description: 'Black and white carrot cake fried with garlic and egg.',
     imageUrl:
       'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=1200&q=80',
-    tags: ['carrot cake', 'wok hei', 'snack'],
   },
   {
     key: 'economic_rice',
@@ -117,7 +107,6 @@ let stallTemplates = [
     description: 'Choose your favourite homely dishes over steamed rice.',
     imageUrl:
       'https://images.unsplash.com/photo-1504754524776-8f4f37790ca0?auto=format&fit=crop&w=1200&q=80&sat=-10',
-    tags: ['economic rice', 'comfort', 'variety'],
   },
   {
     key: 'rojak',
@@ -126,7 +115,6 @@ let stallTemplates = [
     description: 'Crisp dough fritters tossed in sweet shrimp paste dressing.',
     imageUrl:
       'https://images.unsplash.com/photo-1482049016688-2d3e1b311543?auto=format&fit=crop&w=1200&q=80',
-    tags: ['rojak', 'fruits', 'snack'],
   },
   {
     key: 'kaya_toast',
@@ -135,7 +123,6 @@ let stallTemplates = [
     description: 'Old-school breakfast with kaya, butter, and kopi.',
     imageUrl:
       'https://images.unsplash.com/photo-1515003197210-e0cd71810b5f?auto=format&fit=crop&w=1200&q=80',
-    tags: ['breakfast', 'toast', 'kopi'],
   },
   {
     key: 'prata',
@@ -144,7 +131,6 @@ let stallTemplates = [
     description: 'Crispy prata flipped fresh on the griddle.',
     imageUrl:
       'https://images.unsplash.com/photo-1525755662778-989d0524087e?auto=format&fit=crop&w=1200&q=80',
-    tags: ['prata', 'indian', 'supper'],
   },
   {
     key: 'mee_goreng',
@@ -153,7 +139,6 @@ let stallTemplates = [
     description: 'Fiery wok-fried noodles with sambal and potatoes.',
     imageUrl:
       'https://images.pexels.com/photos/1438672/pexels-photo-1438672.jpeg?auto=compress&cs=tinysrgb&w=1200',
-    tags: ['mee goreng', 'spicy', 'halal'],
   },
   {
     key: 'claypot_rice',
@@ -162,7 +147,6 @@ let stallTemplates = [
     description: 'Slow-cooked rice with Chinese sausage and salted fish.',
     imageUrl:
       'https://images.pexels.com/photos/847362/pexels-photo-847362.jpeg?auto=compress&cs=tinysrgb&w=1200',
-    tags: ['claypot', 'rice', 'comfort'],
   },
   {
     key: 'yong_tau_foo',
@@ -171,7 +155,6 @@ let stallTemplates = [
     description: 'Hand-stuffed tofu and vegetables served dry or soup.',
     imageUrl:
       'https://images.unsplash.com/photo-1550547660-d9450f859349?auto=format&fit=crop&w=1200&q=80',
-    tags: ['yong tau foo', 'soup', 'healthy'],
   },
   {
     key: 'dim_sum',
@@ -180,7 +163,6 @@ let stallTemplates = [
     description: 'Steamed baskets stacked high for breakfast crowds.',
     imageUrl:
       'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=1200&q=80&sat=-20',
-    tags: ['dim sum', 'steamed', 'breakfast'],
   },
   {
     key: 'bbq_stingray',
@@ -189,7 +171,6 @@ let stallTemplates = [
     description: 'Banana leaf stingray coated with hae bee hiam sambal.',
     imageUrl:
       'https://images.unsplash.com/photo-1448043552756-e747b7a2b2b8?auto=format&fit=crop&w=1200&q=80',
-    tags: ['seafood', 'stingray', 'sambal'],
   },
   {
     key: 'seafood_platter',
@@ -198,7 +179,6 @@ let stallTemplates = [
     description: 'Tze char seafood wok-fried with smoky sambal.',
     imageUrl:
       'https://images.unsplash.com/photo-1482049016688-2d3e1b311543?auto=format&fit=crop&w=1200&q=80&sat=40',
-    tags: ['seafood', 'tze char', 'dinner'],
   },
   {
     key: 'lei_cha',
@@ -207,7 +187,6 @@ let stallTemplates = [
     description: 'Herbal tea broth poured over grains and vegetables.',
     imageUrl:
       'https://images.unsplash.com/photo-1455853659719-4b521eebc76d?auto=format&fit=crop&w=1200&q=80',
-    tags: ['hakka', 'healthy', 'tea rice'],
   },
   {
     key: 'porridge',
@@ -216,7 +195,6 @@ let stallTemplates = [
     description: 'Light rice porridge paired with classic side dishes.',
     imageUrl:
       'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=1200&q=80&hue=15',
-    tags: ['porridge', 'teochew', 'comfort'],
   },
   {
     key: 'ban_mian',
@@ -225,7 +203,6 @@ let stallTemplates = [
     description: 'Thick hand-pulled noodles served in anchovy broth.',
     imageUrl:
       'https://images.unsplash.com/photo-1466978913421-dad2ebd01d17?auto=format&fit=crop&w=1200&q=80&sat=-25',
-    tags: ['ban mian', 'soup', 'handmade'],
   },
   {
     key: 'korean_bbq',
@@ -234,7 +211,6 @@ let stallTemplates = [
     description: 'Smoke-kissed meats inspired by K-BBQ flavours.',
     imageUrl:
       'https://images.unsplash.com/photo-1466637574441-749b8f19452f?auto=format&fit=crop&w=1200&q=80',
-    tags: ['korean', 'bbq', 'fusion'],
   },
   {
     key: 'sushi_bento',
@@ -243,7 +219,6 @@ let stallTemplates = [
     description: 'Grab-and-go sushi rolls and bentos.',
     imageUrl:
       'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=1200&q=80',
-    tags: ['sushi', 'bento', 'japanese'],
   },
   {
     key: 'bubble_tea',
@@ -252,7 +227,6 @@ let stallTemplates = [
     description: 'Chewy pearls and fruit teas brewed fresh.',
     imageUrl:
       'https://images.pexels.com/photos/1189288/pexels-photo-1189288.jpeg?auto=compress&cs=tinysrgb&w=1200',
-    tags: ['bubble tea', 'drinks', 'dessert'],
   },
   {
     key: 'kway_chap',
@@ -261,7 +235,6 @@ let stallTemplates = [
     description: 'Silky kway sheets with braised pork innards.',
     imageUrl:
       'https://images.unsplash.com/photo-1511690743698-d9d85f2fbf38?auto=format&fit=crop&w=1200&q=80',
-    tags: ['kway chap', 'braised', 'heritage'],
   },
   {
     key: 'bak_kut_teh',
@@ -270,7 +243,6 @@ let stallTemplates = [
     description: 'Peppery pork rib soup with youtiao.',
     imageUrl:
       'https://images.unsplash.com/photo-1534308983496-4fabb1a015ee?auto=format&fit=crop&w=1200&q=80',
-    tags: ['soup', 'peppery', 'heritage'],
   },
   {
     key: 'soy_dessert',
@@ -279,7 +251,6 @@ let stallTemplates = [
     description: 'Smooth tau huay with classic toppings.',
     imageUrl:
       'https://images.unsplash.com/photo-1490474418585-ba9bad8fd0ea?auto=format&fit=crop&w=1200&q=80',
-    tags: ['dessert', 'tau huay', 'late night'],
   },
   {
     key: 'burger_joint',
@@ -288,7 +259,6 @@ let stallTemplates = [
     description: 'Modern smashed burgers served hawker-style.',
     imageUrl:
       'https://images.unsplash.com/photo-1550317138-10000687a72b?auto=format&fit=crop&w=1200&q=80',
-    tags: ['burger', 'fusion', 'modern hawker'],
   },
 ];
 
@@ -686,7 +656,6 @@ function buildStallSeed(centre, centreIndex, slotIndex, template) {
     description: `${template.description} Served daily at ${shortName}.`,
     location: formatLocation(centreIndex, slotIndex),
     cuisineType: template.cuisineType,
-    tags: template.tags,
     image_url: template.imageUrl,
   };
 }

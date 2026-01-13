@@ -6,6 +6,7 @@ import locationIcon from "../../../assets/hawker/location.svg";
 import Filters from "../../hawkerCentres/components/Filters";
 import FiltersMobile from "../../hawkerCentres/components/FiltersMobile";
 import api from "../../../lib/api";
+import { resolveTagConflicts } from "../../../utils/tagging";
 
 const fallbackHeroImg =
   "https://images.unsplash.com/photo-1544027993-37dbfe43562a?q=80&w=800&auto=format&fit=crop";
@@ -13,15 +14,36 @@ const fallbackHeroImg =
 const fallbackDishImg =
   "https://images.unsplash.com/photo-1544025162-d76694265947?q=80&w=800&auto=format&fit=crop";
 
+const formatRelativeDate = (value) => {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  const diffMs = Date.now() - date.getTime();
+  if (diffMs <= 0) return "today";
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  if (diffDays <= 0) return "today";
+  if (diffDays === 1) return "1 day ago";
+  if (diffDays < 7) return `${diffDays} days ago`;
+  const diffWeeks = Math.floor(diffDays / 7);
+  if (diffWeeks < 5) return `${diffWeeks}w ago`;
+  const diffMonths = Math.floor(diffDays / 30);
+  return `${diffMonths}mo ago`;
+};
+
 function DishCard({ dish }) {
   const navigate = useNavigate();
+  const verifiedLabel =
+    dish.approvedUploadCount > 0
+      ? `${dish.approvedUploadCount} verified photo${dish.approvedUploadCount === 1 ? "" : "s"}`
+      : "No verified photos yet";
+  const lastUploadLabel = formatRelativeDate(dish.lastApprovedUploadAt);
 
   return (
     <div
       onClick={() => navigate(`/stalls/${dish.stallId}`)}
       className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden cursor-pointer transition-transform hover:-translate-y-0.5 hover:shadow-md"
     >
-      <div className="h-44 w-full overflow-hidden">
+      <div className="h-44 w-full overflow-hidden relative">
         <img
           src={dish.imageUrl || fallbackDishImg}
           alt={dish.name}
@@ -36,6 +58,10 @@ function DishCard({ dish }) {
         <p className="text-xs text-gray-500">
           {dish.cuisine} · {dish.stallName}
         </p>
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] text-slate-500">
+          <span>{verifiedLabel}</span>
+          {lastUploadLabel && <span>Last upload {lastUploadLabel}</span>}
+        </div>
 
         <div className="mt-3 flex items-center justify-between text-[11px] text-slate-500">
           <div className="flex items-center gap-4">
@@ -102,18 +128,6 @@ function StallCard({ stall }) {
           <p className="text-xs text-gray-500 mt-0.5">
             {stall.cuisineType} · {stall.location}
           </p>
-          {stall.tags && stall.tags.length > 0 && (
-            <div className="mt-1 flex flex-wrap gap-1">
-              {stall.tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="px-2 py-0.5 rounded-full bg-slate-50 text-[10px] text-gray-600 border border-slate-100"
-                >
-                  {tag}
-                </span>
-              ))}
-            </div>
-          )}
         </div>
         <Link
           to={`/stalls/${stall.id}`}
@@ -179,21 +193,43 @@ const HawkerCentreDetailPage = () => {
           const stallForDish = mappedStalls.find(
             (s) => s.id === dish.stallId
           );
+          const approvedUploadCount =
+            typeof dish.approvedUploadCount === "number"
+              ? dish.approvedUploadCount
+              : 0;
+          const resolvedTags = resolveTagConflicts(
+            dish.menuItemTagAggs || [],
+            approvedUploadCount,
+            3
+          );
 
           return {
             ...dish,
             stallId: dish.stallId,
             stallName: stallForDish?.name ?? "View stall",
             cuisine: dish.category || stallForDish?.cuisineType || "Food",
-            prepTime: dish.prepTimeMins ? `${dish.prepTimeMins} min` : "–",
+            prepTime: dish.prepTimeMins ? `${dish.prepTimeMins} min` : "???",
             price:
               typeof dish.priceCents === "number"
                 ? dish.priceCents / 100
                 : 0,
             imageUrl: dish.mediaUploads?.[0]?.imageUrl || fallbackDishImg,
+            approvedUploadCount,
+            lastApprovedUploadAt: dish.lastApprovedUploadAt || null,
+            verified: approvedUploadCount > 0,
+            tags: resolvedTags,
+            expectations:
+              resolvedTags.length > 0
+                ? resolvedTags
+                    .map((tag) => tag.label)
+                    .filter(Boolean)
+                    .slice(0, 2)
+                    .join(", ")
+                : null,
             orders: dish.orders ?? null,
           };
         });
+
 
         setStalls(mappedStalls);
         setDishes(mappedDishes);

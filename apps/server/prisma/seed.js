@@ -22,6 +22,10 @@ async function main() {
   await prisma.hawkerCentre.deleteMany();
   await prisma.user.deleteMany();
   await prisma.system_configuration.deleteMany();
+  await prisma.tag.deleteMany();
+  await prisma.UploadTag.deleteMany();
+  await prisma.MenuItemTagAgg.deleteMany();
+
 
 
   // --- Seed some users for uploads ---
@@ -718,7 +722,6 @@ async function main() {
           description: stallTemplate.description,
           location: stallTemplate.location,
           cuisineType: stallTemplate.cuisineType,
-          tags: stallTemplate.tags,
           hawkerCentre: {
             connect: { id: hc.id },
           },

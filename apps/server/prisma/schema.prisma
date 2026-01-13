@@ -75,6 +75,7 @@ model MenuItem {
   updatedAt    DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
   imageUrl     String?        @map("image_url")
   mediaUploads MediaUpload[]
+  menuItemTagAggs MenuItemTagAgg[]
   stall        Stall          @relation(fields: [stallId], references: [id], onDelete: Cascade)
   orderItems   OrderItem[]
   user_cart    user_cart[]
@@ -101,10 +102,49 @@ model MediaUpload {
   aspectRatio       String?           @map("aspect_ratio")
   reports           ContentReport[]
   votes             MediaUploadVote[]
+  uploadTags        UploadTag[]
   menuItem          MenuItem          @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
   user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("media_uploads")
+}
+
+model Tag {
+  id           String            @id @default(uuid()) @db.Uuid
+  normalized   String            @unique
+  displayLabel String            @map("display_label")
+  createdAt    DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  uploadTags   UploadTag[]
+  menuItemAggs MenuItemTagAgg[]
+
+  @@map("tags")
+}
+
+model UploadTag {
+  id           String       @id @default(uuid()) @db.Uuid
+  uploadId     String       @map("upload_id") @db.Uuid
+  tagId        String       @map("tag_id") @db.Uuid
+  confidence   Float
+  evidenceFrom Json         @map("evidence_from")
+  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  upload       MediaUpload  @relation(fields: [uploadId], references: [id], onDelete: Cascade)
+  tag          Tag          @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@map("upload_tags")
+}
+
+model MenuItemTagAgg {
+  id         String   @id @default(uuid()) @db.Uuid
+  menuItemId String   @map("menu_item_id") @db.Uuid
+  tagId      String   @map("tag_id") @db.Uuid
+  count      Int      @default(0)
+  avgConfidence Float? @map("avg_confidence")
+  lastSeenAt DateTime @default(now()) @map("last_seen_at") @db.Timestamptz(6)
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  tag        Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([menuItemId, tagId])
+  @@map("menu_item_tag_aggs")
 }
 
 model MediaUploadVote {
