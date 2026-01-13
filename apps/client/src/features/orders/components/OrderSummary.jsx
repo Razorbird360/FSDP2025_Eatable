@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import LogoImage from "../../../assets/logo/logo_full.png";
 import api from "@lib/api";
 import { useCart } from "./CartContext";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 export default function OrderSummary() {
   const navigate = useNavigate();
@@ -26,27 +26,10 @@ export default function OrderSummary() {
   // You can either recompute subtotal here or just use cartTotal
   const subtotal = cartTotal;     // placeholder – adjust if needed
 
-  const selectedMinSpend = selectedVoucher ? selectedVoucher.minSpend / 100 : 0;
-  const isSelectedVoucherEligible = selectedVoucher ? subtotal >= selectedMinSpend : false;
-
-  // Calculate voucher discount
-  let voucherApplied = 0.0;
-  if (selectedVoucher && isSelectedVoucherEligible) {
-    if (selectedVoucher.discountType === 'percentage') {
-      // discountAmount is likely percentage value (e.g. 10 for 10%) or factor? 
-      // Schema says Int, usually percentage is stored as integer (e.g. 10).
-      // Let's assume discountAmount is the percentage value (e.g. 10 means 10%).
-      // Wait, schema says discountAmount Int @default(0). 
-      // If type is fixed, it's cents. If percentage, it's likely percentage points.
-      // Let's assume 10 = 10%.
-      voucherApplied = subtotal * (selectedVoucher.discountAmount / 100);
-    } else {
-      // Fixed amount in cents
-      voucherApplied = selectedVoucher.discountAmount / 100;
-    }
-    // Cap discount at subtotal
-    if (voucherApplied > subtotal) voucherApplied = subtotal;
-  }
+  const voucherApplied = selectedVoucher?.discountAmountCents
+    ? selectedVoucher.discountAmountCents / 100
+    : 0;
+  const voucherIneligibleReason = selectedVoucher?.ineligibleReason || null;
 
   const total = subtotal + serviceFee - voucherApplied;
 
@@ -57,10 +40,6 @@ export default function OrderSummary() {
       // Filter out used vouchers so they don't appear in the list
       const availableVouchers = res.data.filter(v => !v.isUsed && !v.used);
       setVouchers(availableVouchers);
-      if (selectedVoucher?.userVoucherId) {
-        const refreshed = availableVouchers.find(v => v.userVoucherId === selectedVoucher.userVoucherId);
-        if (refreshed) setSelectedVoucher(refreshed);
-      }
     } catch (err) {
       console.error("Failed to fetch vouchers:", err);
     } finally {
@@ -73,18 +52,23 @@ export default function OrderSummary() {
     fetchVouchers();
   };
 
-  const handleSelectVoucher = async (voucher) => {
-    const minSpend = voucher.minSpend / 100;
-    if (subtotal < minSpend) {
-      alert(`You need to spend at least $${minSpend.toFixed(2)} to use this voucher.`);
-      return;
+  const fetchPendingVoucher = useCallback(async () => {
+    try {
+      const res = await api.get('/vouchers/pending');
+      const pendingVoucher = res.data?.voucher;
+      setSelectedVoucher(pendingVoucher || null);
+    } catch (err) {
+      console.error("Failed to fetch pending voucher:", err);
     }
+  }, []);
 
+  const handleSelectVoucher = async (voucher) => {
     // Toggle selection: if already selected, deselect
     if (selectedVoucher && selectedVoucher.userVoucherId === voucher.userVoucherId) {
       try {
         await api.delete('/vouchers/pending');
-        setSelectedVoucher(null);
+        await fetchPendingVoucher();
+        setShowVoucherModal(false);
       } catch (err) {
         console.error("Failed to clear voucher:", err);
         alert("Failed to clear voucher. Please try again.");
@@ -94,30 +78,18 @@ export default function OrderSummary() {
         // Call backend to apply voucher
         const res = await api.post(`/vouchers/apply/${voucher.userVoucherId}`);
         if (res.data.success) {
-          setSelectedVoucher(voucher);
-          // Optionally use res.data.discountAmount to set exact discount
+          await fetchPendingVoucher();
+          setShowVoucherModal(false);
         }
       } catch (err) {
+        const message = err?.response?.data?.error || "Failed to apply voucher. Please try again.";
         console.error("Failed to apply voucher:", err);
-        alert("Failed to apply voucher. Please try again.");
+        alert(message);
       }
     }
-    setShowVoucherModal(false);
   };
 
   useEffect(() => {
-    async function fetchPendingVoucher() {
-      try {
-        const res = await api.get('/vouchers/pending');
-        const pendingVoucher = res.data?.voucher;
-        if (pendingVoucher) {
-          setSelectedVoucher(pendingVoucher);
-        }
-      } catch (err) {
-        console.error("Failed to fetch pending voucher:", err);
-      }
-    }
-
     async function fetchServiceFee() {
       try {
         const res = await api.get("/orders/serviceFees");
@@ -134,7 +106,7 @@ export default function OrderSummary() {
 
     fetchPendingVoucher();
     fetchServiceFee();
-  }, []);
+  }, [fetchPendingVoucher]);
 
 
   async function Checkout() {
@@ -298,6 +270,11 @@ export default function OrderSummary() {
               - $ {voucherApplied.toFixed(2)}
             </span>
           </div>
+          {voucherIneligibleReason && (
+            <div className="text-xs text-red-500 mb-2">
+              {voucherIneligibleReason}
+            </div>
+          )}
         </section>
 
         {/* TOTAL + BUTTON */}
@@ -340,7 +317,6 @@ export default function OrderSummary() {
               ) : (
                 vouchers.map((voucher) => {
                   const minSpend = voucher.minSpend / 100;
-                  const isEligible = subtotal >= minSpend;
                   const isSelected = selectedVoucher?.userVoucherId === voucher.userVoucherId;
 
                   return (
@@ -348,11 +324,9 @@ export default function OrderSummary() {
                       key={voucher.userVoucherId}
                       className={`border rounded-lg p-4 flex flex-col gap-2 cursor-pointer transition-colors ${isSelected
                         ? "border-[#21421B] bg-[#F4FAF1]"
-                        : isEligible
-                          ? "border-gray-200 hover:border-[#21421B]"
-                          : "border-gray-200 opacity-60 cursor-not-allowed"
+                        : "border-gray-200 hover:border-[#21421B]"
                         }`}
-                      onClick={() => isEligible && handleSelectVoucher(voucher)}
+                      onClick={() => handleSelectVoucher(voucher)}
                     >
                       <div className="flex justify-between items-start">
                         <div>
@@ -369,11 +343,6 @@ export default function OrderSummary() {
                           : `$${(voucher.discountAmount / 100).toFixed(2)} off`}
                         {minSpend > 0 && ` • Min. spend $${minSpend.toFixed(2)}`}
                       </div>
-                      {!isEligible && (
-                        <p className="text-xs text-red-500 mt-1">
-                          Add ${(minSpend - subtotal).toFixed(2)} more to use
-                        </p>
-                      )}
                     </div>
                   );
                 })
@@ -394,4 +363,3 @@ export default function OrderSummary() {
     </div>
   );
 }
-

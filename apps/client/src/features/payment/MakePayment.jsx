@@ -93,21 +93,9 @@ export default function MakePayment() {
         setItems(itemsArr.map(mapOrderItem));
         setOrderInfo(infoObj || null);
 
-        // Fetch voucher info if there's a voucher discount
         const voucherDiscount = infoObj?.discounts_charges?.find(dc => dc.type === "voucher");
-        if (voucherDiscount?.userVoucherId) {
-          try {
-            // Fetch all user vouchers to find the one used
-            const vouchersRes = await api.get('/vouchers/user');
-            const allVouchers = vouchersRes.data;
-            const usedVoucher = allVouchers.find(v => v.userVoucherId === voucherDiscount.userVoucherId);
-            if (usedVoucher) {
-              setVoucherInfo(usedVoucher);
-            }
-          } catch (err) {
-            console.error("Failed to fetch voucher info:", err);
-          }
-        }
+        const embeddedVoucher = voucherDiscount?.userVoucher?.voucher || null;
+        setVoucherInfo(embeddedVoucher);
       } catch (err) {
         console.error("Failed to load order:", err);
         setOrderError("Failed to load order details");

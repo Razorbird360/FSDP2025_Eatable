@@ -246,12 +246,20 @@ export const orderService = {
                 }
             },
         });
-        const info = await prisma.order.findUnique({
-            where: { id: orderId },
-            include: {
-                discounts_charges: true,
+    const info = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        discounts_charges: {
+          include: {
+            userVoucher: {
+              include: {
+                voucher: true,
+              },
             },
-        });
+          },
+        },
+      },
+    });
 
 
         const result = [stall, items, info];

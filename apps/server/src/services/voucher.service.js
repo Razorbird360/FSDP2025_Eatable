@@ -82,14 +82,47 @@ class VoucherService {
         return null;
       }
 
+      const cart = await cartService.getCartByUserId(userId);
+      const subtotalCents = Array.isArray(cart)
+        ? cart.reduce((sum, item) => {
+            const price = item.menu_items?.priceCents || 0;
+            const qty = item.qty || 1;
+            return sum + price * qty;
+          }, 0)
+        : 0;
+
+      let discountAmountCents = 0;
+      let ineligibleReason = null;
+      const voucher = userVoucher.voucher;
+
+      if (!cart || cart.length === 0) {
+        ineligibleReason = "Cart is empty";
+      } else if (subtotalCents < voucher.minSpend) {
+        ineligibleReason = `Minimum spend of $${(voucher.minSpend / 100).toFixed(2)} not met`;
+      } else {
+        if (voucher.discountType === 'percentage') {
+          discountAmountCents = Math.round(
+            subtotalCents * (voucher.discountAmount / 100)
+          );
+        } else {
+          discountAmountCents = voucher.discountAmount;
+        }
+
+        if (discountAmountCents > subtotalCents) {
+          discountAmountCents = subtotalCents;
+        }
+      }
+
       return {
-        ...userVoucher.voucher,
+        ...voucher,
         userVoucherId: userVoucher.id,
         isUsed: userVoucher.isUsed,
         used: userVoucher.isUsed,
         expiryDate,
         isExpired,
         acquiredAt: userVoucher.createdAt,
+        discountAmountCents,
+        ineligibleReason,
       };
     } catch (error) {
       throw new Error(`Error fetching pending voucher: ${error.message}`);
