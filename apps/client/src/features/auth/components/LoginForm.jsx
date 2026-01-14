@@ -9,7 +9,7 @@ import {
   Text,
   VStack,
 } from '@chakra-ui/react';
-import { LuEye, LuEyeOff } from 'react-icons/lu';
+import { Eye, EyeOff } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../useAuth';
 import LogoImage from '../../../assets/logo/logo_full.png';
@@ -253,7 +253,7 @@ const LoginForm = () => {
                 right="2"
                 transform="translateY(-50%)"
               >
-                {showPassword ? <LuEye size={18} /> : <LuEyeOff size={18} />}
+                {showPassword ? <Eye size={18} /> : <EyeOff size={18} />}
               </IconButton>
             </Box>
             {errors.password && (
