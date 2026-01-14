@@ -1,13 +1,12 @@
 import { useNavigate, useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
+import { ClockFading, MapPin } from 'lucide-react';
 import logo_full from "../../assets/logo/logo_full.png";
 
 const fallbackFoodImg =
   "https://app.yakun.com/media/catalog/product/cache/f77d76b011e98ab379caeb79cadeeecd/f/r/french-toast-with-kaya.jpg";
 
 import qrImg from "../../assets/logo/QrPlaceholder.png";
-import locationImg from "../../assets/logo/LocationIcon.png";
-import clockImg from "../../assets/logo/Clock.png";
 import api from "@lib/api";
 
 function mapOrderItem(raw) {
@@ -232,11 +231,7 @@ export default function OrderCompletedModal({ onClose, orderId: propsOrderId }) 
 
             {/* Stall Info */}
             <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl">
-              <img
-                src={locationImg}
-                alt="Location"
-                className="w-5 h-5 mt-0.5 object-contain"
-              />
+              <MapPin className="w-5 h-5 mt-0.5 text-[#21421B]" aria-hidden="true" />
               <div>
                 <h3 className="text-base font-semibold text-gray-900">
                   {stallName}
@@ -249,11 +244,7 @@ export default function OrderCompletedModal({ onClose, orderId: propsOrderId }) 
 
             {/* Estimated Pickup Time */}
             <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl">
-              <img
-                src={clockImg}
-                alt="Clock"
-                className="w-5 h-5 mt-0.5 object-contain"
-              />
+              <ClockFading className="w-5 h-5 mt-0.5 text-[#21421B]" aria-hidden="true" />
               <div>
                 <h3 className="text-base font-semibold text-gray-900">
                   Estimated Pick-Up Time

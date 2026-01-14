@@ -1,16 +1,8 @@
 import { useEffect, useState } from 'react';
 import Chart from 'react-apexcharts';
+import { ChevronUp, LayoutDashboard, Salad, Sun } from 'lucide-react';
 import api from '../../../lib/api';
 import { formatDate, formatTimeAgo } from '../../../utils/helpers';
-
-// Icons from assets
-import tileLightIcon from '../../../assets/icons/tile-light.svg';
-import tileBrandIcon from '../../../assets/icons/tile-brand.svg';
-import dishLightIcon from '../../../assets/icons/dish-light.svg';
-import dishDarkIcon from '../../../assets/icons/dish-dark.svg';
-import dayLightIcon from '../../../assets/icons/day-light.svg';
-import dayDarkIcon from '../../../assets/icons/day-dark.svg';
-import scrollUpArrowIcon from '../../../assets/icons/scroll-up arrow.svg';
 
 const CHART_COLORS = ['#A855F7', '#5EBECC', '#EC4899', '#F59E0B', '#6366F1', '#94A3B8'];
 
@@ -100,11 +92,8 @@ const StatsCard = ({ title, value, delta }) => {
       <p className="text-3xl md:text-4xl font-bold text-[#21421B] mb-2 md:mb-3">{value}</p>
       <div className="flex items-center gap-1.5 text-sm md:text-sm text-gray-500">
         <span className="font-semibold text-gray-700">{deltaValue}</span>
-        <img 
-          src={scrollUpArrowIcon} 
-          alt="" 
-          className={`w-3.5 h-3.5 ${isPositive ? '' : isNeutral ? 'opacity-40' : 'rotate-180'}`}
-          style={isPositive ? { filter: 'invert(23%) sepia(90%) saturate(400%) hue-rotate(70deg)' } : isNeutral ? {} : { filter: 'invert(30%) sepia(90%) saturate(2000%) hue-rotate(340deg)' }}
+        <ChevronUp
+          className={`w-3.5 h-3.5 ${isPositive ? 'text-[#1C7C3A]' : isNeutral ? 'text-gray-400' : 'text-[#B42318] rotate-180'}`}
         />
         <span className="hidden sm:inline">{isPositive ? 'Increased' : isNeutral ? 'No change' : 'Decreased'} from last month</span>
         <span className="sm:hidden">{isPositive ? 'Increased' : isNeutral ? 'No change' : 'Decreased'}</span>
@@ -393,10 +382,8 @@ const HawkerDashboardPage = () => {
               onClick={() => setActiveTab('dashboard')}
               className="relative z-10 flex-1 flex items-center justify-center gap-2 px-4 md:px-5 py-2.5 rounded-lg text-base md:text-sm font-medium transition-colors duration-300"
             >
-              <img 
-                src={activeTab === 'dashboard' ? tileLightIcon : tileBrandIcon}
-                alt="" 
-                className={`w-5 h-5 md:w-4 md:h-4 transition-all duration-300 ${activeTab === 'dashboard' ? 'brightness-0 invert' : ''}`}
+              <LayoutDashboard
+                className={`w-5 h-5 md:w-4 md:h-4 transition-all duration-300 ${activeTab === 'dashboard' ? 'text-white' : 'text-gray-500'}`}
               />
               <span className={activeTab === 'dashboard' ? 'text-white' : 'text-gray-500'}>
                 Dashboard
@@ -408,10 +395,8 @@ const HawkerDashboardPage = () => {
               onClick={() => setActiveTab('dishes')}
               className="relative z-10 flex-1 flex items-center justify-center gap-2 px-4 md:px-5 py-2.5 rounded-lg text-base md:text-sm font-medium transition-colors duration-300"
             >
-              <img 
-                src={activeTab === 'dishes' ? dishLightIcon : dishDarkIcon}
-                alt="" 
-                className={`w-5 h-5 md:w-4 md:h-4 transition-all duration-300 ${activeTab === 'dishes' ? 'brightness-0 invert' : ''}`}
+              <Salad
+                className={`w-5 h-5 md:w-4 md:h-4 transition-all duration-300 ${activeTab === 'dishes' ? 'text-white' : 'text-gray-500'}`}
               />
               <span className={activeTab === 'dishes' ? 'text-white' : 'text-gray-500'}>
                 Dishes
@@ -457,10 +442,9 @@ const HawkerDashboardPage = () => {
                   }}
                   className="p-1 transition-opacity hover:opacity-70"
                 >
-                  <img 
-                    src={chartView === 'dish' ? dishDarkIcon : dishLightIcon} 
-                    alt="By Dish" 
-                    className="w-6 h-6" 
+                  <Salad
+                    aria-label="By Dish"
+                    className={`w-6 h-6 ${chartView === 'dish' ? 'text-[#21421B]' : 'text-gray-400'}`}
                   />
                 </button>
                 <button
@@ -471,10 +455,9 @@ const HawkerDashboardPage = () => {
                   }}
                   className="hidden md:block p-1 transition-opacity hover:opacity-70"
                 >
-                  <img 
-                    src={chartView === 'day' ? dayDarkIcon : dayLightIcon} 
-                    alt="By Day" 
-                    className="w-6 h-6" 
+                  <Sun
+                    aria-label="By Day"
+                    className={`w-6 h-6 ${chartView === 'day' ? 'text-[#21421B]' : 'text-gray-400'}`}
                   />
                 </button>
               </div>
@@ -496,10 +479,9 @@ const HawkerDashboardPage = () => {
                   }}
                   className="md:hidden p-1 transition-opacity hover:opacity-70"
                 >
-                  <img 
-                    src={chartView === 'day' ? dayDarkIcon : dayLightIcon} 
-                    alt="By Day" 
-                    className="w-6 h-6" 
+                  <Sun
+                    aria-label="By Day"
+                    className={`w-6 h-6 ${chartView === 'day' ? 'text-[#21421B]' : 'text-gray-400'}`}
                   />
                 </button>
                 {isDailyView ? (

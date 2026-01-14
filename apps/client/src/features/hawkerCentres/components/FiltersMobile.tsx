@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Button, Drawer, Accordion, Slider, CloseButton, Portal } from '@chakra-ui/react';
+import { ChevronsDown } from 'lucide-react';
 import { useFilters } from '../hooks/useFilters';
-import filterDownArrow from '../../../assets/hawker/filter-down-arrow.svg';
 
 type FiltersMobileProps = {
   filters?: ReturnType<typeof useFilters>;
@@ -46,11 +46,7 @@ const FiltersMobile = ({ filters }: FiltersMobileProps) => {
         }`}
       >
         <div className="flex items-center gap-3">
-          <img
-            src={filterDownArrow}
-            alt=""
-            className="w-5 h-5 rotate-180"
-          />
+          <ChevronsDown className="w-5 h-5 rotate-180 text-white" aria-hidden="true" />
           <span>Filters</span>
         </div>
         {activeCount > 0 && (

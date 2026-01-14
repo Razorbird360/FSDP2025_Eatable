@@ -1,42 +1,44 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Input, Box } from '@chakra-ui/react';
+import {
+  ClipboardList,
+  House,
+  Info,
+  Library,
+  Menu,
+  Search,
+  ShoppingCart,
+  Telescope,
+  Utensils,
+  X,
+} from 'lucide-react';
 import Tooltip from './Tooltip';
 import { useCart } from '../features/orders/components/CartContext';
 import { useAuth } from '../features/auth/useAuth';
 
-const homeIcon = new URL('../assets/navbar/home.svg', import.meta.url).href;
-const foodIcon = new URL('../assets/navbar/food.svg', import.meta.url).href;
-const communityIcon = new URL('../assets/navbar/community-photos.svg', import.meta.url).href;
-const infoIcon = new URL('../assets/navbar/about-us.svg', import.meta.url).href;
-const searchIcon = new URL('../assets/navbar/search.svg', import.meta.url).href;
-const collectionIcon = new URL('../assets/navbar/collection.svg', import.meta.url).href;
-const ordersIcon = new URL('../assets/navbar/orders.svg', import.meta.url).href;
-const cartIcon = new URL('../assets/navbar/cart.svg', import.meta.url).href;
-const closeIcon = new URL('../assets/navbar/close.svg', import.meta.url).href;
-const menuIcon = new URL('../assets/navbar/menu.svg', import.meta.url).href;
 const logoFull = new URL('../assets/logo/logo_full.png', import.meta.url).href;
-const profilePlaceholder = new URL('../assets/navbar/profile_placeholder.jpg', import.meta.url).href;
+const profilePlaceholder = new URL('../assets/HomePage/profile_placeholder.jpg', import.meta.url).href;
 
 const navIcons = [
-  { label: 'Home', icon: homeIcon, href: '/home' },
-  { label: 'Hawkers', icon: foodIcon, href: '/hawker-centres' },
-  { label: 'Community', icon: communityIcon, href: '/community' },
-  { label: 'About', icon: infoIcon, href: '/about' },
+  { label: 'Home', Icon: House, href: '/home' },
+  { label: 'Hawkers', Icon: Utensils, href: '/hawker-centres' },
+  { label: 'Community', Icon: Telescope, href: '/community' },
+  { label: 'About', Icon: Info, href: '/about' },
 ];
 
 const mobileNavItems = [
   ...navIcons,
-  { label: 'Profile', icon: profilePlaceholder, href: '/profile' },
-  { label: 'Orders', icon: ordersIcon, href: '/orders' },
-  { label: 'My Collection', icon: collectionIcon, href: '/my-collection' },
+  { label: 'Profile', iconSrc: profilePlaceholder, href: '/profile' },
+  { label: 'Orders', Icon: ClipboardList, href: '/orders' },
+  { label: 'My Collection', Icon: Library, href: '/my-collection' },
 ];
 
 const mobileMenuBaseColor = '#FFFFFF';
 const mobileMenuLayers = ['#F8FDF3', '#EFF8EE', '#FFFFFF'];
 const mobileMenuLayerDelays = [0, 30, 55];
 
-function IconPill({ icon, label, href, isActive }) {
+function IconPill({ Icon, label, href, isActive }) {
   return (
     <Tooltip label={label}>
       <Link to={href} aria-label={label}>
@@ -46,17 +48,17 @@ function IconPill({ icon, label, href, isActive }) {
             : 'border-[#E7EEE7] bg-white hover:bg-[#F8FDF3]'
             }`}
         >
-          <img src={icon} alt="" className={`h-5 w-5 ${isActive ? 'brightness-0 invert' : ''}`} />
+          <Icon className={`h-5 w-5 ${isActive ? 'text-white' : 'text-[#4A554B]'}`} />
         </span>
       </Link>
     </Tooltip>
   );
 }
 
-function IconAction({ icon, label, secondaryLabel, badge, onClick, to }) {
+function IconAction({ Icon, label, secondaryLabel, badge, onClick, to }) {
   const content = (
     <>
-      <img src={icon} alt="" className="h-5 w-5" />
+      <Icon className="h-5 w-5 text-[#4A554B]" />
       {badge ? (
         <span className="absolute -top-1 -right-1 flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-[#21421B] px-1 text-xs font-semibold text-white">
           {badge}
@@ -160,7 +162,7 @@ export default function Navbar() {
                 pointerEvents="none"
                 zIndex="1"
               >
-                <img src={searchIcon} alt="" className="h-4 w-4" />
+                <Search className="h-4 w-4 text-[#4A554B]" />
               </Box>
               <Input
                 placeholder="Search dishes, stalls, categories..."
@@ -189,7 +191,7 @@ export default function Navbar() {
             {status === 'authenticated' && (
               <>
 
-                <IconAction icon={cartIcon} label="Cart" badge={count} onClick={openCart} />
+                <IconAction Icon={ShoppingCart} label="Cart" badge={count} onClick={openCart} />
               </>
             )}
 
@@ -248,7 +250,7 @@ export default function Navbar() {
         <img src={logoFull} alt="Eatable" className="h-10 w-auto pl-2" />
         <div className="flex items-center gap-3">
           {status === 'authenticated' && (
-            <IconAction icon={cartIcon} label="Cart" badge={count} onClick={openCart} />
+            <IconAction Icon={ShoppingCart} label="Cart" badge={count} onClick={openCart} />
           )}
           <button
             type="button"
@@ -257,7 +259,7 @@ export default function Navbar() {
             onClick={() => setIsMobileMenuOpen(true)}
             className="flex h-11 w-11 items-center justify-center text-[#21421B]"
           >
-            <img src={menuIcon} alt="" className="h-5 w-5" />
+            <Menu className="h-5 w-5" />
           </button>
         </div>
       </div>
@@ -311,7 +313,7 @@ export default function Navbar() {
               className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-[#F8FDF3] transition-all duration-200 ${isMobileSearchOpen ? 'pointer-events-none scale-95 opacity-0' : 'opacity-100'
                 }`}
             >
-              <img src={searchIcon} alt="" className="h-5 w-5" />
+              <Search className="h-5 w-5 text-[#21421B]" />
             </button>
             <button
               type="button"
@@ -319,7 +321,7 @@ export default function Navbar() {
               className="ml-auto flex items-center gap-2 text-[#21421B]"
             >
               <span className="text-base">Close</span>
-              <img src={closeIcon} alt="Close menu" className="h-4 w-4" />
+              <X className="h-4 w-4" aria-hidden="true" />
             </button>
           </div>
 
@@ -338,7 +340,7 @@ export default function Navbar() {
                 pointerEvents="none"
                 zIndex="1"
               >
-                <img src={searchIcon} alt="" className="h-4 w-4" />
+                <Search className="h-4 w-4 text-[#4A554B]" />
               </Box>
               <Input
                 placeholder="Search dishes, stalls, categories..."
@@ -358,7 +360,7 @@ export default function Navbar() {
           </div>
 
           <nav className="mt-6 flex-1 space-y-4 overflow-y-auto">
-            {mobileMenuNavItems.map(({ label, icon, href }) => (
+            {mobileMenuNavItems.map(({ label, Icon, iconSrc, href }) => (
               <Link
                 key={label}
                 to={href}
@@ -367,7 +369,11 @@ export default function Navbar() {
                   }`}
               >
                 <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F8FDF3]">
-                  <img src={icon} alt="" className="h-5 w-5" />
+                  {Icon ? (
+                    <Icon className="h-5 w-5 text-[#4A554B]" />
+                  ) : (
+                    <img src={iconSrc} alt="" className="h-5 w-5" />
+                  )}
                 </span>
                 <span className="text-base font-medium">{label}</span>
               </Link>

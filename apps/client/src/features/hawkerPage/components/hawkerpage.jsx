@@ -1,15 +1,10 @@
 // src/features/hawkers/pages/HawkerCentreDetailPage.jsx
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import arrowRight from "../../../assets/hawker/arrow-right.svg";
-import locationIcon from "../../../assets/hawker/location.svg";
+import { ChevronRight, Clock, LayoutGrid, List, MapPin, TrendingUp } from 'lucide-react';
 import Filters from "../../hawkerCentres/components/Filters";
 import FiltersMobile from "../../hawkerCentres/components/FiltersMobile";
 import api from "@lib/api";
-import trendUp from "../../../assets/icons/trend-up.svg";
-import clockIcon from "../../../assets/icons/clock.svg";
-import stallsIcon from "../../../assets/hawker/Stalls-dark.svg";
-import dishesIcon from "../../../assets/hawker/Dishes-dark.svg";
 import { useFilters } from "../../hawkerCentres/hooks/useFilters";
 import { useUserLocation } from "../../hawkerCentres/hooks/useUserLocation";
 import { resolveTagConflicts } from "../../../utils/tagging";
@@ -75,13 +70,13 @@ function DishCard({ dish }) {
           <div className="flex items-center gap-3">
             {/* Orders/upvotes with trend-up icon */}
             <div className="flex items-center gap-1">
-              <img src={trendUp} alt="" className="w-4 h-4" />
+              <TrendingUp className="w-4 h-4 text-slate-500" aria-hidden="true" />
               <span>{dish.orders ?? "–"}</span>
             </div>
 
             {/* Prep time with clock icon */}
             <div className="flex items-center gap-1">
-              <img src={clockIcon} alt="" className="w-4 h-4" />
+              <Clock className="w-4 h-4 text-slate-500" aria-hidden="true" />
               <span>{dish.prepTime}</span>
             </div>
           </div>
@@ -366,14 +361,14 @@ const HawkerCentreDetailPage = () => {
           >
             Home
           </Link>
-          <img src={arrowRight} alt=">" className="w-3 h-3" />
+          <ChevronRight className="w-3 h-3 text-gray-400" aria-hidden="true" />
           <Link
             to="/hawker-centres"
             className="hover:text-brand hover:underline hover:decoration-gray-400 cursor-pointer"
           >
             Hawkers
           </Link>
-          <img src={arrowRight} alt=">" className="w-3 h-3" />
+          <ChevronRight className="w-3 h-3 text-gray-400" aria-hidden="true" />
           <span className="text-brand font-medium">
             {centre.name || "Details"}
           </span>
@@ -426,7 +421,7 @@ const HawkerCentreDetailPage = () => {
             {/* Location */}
             <div className="flex items-start gap-2">
               <div className="mt-[2px] flex h-5 w-5 items-center justify-center rounded-full border border-white/50 md:border-gray-300">
-                <img src={locationIcon} alt="" className="w-3 h-3 brightness-0 invert md:brightness-100 md:invert-0" />
+                <MapPin className="w-3 h-3 text-white md:text-gray-600" aria-hidden="true" />
               </div>
               <div>
                 <p className="text-[11px] uppercase tracking-wide text-white/70 md:text-gray-500">
@@ -445,7 +440,7 @@ const HawkerCentreDetailPage = () => {
             {/* Hours */}
             <div className="flex items-start gap-2">
               <div className="mt-[2px] flex h-5 w-5 items-center justify-center rounded-full border border-white/50 md:border-gray-300">
-                <img src={clockIcon} alt="" className="w-3 h-3 brightness-0 invert md:brightness-100 md:invert-0" />
+                <Clock className="w-3 h-3 text-white md:text-gray-600" aria-hidden="true" />
               </div>
               <div>
                 <p className="text-[11px] uppercase tracking-wide text-white/70 md:text-gray-500">
@@ -501,10 +496,9 @@ const HawkerCentreDetailPage = () => {
                 : "text-gray-400"
               }`}
           >
-            <img
-              src={stallsIcon}
-              alt=""
-              className={`w-4 h-4 ${activeTab === "stalls" ? "brightness-0 invert" : ""}`}
+            <LayoutGrid
+              className={`w-4 h-4 ${activeTab === "stalls" ? "text-white" : "text-gray-400"}`}
+              aria-hidden="true"
             />
             Stalls
           </button>
@@ -517,10 +511,9 @@ const HawkerCentreDetailPage = () => {
                 : "text-gray-400"
               }`}
           >
-            <img
-              src={dishesIcon}
-              alt=""
-              className={`w-4 h-4 ${activeTab === "dishes" ? "brightness-0 invert" : ""}`}
+            <List
+              className={`w-4 h-4 ${activeTab === "dishes" ? "text-white" : "text-gray-400"}`}
+              aria-hidden="true"
             />
             Dishes
           </button>

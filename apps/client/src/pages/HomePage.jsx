@@ -1,20 +1,16 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import arrowRight from "../assets/icons/arrow right.svg";
-import cameraIcon from "../assets/icons/camera.svg";
-import verifyIcon from "../assets/HomePage/verify.svg";
-import point from "../assets/icons/point.svg";
-import trendUp from "../assets/icons/trend-up.svg";
-import locationBrand from "../assets/icons/location-brand.svg";
+import { Camera, ChevronRight, CircleCheck, Dot, MapPin, TrendingUp } from 'lucide-react';
 import CuisineBox from "../ui/CuisineBox";
 import HeroAdvertisement from "../ui/HeroAdvertisement";
 import { Button } from "@chakra-ui/react";
 import logo_full from "../assets/logo/logo_full.png";
-import profilePlaceholder from "../assets/navbar/profile_placeholder.jpg";
+import profilePlaceholder from "../assets/HomePage/profile_placeholder.jpg";
 import api from "@lib/api";
 import { toaster } from "../components/ui/toaster";
 import { useAuth } from "../features/auth/useAuth";
 import VerificationModal from "../features/verification/components/VerificationModal";
+
 
 const CUISINE_TYPES = ["malay", "indian", "western", "chinese", "desserts", "local"];
 
@@ -130,8 +126,8 @@ function HomePage() {
         return {
           text: 'Verify Identity',
           onClick: () => setShowVerificationModal(true),
-          icon: verifyIcon,
-          iconSize: '32px',
+          Icon: CircleCheck,
+          iconSize: 32,
         };
       }
       if (!profile.hasStall) {
@@ -234,12 +230,7 @@ function HomePage() {
                     _active={{ bg: '#142812' }}
                   >
                     {buttonConfig.text}
-                    <img
-                      src={arrowRight}
-                      alt=""
-                      className="h-6 w-6 translate-y-[1px]"
-                      aria-hidden="true"
-                    />
+<ChevronRight className="h-6 w-6 translate-y-[1px] text-white" aria-hidden="true" />
                   </Button>
                 </Link>
               ) : (
@@ -260,14 +251,17 @@ function HomePage() {
                   onClick={buttonConfig.onClick}
                 >
                   <div className="flex items-center gap-3">
-                    {buttonConfig.icon && (
-                      <img
-                        src={buttonConfig.icon}
-                        alt=""
-                        style={{ width: buttonConfig.iconSize ?? '24px', height: buttonConfig.iconSize ?? '24px' }}
+                    {buttonConfig.Icon && (
+                      <buttonConfig.Icon
+                        className="text-white"
+                        style={{
+                          width: buttonConfig.iconSize ?? 24,
+                          height: buttonConfig.iconSize ?? 24,
+                        }}
                         aria-hidden="true"
                       />
                     )}
+
                     <span>{buttonConfig.text}</span>
                   </div>
                 </Button>
@@ -308,12 +302,7 @@ function HomePage() {
               _hover={{ bg: "#ECF5E7" }}
               onClick={handleUploadClick}
             >
-              <img
-                src={cameraIcon}
-                alt=""
-                className="h-6 w-6"
-                aria-hidden="true"
-              />
+<Camera className="h-6 w-6 text-[#21421B]" aria-hidden="true" />
               Upload a dish photo
             </Button>
           </div>
@@ -323,15 +312,15 @@ function HomePage() {
 
         <div className="flex-col gap-4 hidden md:flex">
           <div className="flex items-center gap-3">
-            <img src={point} alt="" className="h-5 w-5" aria-hidden="true" />
+            <Dot className="h-5 w-5 text-brand" aria-hidden="true" />
             <p className="text-base">Community-verified photos</p>
           </div>
           <div className="flex items-center gap-3">
-            <img src={point} alt="" className="h-5 w-5" aria-hidden="true" />
+            <Dot className="h-5 w-5 text-brand" aria-hidden="true" />
             <p className="text-base">Secure NETS QR Payment</p>
           </div>
           <div className="flex items-center gap-3">
-            <img src={point} alt="" className="h-5 w-5" aria-hidden="true" />
+            <Dot className="h-5 w-5 text-brand" aria-hidden="true" />
             <p className="text-base">Fast pickup guaranteed</p>
           </div>
         </div>
@@ -390,7 +379,7 @@ function HomePage() {
                     _active={{ bg: '#142812' }}
                   >
                     {buttonConfig.text}
-                    <img src={arrowRight} alt="" className="h-6 w-6 hover:filter hover:invert hover:brightness-200 transition duration-150 ease-in-out" aria-hidden="true" />
+                    <ChevronRight className="h-6 w-6 text-white" aria-hidden="true" />
                   </Button>
                 </Link>
               ) : (
@@ -410,14 +399,17 @@ function HomePage() {
                   onClick={buttonConfig.onClick}
                 >
                   <div className="flex items-center gap-3">
-                    {buttonConfig.icon && (
-                      <img
-                        src={buttonConfig.icon}
-                        alt=""
-                        style={{ width: buttonConfig.iconSize ?? '24px', height: buttonConfig.iconSize ?? '24px' }}
+                    {buttonConfig.Icon && (
+                      <buttonConfig.Icon
+                        className="text-white"
+                        style={{
+                          width: buttonConfig.iconSize ?? 24,
+                          height: buttonConfig.iconSize ?? 24,
+                        }}
                         aria-hidden="true"
                       />
                     )}
+
                     <span>{buttonConfig.text}</span>
                   </div>
                 </Button>
@@ -456,12 +448,7 @@ function HomePage() {
               _hover={{ bg: "#ECF5E7" }}
               onClick={handleUploadClick}
             >
-              <img
-                src={cameraIcon}
-                alt=""
-                className="h-6 w-6 hover:filter hover:invert hover:brightness-200 transition duration-150 ease-in-out"
-                aria-hidden="true"
-              />
+<Camera className="h-6 w-6 text-[#21421B]" aria-hidden="true" />
               Upload a dish photo
             </Button>
           </div>
@@ -544,7 +531,7 @@ function HomePage() {
               <p className="text-sm text-gray-700">Top picks nearby</p>
             </div>
             <Link to="/hawker-centres" className="flex items-center gap-1 text-brand hover:underline">
-              <img src={locationBrand} alt="" aria-hidden="true" className="h-4 w-4" />
+              <MapPin className="h-4 w-4 text-brand" aria-hidden="true" />
               <span className="text-sm font-medium">Map</span>
             </Link>
           </div>
@@ -569,7 +556,7 @@ function HomePage() {
                   </div>
                   <p className="text-xs text-gray-600 mb-1">{item.stallName}</p>
                   <div className="flex items-center gap-1 text-gray-500">
-                    <img src={trendUp} alt="" className="h-3.5 w-3.5" aria-hidden="true" />
+                    <TrendingUp className="h-3.5 w-3.5 text-gray-500" aria-hidden="true" />
                     <span className="text-xs">{item.upvotes} Upvotes</span>
                   </div>
                 </div>

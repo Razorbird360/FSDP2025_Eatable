@@ -1,10 +1,8 @@
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
+import { Heart, MapPin, TrendingUp } from 'lucide-react';
 import advertiseHero from '../assets/HomePage/Advertise.png';
-import rating from '../assets/icons/rating.svg';
-import favourite from '../assets/icons/favourite-brand.svg';
-import favouriteWhite from '../assets/icons/favourite-white.svg';
-import location from '../assets/icons/location.svg';
+
 
 /**
  * @component HeroAdvertisement
@@ -64,7 +62,7 @@ function HeroAdvertisement({
       
       <div className="relative z-20 flex w-full items-center justify-between px-5 py-4 max-[430px]:px-4">
         <div className='flex h-9 w-32 items-center justify-evenly rounded-full bg-brand p-0 text-white max-[430px]:h-8 max-[430px]:w-[7.25rem]'>
-          <img src={rating} alt="Rating" className="h-5 w-5 max-[430px]:h-[1.125rem] max-[430px]:w-[1.125rem] hover:filter hover:invert hover:brightness-200 transition duration-150 ease-in-out" />
+          <TrendingUp className="h-5 w-5 max-[430px]:h-[1.125rem] max-[430px]:w-[1.125rem]" />
           <p className="-translate-x-1 text-base max-[430px]:text-sm">Top-Rated</p>
         </div>
         <button 
@@ -72,18 +70,11 @@ function HeroAdvertisement({
           className='group relative flex h-10 w-10 items-center justify-center rounded-full bg-white p-1 transition-colors duration-150 ease-in-out hover:bg-brand max-[430px]:h-9 max-[430px]:w-9'
           aria-label="Add to favorites"
         >
-          <img
-            src={favourite}
-            alt="Favourite"
-            className="absolute h-6 w-6 opacity-100 transition-opacity duration-200 ease-in-out group-hover:opacity-0 max-[430px]:h-5 max-[430px]:w-5"
-          />
-          <img
-            src={favouriteWhite}
-            alt=""
-            className="h-6 w-6 opacity-0 transition-opacity duration-200 ease-in-out group-hover:opacity-100 max-[430px]:h-5 max-[430px]:w-5"
-            aria-hidden="true"
+          <Heart
+            className="h-6 w-6 text-brand transition-colors duration-200 ease-in-out group-hover:text-white max-[430px]:h-5 max-[430px]:w-5"
           />
         </button>
+
       </div>
 
       <div className='absolute bottom-0 mb-1 z-20 flex w-full flex-col px-5 py-4 text-white max-[430px]:px-4'>
@@ -114,7 +105,7 @@ function HeroAdvertisement({
             className='flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-white/30 backdrop-blur-sm max-[430px]:h-11 max-[430px]:w-11 cursor-default'
             aria-label="Location (decorative)"
           >
-            <img src={location} alt="Location" className="h-7 w-7 max-[430px]:h-6 max-[430px]:w-6 opacity-90" />
+            <MapPin className="h-7 w-7 max-[430px]:h-6 max-[430px]:w-6 text-white/90" />
           </div>
         </div>
       </div>
