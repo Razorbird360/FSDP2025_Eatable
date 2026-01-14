@@ -41,6 +41,8 @@ import PhotoUpload from "../features/photos/components/PhotoUpload";
 import UploadDetails from "../features/photos/components/UploadDetails";
 import PhotoUploadLayout from "../features/photos/layouts/PhotoUploadLayout";
 
+import HawkerDashboardPage from '../features/hawkerPage/pages/HawkerDashboardPage';
+
 
 import HawkerMap from "../features/hawkerMap/components/hawkerMap";
 
@@ -117,6 +119,16 @@ function AppRoutes() {
             element={
               <RequireRole role="hawker" verified={true}>
                 <StallManagementPage />
+              </RequireRole>
+            }
+          />
+
+          {/* Hawker dashboard */}
+          <Route
+            path="/hawker/dashboard"
+            element={
+              <RequireRole role="hawker">
+                <HawkerDashboardPage />
               </RequireRole>
             }
           />

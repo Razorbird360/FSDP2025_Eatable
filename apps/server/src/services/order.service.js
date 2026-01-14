@@ -1,5 +1,43 @@
+import { randomInt } from 'crypto';
 import prisma from '../lib/prisma.js';
 import { cartService } from './cart.service.js';
+
+const ORDER_CODE_CHARS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const ORDER_CODE_LENGTH = 4;
+const ORDER_CODE_MAX_RETRIES = 10;
+
+const generateOrderCode = () => {
+    let code = '';
+    for (let i = 0; i < ORDER_CODE_LENGTH; i += 1) {
+        code += ORDER_CODE_CHARS[randomInt(ORDER_CODE_CHARS.length)];
+    }
+    return code;
+};
+
+const isOrderCodeUniqueError = (error) => {
+    return error?.code === 'P2002';
+};
+
+const createOrderWithCode = async (tx, data) => {
+    for (let attempt = 0; attempt < ORDER_CODE_MAX_RETRIES; attempt += 1) {
+        const orderCode = generateOrderCode();
+        try {
+            return await tx.order.create({
+                data: {
+                    ...data,
+                    orderCode,
+                },
+            });
+        } catch (error) {
+            if (isOrderCodeUniqueError(error)) {
+                continue;
+            }
+            throw error;
+        }
+    }
+
+    throw new Error('Failed to generate unique order code');
+};
 
 const getEffectiveVoucherExpiry = (userVoucher) => {
     if (!userVoucher) return null;
@@ -135,14 +173,12 @@ export const orderService = {
         // 4) Run everything in a single transaction
         const order = await prisma.$transaction(async (tx) => {
             // 4a) Create the order
-            const order = await tx.order.create({
-                data: {
-                    userId,
-                    stallId,
-                    totalCents: totalCents + SERVICE_FEES_CENTS,
-                    status: "pending",
-                    netsTxnId: process.env.TEST_TXN_ID || null,
-                },
+            const order = await createOrderWithCode(tx, {
+                userId,
+                stallId,
+                totalCents: totalCents + SERVICE_FEES_CENTS,
+                status: "pending",
+                netsTxnId: process.env.TEST_TXN_ID || null,
             });
 
             if (SERVICE_FEES_CENTS > 0) {

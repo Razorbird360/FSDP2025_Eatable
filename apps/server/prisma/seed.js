@@ -2,6 +2,28 @@
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
+const ORDER_CODE_CHARS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const ORDER_CODE_LENGTH = 4;
+const ORDER_CODE_MAX_RETRIES = 10;
+
+const generateOrderCode = () => {
+  let code = "";
+  for (let i = 0; i < ORDER_CODE_LENGTH; i += 1) {
+    code += ORDER_CODE_CHARS[Math.floor(Math.random() * ORDER_CODE_CHARS.length)];
+  }
+  return code;
+};
+
+const generateUniqueOrderCode = (existingCodes) => {
+  for (let attempt = 0; attempt < ORDER_CODE_MAX_RETRIES; attempt += 1) {
+    const code = generateOrderCode();
+    if (!existingCodes.has(code)) {
+      existingCodes.add(code);
+      return code;
+    }
+  }
+  throw new Error("Failed to generate unique order code");
+};
 
 async function main() {
   // --- Optional: clean tables in FK-safe order if you're reseeding ---
@@ -29,6 +51,15 @@ async function main() {
   // --- Seed some users for uploads ---
 
   const seedUsers = [
+    {
+      id: "f3d8544d-6e6e-4658-8183-60af41c295aa",
+      email: "ranen.src@gmail.com",
+      displayName: "Hawker Uncle",
+      username: "hawkeruncle",
+      role: "hawker",
+      description: "",
+      skipOnboarding: false,
+    },
     {
       email: "foodie1@example.com",
       displayName: "Hungry Marcus",
@@ -63,6 +94,11 @@ async function main() {
       create: u,
     });
     users.push(created);
+  }
+
+  const hawkerUser = users.find((user) => user.email === "ranen.src@gmail.com");
+  if (!hawkerUser) {
+    throw new Error("Hawker seed user not found for ranen.src@gmail.com");
   }
 
   // --- Hawker centres data ---
@@ -709,8 +745,19 @@ async function main() {
     const stallsForCentre = stallsByCentre[hc.slug] || [];
 
     for (const stallTemplate of stallsForCentre) {
+      const isFriedSotongStall =
+        stallTemplate.name === "Hong Heng Fried Sotong Prawn Mee";
+
       const stall = await prisma.stall.create({
         data: {
+          ...(isFriedSotongStall
+            ? {
+                id: "52fea012-f7c6-483f-92ef-84069a73d6ef",
+                owner: {
+                  connect: { id: hawkerUser.id },
+                },
+              }
+            : {}),
           name: stallTemplate.name,
           description: stallTemplate.description,
           location: stallTemplate.location,
@@ -2282,6 +2329,38 @@ async function main() {
         voteScore: seed.upvoteCount - seed.downvoteCount,
       },
     });
+  }
+
+  // --- Backfill order codes for existing orders (if any) ---
+  const stallIds = await prisma.stall.findMany({
+    select: { id: true },
+  });
+
+  for (const stall of stallIds) {
+    const existingCodes = await prisma.order.findMany({
+      where: {
+        stallId: stall.id,
+        orderCode: { not: null },
+      },
+      select: { orderCode: true },
+    });
+
+    const codes = new Set(existingCodes.map((row) => row.orderCode));
+    const ordersMissingCode = await prisma.order.findMany({
+      where: {
+        stallId: stall.id,
+        orderCode: null,
+      },
+      select: { id: true },
+    });
+
+    for (const order of ordersMissingCode) {
+      const orderCode = generateUniqueOrderCode(codes);
+      await prisma.order.update({
+        where: { id: order.id },
+        data: { orderCode },
+      });
+    }
   }
 
 
