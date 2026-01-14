@@ -2,7 +2,7 @@ import axios from 'axios';
 import Joi from 'joi';
 
 const OPENAI_API_URL =
-  process.env.OPENAI_API_URL || 'https://api.openai.com/v1/completions';
+  process.env.OPENAI_API_URL || 'https://api.openai.com/v1/responses';
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
 export const TAG_SCHEMA = {
