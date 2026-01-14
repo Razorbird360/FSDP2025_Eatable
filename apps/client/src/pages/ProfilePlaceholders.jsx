@@ -298,11 +298,11 @@ export const AchievementsPage = () => {
 const SettingToggle = ({ enabled, onChange }) => (
     <button
         onClick={() => onChange(!enabled)}
-        className={`relative w-12 h-7 rounded-full transition-colors flex-shrink-0 ${enabled ? 'bg-[#21421B]' : 'bg-gray-200'
+        className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${enabled ? 'bg-[#21421B]' : 'bg-gray-200'
             }`}
     >
         <span
-            className={`absolute top-1 w-5 h-5 bg-white rounded-full shadow transition-transform ${enabled ? 'translate-x-6' : 'translate-x-1'
+            className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-200 ${enabled ? 'translate-x-5' : 'translate-x-0'
                 }`}
         />
     </button>
@@ -319,7 +319,7 @@ const SettingItem = ({ icon: Icon, label, description, children }) => (
                 {description && <p className="text-xs sm:text-sm text-gray-500 truncate">{description}</p>}
             </div>
         </div>
-        <div className="flex-shrink-0">
+        <div className="flex-shrink-0 flex items-center">
             {children}
         </div>
     </div>
