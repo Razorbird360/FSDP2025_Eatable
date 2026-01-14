@@ -83,10 +83,10 @@ class VoucherService {
       const cart = await cartService.getCartByUserId(userId);
       const subtotalCents = Array.isArray(cart)
         ? cart.reduce((sum, item) => {
-            const price = item.menu_items?.priceCents || 0;
-            const qty = item.qty || 1;
-            return sum + price * qty;
-          }, 0)
+          const price = item.menu_items?.priceCents || 0;
+          const qty = item.qty || 1;
+          return sum + price * qty;
+        }, 0)
         : 0;
 
       let discountAmountCents = 0;
@@ -201,26 +201,26 @@ class VoucherService {
         discountAmount = subtotalCents;
       }
 
-      // 5. Update discounts_charges
-      // Remove any existing voucher discount for this user (pending order)
-      await prisma.discounts_charges.deleteMany({
-        where: {
-          userId: userId,
-          type: 'voucher',
-          orderId: null, // Only pending ones
-        },
+      await prisma.$transaction(async (tx) => {
+        await tx.discounts_charges.deleteMany({
+          where: {
+            userId,
+            type: "voucher",
+            orderId: null,
+          },
+        });
+
+        return tx.discounts_charges.create({
+          data: {
+            userId,
+            type: "voucher",
+            amountCents: discountAmount,
+            userVoucherId: voucherId,
+          },
+        });
       });
 
-      // Create new discount record
-      const discount = await prisma.discounts_charges.create({
-        data: {
-          userId: userId,
-          type: 'voucher',
-          amountCents: discountAmount,
-          userVoucherId: voucherId, // Store the UserVoucher ID
-          // orderId is null initially
-        },
-      });
+
 
       return {
         success: true,
