@@ -72,6 +72,12 @@ GEMINI_API_KEY=your-gemini-api-key-here
 
 Get your API key from: [ai.google.dev](https://ai.google.dev/)
 
+**Optional (ID Verification):**
+```env
+AI_MODEL_PATH=/absolute/path/to/best.pt
+AI_DEVICE=
+```
+
 ---
 
 ## API Endpoints
@@ -160,6 +166,24 @@ Content-Type: multipart/form-data
 **Possible Values:**
 - `is_match: 1` - Image matches the dish
 - `is_match: 0` - Image does not match
+
+#### 5. ID Verification (WebSocket)
+```text
+ws://localhost:8000/id/ws
+```
+
+Send binary JPEG frames (5–8 FPS). Each frame receives a JSON response:
+```json
+{
+  "state": "SEARCHING",
+  "bbox": [100, 120, 500, 380],
+  "confidence": 0.86,
+  "area_ratio": 0.14,
+  "frame": { "width": 1280, "height": 720 },
+  "too_small": false,
+  "crop": "data:image/jpeg;base64,..."
+}
+```
 
 ---
 
