@@ -32,17 +32,25 @@ const processOrdersByDish = (ordersByDish) => {
   };
 };
 
+const parseSgDate = (dateString) => {
+  const [year, month, day] = dateString.split('-').map(Number);
+  return new Date(Date.UTC(year, month - 1, day, -8));
+};
+
+const formatSgDateKey = (date) =>
+  new Intl.DateTimeFormat('en-CA', { timeZone: SG_TIMEZONE }).format(date);
+
 const addDays = (dateString, days) => {
-  const base = new Date(`${dateString}T00:00:00+08:00`);
+  const base = parseSgDate(dateString);
   base.setUTCDate(base.getUTCDate() + days);
-  return base.toISOString().split('T')[0];
+  return formatSgDateKey(base);
 };
 
 const formatWeekLabelShort = (weekStart) => {
-  const start = new Date(`${weekStart}T00:00:00+08:00`);
-  const end = new Date(`${addDays(weekStart, 6)}T00:00:00+08:00`);
-  const startDay = start.getUTCDate();
-  const endDay = end.getUTCDate();
+  const start = parseSgDate(weekStart);
+  const end = parseSgDate(addDays(weekStart, 6));
+  const startDay = start.toLocaleDateString('en-SG', { day: 'numeric', timeZone: SG_TIMEZONE });
+  const endDay = end.toLocaleDateString('en-SG', { day: 'numeric', timeZone: SG_TIMEZONE });
   const startMonth = start.toLocaleDateString('en-SG', { month: 'short', timeZone: SG_TIMEZONE });
   const endMonth = end.toLocaleDateString('en-SG', { month: 'short', timeZone: SG_TIMEZONE });
   
@@ -53,9 +61,9 @@ const formatWeekLabelShort = (weekStart) => {
 };
 
 const formatDayLabelShort = (dateString) => {
-  const date = new Date(`${dateString}T00:00:00+08:00`);
+  const date = parseSgDate(dateString);
   const day = date.toLocaleDateString('en-SG', { weekday: 'short', timeZone: SG_TIMEZONE });
-  const dayNum = date.getUTCDate();
+  const dayNum = date.toLocaleDateString('en-SG', { day: 'numeric', timeZone: SG_TIMEZONE });
   return `${day} ${dayNum}`;
 };
 
