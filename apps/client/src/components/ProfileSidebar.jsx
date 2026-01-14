@@ -1,18 +1,18 @@
 import { Link, useLocation } from "react-router-dom";
 import logoFull from "../assets/logo/logo_full.png";
 import {
-  FiUser,
-  FiClock,
-  FiUploadCloud,
-  FiHeart,
-  FiGift,
-  FiAward,
-  FiShield,
-  FiSettings,
-  FiBriefcase,
-  FiHelpCircle,
-  FiDollarSign,
-} from "react-icons/fi";
+  Award,
+  Briefcase,
+  Clock,
+  DollarSign,
+  Gift,
+  Heart,
+  HelpCircle,
+  Settings,
+  Shield,
+  UploadCloud,
+  User,
+} from "lucide-react";
 import { useAuth } from "../features/auth/useAuth";
 
 export default function ProfileSidebar() {
@@ -50,18 +50,18 @@ export default function ProfileSidebar() {
 
       <div className="flex flex-row md:flex-col md:w-full px-2 md:px-0">
         <nav className="flex flex-row md:flex-col md:px-3 space-x-2 md:space-x-0 md:space-y-1">
-          <SidebarItem icon={FiUser} label="Profile" to="/profile" />
-          <SidebarItem icon={FiClock} label="Order History" to="/orders" />
+          <SidebarItem icon={User} label="Profile" to="/profile" />
+          <SidebarItem icon={Clock} label="Order History" to="/orders" />
           <SidebarItem
-            icon={FiUploadCloud}
+            icon={UploadCloud}
             label="Uploads History"
             to="/my-collection"
           />
-          <SidebarItem icon={FiHeart} label="Favourites" to="/favourites" />
-          <SidebarItem icon={FiGift} label="Vouchers" to="/vouchers" />
-          <SidebarItem icon={FiAward} label="Achievements" to="/achievements" />
+          <SidebarItem icon={Heart} label="Favourites" to="/favourites" />
+          <SidebarItem icon={Gift} label="Vouchers" to="/vouchers" />
+          <SidebarItem icon={Award} label="Achievements" to="/achievements" />
           <SidebarItem
-            icon={FiDollarSign}
+            icon={DollarSign}
             label="Spending Budget"
             to="/spendingsPage"
           />
@@ -69,11 +69,11 @@ export default function ProfileSidebar() {
 
         <div className="flex flex-row md:flex-col md:px-3 md:mt-6 md:pt-6 border-l md:border-l-0 md:border-t border-gray-100 space-x-2 md:space-x-0 md:space-y-1 ml-2 md:ml-0 pl-2 md:pl-0">
           {profile?.role === "admin" && (
-            <SidebarItem icon={FiShield} label="Admin" to="/admin" match="/admin" />
+            <SidebarItem icon={Shield} label="Admin" to="/admin" match="/admin" />
           )}
-          <SidebarItem icon={FiSettings} label="Settings" to="/settings" />
-          <SidebarItem icon={FiBriefcase} label="For Business" to="/business" />
-          <SidebarItem icon={FiHelpCircle} label="Help Center" to="/help" />
+          <SidebarItem icon={Settings} label="Settings" to="/settings" />
+          <SidebarItem icon={Briefcase} label="For Business" to="/business" />
+          <SidebarItem icon={HelpCircle} label="Help Center" to="/help" />
         </div>
       </div>
     </aside>

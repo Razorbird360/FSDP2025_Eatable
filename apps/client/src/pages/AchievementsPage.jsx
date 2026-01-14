@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { FiAward, FiCamera, FiCheck, FiStar, FiThumbsUp } from 'react-icons/fi';
+import { Award, Camera, Check, Star, ThumbsUp } from 'lucide-react';
 import api from '@lib/api';
 
 const getActionText = (type) => {
@@ -9,9 +9,9 @@ const getActionText = (type) => {
 };
 
 const getAchievementIcon = (type) => {
-  if (type === 'vote') return FiThumbsUp;
-  if (type === 'upload') return FiCamera;
-  return FiStar;
+  if (type === 'vote') return ThumbsUp;
+  if (type === 'upload') return Camera;
+  return Star;
 };
 
 const getProgressPercent = (achievement) => {
@@ -106,7 +106,7 @@ export default function AchievementsPage() {
       <div className="flex items-center justify-between mb-5">
         <h1 className="text-xl font-bold text-gray-900">Achievements</h1>
         <div className="flex items-center gap-2 text-sm">
-          <FiAward className="w-5 h-5 text-amber-500" />
+          <Award className="w-5 h-5 text-amber-500" />
           <span className="text-gray-600">
             {unlockedCount}/{totalCount}
           </span>
@@ -116,7 +116,7 @@ export default function AchievementsPage() {
       <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl p-4 mb-5 border border-amber-100">
         <div className="flex items-center gap-4">
           <div className="w-14 h-14 bg-gradient-to-br from-amber-400 to-orange-500 rounded-2xl flex items-center justify-center text-white shadow-lg flex-shrink-0">
-            <FiAward className="w-7 h-7" />
+            <Award className="w-7 h-7" />
           </div>
           <div className="flex-1 min-w-0">
             <h3 className="font-semibold text-gray-900 text-base">Achievement progress</h3>
@@ -132,7 +132,7 @@ export default function AchievementsPage() {
       {totalCount === 0 ? (
         <div className="flex flex-col items-center justify-center py-14 bg-[#F8FDF3] rounded-2xl border border-dashed border-[#E7EEE7]">
           <div className="w-16 h-16 bg-[#EFF8EE] rounded-full flex items-center justify-center mb-4">
-            <FiAward className="w-8 h-8 text-[#21421B]" />
+            <Award className="w-8 h-8 text-[#21421B]" />
           </div>
           <h3 className="text-lg font-semibold text-[#1C201D] mb-2">No achievements yet</h3>
           <p className="text-[#4A554B] text-center px-4">
@@ -219,7 +219,7 @@ export default function AchievementsPage() {
 
                           {isUnlocked && (
                             <div className="w-7 h-7 bg-emerald-500 rounded-full flex items-center justify-center shadow-md flex-shrink-0">
-                              <FiCheck className="w-4 h-4 text-white" />
+                              <Check className="w-4 h-4 text-white" />
                             </div>
                           )}
                         </div>

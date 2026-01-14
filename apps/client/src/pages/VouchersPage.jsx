@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { FiCheck, FiClock, FiCopy, FiGift } from 'react-icons/fi';
+import { Check, Clock, Copy, Gift } from 'lucide-react';
 import api from '@lib/api';
 
 const formatDate = (dateString) => {
@@ -115,7 +115,7 @@ const VouchersPage = () => {
                     className={`bg-gradient-to-r ${getVoucherGradient(voucher)} text-white p-4 flex items-center justify-between`}
                   >
                     <div className="flex items-center gap-3">
-                      <FiGift className="w-6 h-6 opacity-80" />
+                      <Gift className="w-6 h-6 opacity-80" />
                       <div>
                         <div className="text-2xl font-bold">{discountLabel}</div>
                         <div className="text-xs opacity-90">{typeLabel}</div>
@@ -132,12 +132,12 @@ const VouchersPage = () => {
                     >
                       {copiedId === voucher.userVoucherId ? (
                         <>
-                          <FiCheck className="w-4 h-4" />
+                                <Check className="w-4 h-4" />
                           Copied!
                         </>
                       ) : (
                         <>
-                          <FiCopy className="w-4 h-4" />
+                                <Copy className="w-4 h-4" />
                           {voucher.code}
                         </>
                       )}
@@ -155,7 +155,7 @@ const VouchersPage = () => {
                           : 'bg-gray-100 text-gray-600'
                       }`}
                     >
-                      <FiClock className="w-3.5 h-3.5" />
+                      <Clock className="w-3.5 h-3.5" />
                       {expiryLabel}
                     </span>
                   </div>
@@ -167,7 +167,7 @@ const VouchersPage = () => {
       ) : (
         <div className="flex flex-col items-center justify-center py-16 bg-[#F8FDF3] rounded-2xl border border-dashed border-[#E7EEE7]">
           <div className="w-16 h-16 bg-[#EFF8EE] rounded-full flex items-center justify-center mb-4">
-            <FiGift className="w-8 h-8 text-[#21421B]" />
+            <Gift className="w-8 h-8 text-[#21421B]" />
           </div>
           <h3 className="text-lg font-semibold text-[#1C201D] mb-2">
             {vouchers.length === 0 ? 'No vouchers yet' : 'No available vouchers'}

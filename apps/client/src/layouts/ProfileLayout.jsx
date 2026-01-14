@@ -2,31 +2,31 @@ import { useCallback, useEffect, useState } from "react";
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import ProfileSidebar from '../components/ProfileSidebar';
 import {
-    FiUser,
-    FiClock,
-    FiUploadCloud,
-    FiHeart,
-    FiGift,
-    FiAward,
-    FiSettings,
-    FiBriefcase,
-    FiHelpCircle
-} from "react-icons/fi";
+    Award,
+    Briefcase,
+    Clock,
+    Gift,
+    Heart,
+    HelpCircle,
+    Settings,
+    UploadCloud,
+    User,
+} from "lucide-react";
 import api from "@lib/api";
 
 const mobileNavItems = [
-    { icon: FiUser, label: "Profile", to: "/profile" },
-    { icon: FiClock, label: "Orders", to: "/orders" },
-    { icon: FiUploadCloud, label: "Uploads", to: "/my-collection" },
-    { icon: FiHeart, label: "Favourites", to: "/favourites" },
-    { icon: FiGift, label: "Vouchers", to: "/vouchers" },
-    { icon: FiAward, label: "Achievements", to: "/achievements" },
+    { icon: User, label: "Profile", to: "/profile" },
+    { icon: Clock, label: "Orders", to: "/orders" },
+    { icon: UploadCloud, label: "Uploads", to: "/my-collection" },
+    { icon: Heart, label: "Favourites", to: "/favourites" },
+    { icon: Gift, label: "Vouchers", to: "/vouchers" },
+    { icon: Award, label: "Achievements", to: "/achievements" },
 ];
 
 const mobileSecondaryNavItems = [
-    { icon: FiSettings, label: "Settings", to: "/settings" },
-    { icon: FiBriefcase, label: "Business", to: "/business" },
-    { icon: FiHelpCircle, label: "Help", to: "/help" },
+    { icon: Settings, label: "Settings", to: "/settings" },
+    { icon: Briefcase, label: "Business", to: "/business" },
+    { icon: HelpCircle, label: "Help", to: "/help" },
 ];
 
 export default function ProfileLayout() {

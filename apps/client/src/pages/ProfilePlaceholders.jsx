@@ -1,5 +1,20 @@
 import { useState } from 'react';
-import { FiGift, FiClock, FiAward, FiBell, FiLock, FiMoon, FiGlobe, FiBriefcase, FiHelpCircle, FiMessageCircle, FiMail, FiChevronRight, FiCopy, FiCheck } from 'react-icons/fi';
+import {
+  Award,
+  Bell,
+  Briefcase,
+  Check,
+  ChevronRight,
+  Clock,
+  Copy,
+  Gift,
+  Globe,
+  HelpCircle,
+  Lock,
+  Mail,
+  MessageCircle,
+  Moon,
+} from 'lucide-react';
 
 // ==========================================================================
 // TODO: REMOVE MOCK DATA - Remove mockVouchers array after backend integration
@@ -80,7 +95,7 @@ export const VouchersPage = () => {
                                 {/* Discount Badge - horizontal bar on top */}
                                 <div className={`bg-gradient-to-r ${voucher.gradient} text-white p-4 flex items-center justify-between`}>
                                     <div className="flex items-center gap-3">
-                                        <FiGift className="w-6 h-6 opacity-80" />
+                                        <Gift className="w-6 h-6 opacity-80" />
                                         <div>
                                             <div className="text-2xl font-bold">{voucher.discount}</div>
                                             <div className="text-xs opacity-90">{voucher.type === 'percentage' ? 'OFF' : voucher.type === 'delivery' ? 'DELIVERY' : 'OFF'}</div>
@@ -96,12 +111,12 @@ export const VouchersPage = () => {
                                     >
                                         {copiedId === voucher.id ? (
                                             <>
-                                                <FiCheck className="w-4 h-4" />
+                                                <Check className="w-4 h-4" />
                                                 Copied!
                                             </>
                                         ) : (
                                             <>
-                                                <FiCopy className="w-4 h-4" />
+                                                <Copy className="w-4 h-4" />
                                                 {voucher.code}
                                             </>
                                         )}
@@ -117,7 +132,7 @@ export const VouchersPage = () => {
                                         ? 'bg-amber-100 text-amber-700'
                                         : 'bg-gray-100 text-gray-600'
                                         }`}>
-                                        <FiClock className="w-3.5 h-3.5" />
+                                        <Clock className="w-3.5 h-3.5" />
                                         Expires {formatDate(voucher.expiryDate)}
                                     </span>
                                 </div>
@@ -128,7 +143,7 @@ export const VouchersPage = () => {
             ) : (
                 <div className="flex flex-col items-center justify-center py-16 bg-[#F8FDF3] rounded-2xl border border-dashed border-[#E7EEE7]">
                     <div className="w-16 h-16 bg-[#EFF8EE] rounded-full flex items-center justify-center mb-4">
-                        <FiGift className="w-8 h-8 text-[#21421B]" />
+                        <Gift className="w-8 h-8 text-[#21421B]" />
                     </div>
                     <h3 className="text-lg font-semibold text-[#1C201D] mb-2">No vouchers yet</h3>
                     <p className="text-[#4A554B] text-center px-4">Complete orders to earn vouchers and discounts!</p>
@@ -211,7 +226,7 @@ export const AchievementsPage = () => {
             <div className="flex items-center justify-between mb-5">
                 <h1 className="text-xl font-bold text-gray-900">Achievements</h1>
                 <div className="flex items-center gap-2 text-sm">
-                    <FiAward className="w-5 h-5 text-amber-500" />
+                    <Award className="w-5 h-5 text-amber-500" />
                     {/* TODO: REMOVE - Replace mockAchievements.length with actual count */}
                     <span className="text-gray-600">{unlockedCount}/{mockAchievements.length}</span>
                 </div>
@@ -267,7 +282,7 @@ export const AchievementsPage = () => {
                                     {/* Unlocked badge */}
                                     {achievement.unlocked && (
                                         <div className="w-7 h-7 bg-emerald-500 rounded-full flex items-center justify-center shadow-md flex-shrink-0">
-                                            <FiCheck className="w-4 h-4 text-white" />
+                                            <Check className="w-4 h-4 text-white" />
                                         </div>
                                     )}
                                 </div>
@@ -337,15 +352,15 @@ export const SettingsPage = () => {
             <div className="bg-white rounded-xl border border-gray-100 p-4 md:p-6 shadow-sm overflow-hidden">
                 <h2 className="text-lg font-bold text-gray-900 mb-3">Notifications</h2>
 
-                <SettingItem icon={FiBell} label="Push Notifications" description="Receive alerts on your device">
+                <SettingItem icon={Bell} label="Push Notifications" description="Receive alerts on your device">
                     <SettingToggle enabled={notifications} onChange={setNotifications} />
                 </SettingItem>
 
-                <SettingItem icon={FiMail} label="Order Updates" description="Get notified about order status">
+                <SettingItem icon={Mail} label="Order Updates" description="Get notified about order status">
                     <SettingToggle enabled={orderUpdates} onChange={setOrderUpdates} />
                 </SettingItem>
 
-                <SettingItem icon={FiGift} label="Promotions & Deals" description="Exclusive offers and discounts">
+                <SettingItem icon={Gift} label="Promotions & Deals" description="Exclusive offers and discounts">
                     <SettingToggle enabled={promotions} onChange={setPromotions} />
                 </SettingItem>
             </div>
@@ -354,12 +369,12 @@ export const SettingsPage = () => {
             <div className="bg-white rounded-xl border border-gray-100 p-4 md:p-6 shadow-sm overflow-hidden">
                 <h2 className="text-lg font-bold text-gray-900 mb-3">Preferences</h2>
 
-                <SettingItem icon={FiMoon} label="Dark Mode" description="Switch to dark theme">
+                <SettingItem icon={Moon} label="Dark Mode" description="Switch to dark theme">
                     <SettingToggle enabled={darkMode} onChange={setDarkMode} />
                 </SettingItem>
 
-                <SettingItem icon={FiGlobe} label="Language" description="English">
-                    <FiChevronRight className="w-5 h-5 text-gray-400" />
+                <SettingItem icon={Globe} label="Language" description="English">
+                    <ChevronRight className="w-5 h-5 text-gray-400" />
                 </SettingItem>
             </div>
 
@@ -367,8 +382,8 @@ export const SettingsPage = () => {
             <div className="bg-white rounded-xl border border-gray-100 p-4 md:p-6 shadow-sm overflow-hidden">
                 <h2 className="text-lg font-bold text-gray-900 mb-3">Security</h2>
 
-                <SettingItem icon={FiLock} label="Change Password" description="Update your password">
-                    <FiChevronRight className="w-5 h-5 text-gray-400" />
+                <SettingItem icon={Lock} label="Change Password" description="Update your password">
+                    <ChevronRight className="w-5 h-5 text-gray-400" />
                 </SettingItem>
             </div>
 
@@ -388,7 +403,7 @@ export const BusinessPage = () => (
         <div className="text-center">
             {/* Icon */}
             <div className="w-20 h-20 bg-gradient-to-br from-[#E7F3E6] to-[#D4EAD2] rounded-3xl flex items-center justify-center mx-auto mb-5">
-                <FiBriefcase className="w-10 h-10 text-[#21421B]" />
+                <Briefcase className="w-10 h-10 text-[#21421B]" />
             </div>
 
             <h1 className="text-xl font-bold text-gray-900 mb-2">Partner With Us</h1>
@@ -406,7 +421,7 @@ export const BusinessPage = () => (
                 ].map((benefit, i) => (
                     <div key={i} className="flex items-center gap-3 p-3.5 bg-[#F8FDF3] rounded-xl">
                         <div className="w-7 h-7 bg-[#21421B] rounded-full flex items-center justify-center flex-shrink-0">
-                            <FiCheck className="w-4 h-4 text-white" />
+                            <Check className="w-4 h-4 text-white" />
                         </div>
                         <span className="text-base text-gray-700">{benefit}</span>
                     </div>
@@ -443,7 +458,7 @@ export const HelpPage = () => {
                 <div className="space-y-3">
                     <button className="w-full flex items-center gap-4 p-4 bg-[#F8FDF3] rounded-xl hover:bg-[#E7F3E6] transition-colors">
                         <div className="w-12 h-12 bg-[#E7F3E6] rounded-xl flex items-center justify-center">
-                            <FiMessageCircle className="w-6 h-6 text-[#21421B]" />
+                            <MessageCircle className="w-6 h-6 text-[#21421B]" />
                         </div>
                         <div className="text-left">
                             <span className="text-base font-medium text-gray-900 block">Live Chat</span>
@@ -452,7 +467,7 @@ export const HelpPage = () => {
                     </button>
                     <button className="w-full flex items-center gap-4 p-4 bg-[#F8FDF3] rounded-xl hover:bg-[#E7F3E6] transition-colors">
                         <div className="w-12 h-12 bg-[#E7F3E6] rounded-xl flex items-center justify-center">
-                            <FiMail className="w-6 h-6 text-[#21421B]" />
+                            <Mail className="w-6 h-6 text-[#21421B]" />
                         </div>
                         <div className="text-left">
                             <span className="text-base font-medium text-gray-900 block">Email Support</span>
@@ -475,7 +490,7 @@ export const HelpPage = () => {
                                 className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50 transition-colors"
                             >
                                 <span className="font-medium text-base text-gray-900 pr-3">{item.q}</span>
-                                <FiChevronRight className={`w-5 h-5 text-gray-400 transition-transform flex-shrink-0 ${openFaq === i ? 'rotate-90' : ''}`} />
+                                <ChevronRight className={`w-5 h-5 text-gray-400 transition-transform flex-shrink-0 ${openFaq === i ? 'rotate-90' : ''}`} />
                             </button>
                             {openFaq === i && (
                                 <div className="px-4 pb-4 text-base text-gray-600">
@@ -489,7 +504,7 @@ export const HelpPage = () => {
 
             {/* Help Center Link */}
             <div className="bg-gradient-to-r from-[#21421B] to-[#3a6b35] rounded-xl p-5 md:p-6 text-white text-center">
-                <FiHelpCircle className="w-10 h-10 mx-auto mb-3 opacity-80" />
+                <HelpCircle className="w-10 h-10 mx-auto mb-3 opacity-80" />
                 <h3 className="font-semibold text-lg mb-2">Need more help?</h3>
                 <p className="text-sm opacity-80 mb-4">Visit our full help center for guides and tutorials.</p>
                 <button className="w-full py-3 bg-white text-[#21421B] font-medium rounded-xl hover:bg-gray-100 transition-colors text-base">
