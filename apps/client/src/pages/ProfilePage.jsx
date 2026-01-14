@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import { FiCheck, FiEdit3, FiRefreshCw, FiUser } from "react-icons/fi";
-import api from "../lib/api";
+import api from "@lib/api";
 
 export default function ProfilePage() {
   const { profile, setProfile, loading, refreshProfile } = useOutletContext();

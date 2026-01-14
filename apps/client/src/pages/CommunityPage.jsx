@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { DemoOne } from '@/components/ui/demo';
-import api from '@/lib/api';
+import api from '@lib/api';
 
 const MAX_CENTRES = 4;
 const MAX_STALLS_PER_CENTRE = 4;

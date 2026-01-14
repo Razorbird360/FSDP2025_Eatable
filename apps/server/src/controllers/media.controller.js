@@ -3,6 +3,7 @@ import { menuService } from '../services/menu.service.js';
 import { storageService } from '../services/storage.service.js';
 import { userService } from '../services/user.service.js';
 import { aiValidationService } from '../services/ai-validation.service.js';
+import { taggingService } from '../services/tagging.service.js';
 
 const BUCKET_NAME = 'food-images';
 const VALID_STATUSES = ['pending', 'approved', 'rejected'];
@@ -122,10 +123,40 @@ export const mediaController = {
         validationStatus,
       });
 
+      // 9b. AI tagging (non-blocking to upload success if it fails)
+      let tags = [];
+      try {
+        const tagResult = await taggingService.generateAndSaveUploadTags({
+          uploadId: upload.id,
+          menuItemId,
+          imageUrl: image_url,
+          caption: caption || '',
+          menuItemName: menuItem.name,
+        });
+        tags = tagResult.tags.map((tag) => ({
+          label: tag.label,
+          confidence: tag.confidence,
+          reliabilityPercent: Math.round(tag.confidence * 100),
+        }));
+      } catch (taggingError) {
+        console.error('AI tagging failed during upload:', taggingError);
+      }
+
+      // Track upload for achievements
+      try {
+        const { achievementService } = await import('../services/achievement.service.js');
+        const date = new Date();
+        const monthYear = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        await achievementService.trackUpload(req.user.id, monthYear);
+      } catch (e) {
+        console.error("Failed to track upload achievement:", e);
+      }
+
       // 10. Return success
       res.status(201).json({
         message: 'Image uploaded successfully',
         upload,
+        tags,
       });
     } catch (error) {
       next(error);

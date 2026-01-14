@@ -5,13 +5,14 @@ import arrowRight from "../../../assets/hawker/arrow-right.svg";
 import locationIcon from "../../../assets/hawker/location.svg";
 import Filters from "../../hawkerCentres/components/Filters";
 import FiltersMobile from "../../hawkerCentres/components/FiltersMobile";
-import api from "../../../lib/api";
+import api from "@lib/api";
 import trendUp from "../../../assets/icons/trend-up.svg";
 import clockIcon from "../../../assets/icons/clock.svg";
 import stallsIcon from "../../../assets/hawker/Stalls-dark.svg";
 import dishesIcon from "../../../assets/hawker/Dishes-dark.svg";
 import { useFilters } from "../../hawkerCentres/hooks/useFilters";
 import { useUserLocation } from "../../hawkerCentres/hooks/useUserLocation";
+import { resolveTagConflicts } from "../../../utils/tagging";
 
 const fallbackHeroImg =
   "https://images.unsplash.com/photo-1544027993-37dbfe43562a?q=80&w=800&auto=format&fit=crop";
@@ -19,8 +20,29 @@ const fallbackHeroImg =
 const fallbackDishImg =
   "https://images.unsplash.com/photo-1544025162-d76694265947?q=80&w=800&auto=format&fit=crop";
 
+const formatRelativeDate = (value) => {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  const diffMs = Date.now() - date.getTime();
+  if (diffMs <= 0) return "today";
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  if (diffDays <= 0) return "today";
+  if (diffDays === 1) return "1 day ago";
+  if (diffDays < 7) return `${diffDays} days ago`;
+  const diffWeeks = Math.floor(diffDays / 7);
+  if (diffWeeks < 5) return `${diffWeeks}w ago`;
+  const diffMonths = Math.floor(diffDays / 30);
+  return `${diffMonths}mo ago`;
+};
+
 function DishCard({ dish }) {
   const navigate = useNavigate();
+  const verifiedLabel =
+    dish.approvedUploadCount > 0
+      ? `${dish.approvedUploadCount} verified photo${dish.approvedUploadCount === 1 ? "" : "s"}`
+      : "No verified photos yet";
+  const lastUploadLabel = formatRelativeDate(dish.lastApprovedUploadAt);
 
   return (
     <div
@@ -43,6 +65,10 @@ function DishCard({ dish }) {
         <p className="text-xs text-gray-500 mb-3">
           {dish.cuisine}
         </p>
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] text-slate-500">
+          <span>{verifiedLabel}</span>
+          {lastUploadLabel && <span>Last upload {lastUploadLabel}</span>}
+        </div>
 
         {/* Stats row */}
         <div className="flex items-center justify-between text-xs text-slate-500">
@@ -88,18 +114,6 @@ function StallCard({ stall }) {
           <p className="text-xs text-gray-500 mt-0.5">
             {stall.cuisineType} · {stall.location}
           </p>
-          {stall.tags && stall.tags.length > 0 && (
-            <div className="mt-1 flex flex-wrap gap-1">
-              {stall.tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="px-2 py-0.5 rounded-full bg-slate-50 text-[10px] text-gray-600 border border-slate-100"
-                >
-                  {tag}
-                </span>
-              ))}
-            </div>
-          )}
         </div>
         <Link
           to={`/stalls/${stall.id}`}
@@ -190,21 +204,43 @@ const HawkerCentreDetailPage = () => {
           const stallForDish = mappedStalls.find(
             (s) => s.id === dish.stallId
           );
+          const approvedUploadCount =
+            typeof dish.approvedUploadCount === "number"
+              ? dish.approvedUploadCount
+              : 0;
+          const resolvedTags = resolveTagConflicts(
+            dish.menuItemTagAggs || [],
+            approvedUploadCount,
+            3
+          );
 
           return {
             ...dish,
             stallId: dish.stallId,
             stallName: stallForDish?.name ?? "View stall",
             cuisine: dish.category || stallForDish?.cuisineType || "Food",
-            prepTime: dish.prepTimeMins ? `${dish.prepTimeMins} min` : "–",
+            prepTime: dish.prepTimeMins ? `${dish.prepTimeMins} min` : "???",
             price:
               typeof dish.priceCents === "number"
                 ? dish.priceCents / 100
                 : 0,
             imageUrl: dish.mediaUploads?.[0]?.imageUrl || fallbackDishImg,
+            approvedUploadCount,
+            lastApprovedUploadAt: dish.lastApprovedUploadAt || null,
+            verified: approvedUploadCount > 0,
+            tags: resolvedTags,
+            expectations:
+              resolvedTags.length > 0
+                ? resolvedTags
+                  .map((tag) => tag.label)
+                  .filter(Boolean)
+                  .slice(0, 2)
+                  .join(", ")
+                : null,
             orders: typeof dish.upvoteCount === "number" ? dish.upvoteCount : null,
           };
         });
+
 
         setStalls(mappedStalls);
         setDishes(mappedDishes);
@@ -300,23 +336,23 @@ const HawkerCentreDetailPage = () => {
 
   const distanceKm =
     locationStatus === "granted" &&
-    coords &&
-    typeof centre.latitude === "number" &&
-    typeof centre.longitude === "number"
+      coords &&
+      typeof centre.latitude === "number" &&
+      typeof centre.longitude === "number"
       ? (() => {
-          const toRad = (degrees) => (degrees * Math.PI) / 180;
-          const R = 6371;
-          const dLat = toRad(centre.latitude - coords.lat);
-          const dLon = toRad(centre.longitude - coords.lng);
-          const a =
-            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-            Math.cos(toRad(coords.lat)) *
-              Math.cos(toRad(centre.latitude)) *
-              Math.sin(dLon / 2) *
-              Math.sin(dLon / 2);
-          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-          return R * c;
-        })()
+        const toRad = (degrees) => (degrees * Math.PI) / 180;
+        const R = 6371;
+        const dLat = toRad(centre.latitude - coords.lat);
+        const dLon = toRad(centre.longitude - coords.lng);
+        const a =
+          Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+          Math.cos(toRad(coords.lat)) *
+          Math.cos(toRad(centre.latitude)) *
+          Math.sin(dLon / 2) *
+          Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
+      })()
       : null;
 
   return (
@@ -345,18 +381,18 @@ const HawkerCentreDetailPage = () => {
       </div>
 
       {/* Top summary card */}
-      <div 
+      <div
         className="w-full rounded-2xl py-6 pl-6 pr-4 md:p-6 flex flex-col md:flex-row md:items-center gap-5 shadow-[0_2px_12px_rgba(0,0,0,0.06)] relative overflow-hidden md:bg-white md:border md:border-slate-200"
       >
         {/* Background image for mobile */}
-        <div 
+        <div
           className="absolute inset-0 md:hidden bg-cover bg-center"
           style={{ backgroundImage: `url(${centre.imageUrl || fallbackHeroImg})` }}
         />
-        
+
         {/* Dark overlay for mobile */}
         <div className="absolute inset-0 bg-black/50 md:hidden" />
-        
+
         {/* White background for desktop */}
         <div className="hidden md:block absolute inset-0 bg-white" />
 
@@ -397,11 +433,11 @@ const HawkerCentreDetailPage = () => {
                   Location
                 </p>
                 <p className="text-sm text-white md:text-gray-600">
-                {distanceKm != null
-                  ? `${distanceKm.toFixed(1)} km from you`
-                  : locationStatus === "pending"
-                    ? "Locating..."
-                    : "Distance unavailable"}
+                  {distanceKm != null
+                    ? `${distanceKm.toFixed(1)} km from you`
+                    : locationStatus === "pending"
+                      ? "Locating..."
+                      : "Distance unavailable"}
                 </p>
               </div>
             </div>
@@ -460,15 +496,14 @@ const HawkerCentreDetailPage = () => {
             type="button"
             onClick={() => setActiveTab("stalls")}
             className={`flex items-center gap-2 pl-[18px] pr-5 py-2 text-sm rounded-lg font-medium transition-colors
-              ${
-                activeTab === "stalls"
-                  ? "bg-brand text-white"
-                  : "text-gray-400"
+              ${activeTab === "stalls"
+                ? "bg-brand text-white"
+                : "text-gray-400"
               }`}
           >
-            <img 
-              src={stallsIcon} 
-              alt="" 
+            <img
+              src={stallsIcon}
+              alt=""
               className={`w-4 h-4 ${activeTab === "stalls" ? "brightness-0 invert" : ""}`}
             />
             Stalls
@@ -477,15 +512,14 @@ const HawkerCentreDetailPage = () => {
             type="button"
             onClick={() => setActiveTab("dishes")}
             className={`flex items-center gap-2 pl-[18px] pr-5 py-2 text-sm rounded-lg font-medium transition-colors
-              ${
-                activeTab === "dishes"
-                  ? "bg-brand text-white"
-                  : "text-gray-400"
+              ${activeTab === "dishes"
+                ? "bg-brand text-white"
+                : "text-gray-400"
               }`}
           >
-            <img 
-              src={dishesIcon} 
-              alt="" 
+            <img
+              src={dishesIcon}
+              alt=""
               className={`w-4 h-4 ${activeTab === "dishes" ? "brightness-0 invert" : ""}`}
             />
             Dishes

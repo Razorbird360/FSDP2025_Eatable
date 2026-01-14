@@ -1,4 +1,5 @@
 import prisma from '../lib/prisma.js';
+import { achievementService } from './achievement.service.js';
 
 /**
  * MediaUpload table CRUD operations
@@ -240,7 +241,7 @@ export const mediaService = {
   },
 
   async upvote(uploadId, userId) {
-    return prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
       // Check if user has already voted
       const existingVote = await tx.mediaUploadVote.findUnique({
         where: {
@@ -277,10 +278,23 @@ export const mediaService = {
 
       return { message: 'Upvote recorded.', vote: newVote };
     });
+
+    // Track achievement outside transaction to avoid locking issues if possible, 
+    // or keep it simple. Since achievementService uses its own transaction for reward,
+    // we can call it after the vote transaction completes.
+    try {
+      const date = new Date();
+      const monthYear = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      await achievementService.trackVote(userId, monthYear);
+    } catch (e) {
+      console.error("Failed to track vote achievement:", e);
+    }
+
+    return result;
   },
 
   async downvote(uploadId, userId) {
-    return prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
       // Check if user has already voted
       const existingVote = await tx.mediaUploadVote.findUnique({
         where: {
@@ -315,6 +329,17 @@ export const mediaService = {
 
       return { message: 'Downvote recorded.', vote: newVote };
     });
+
+    // Track achievement
+    try {
+      const date = new Date();
+      const monthYear = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      await achievementService.trackVote(userId, monthYear);
+    } catch (e) {
+      console.error("Failed to track vote achievement:", e);
+    }
+
+    return result;
   },
 
   async removeUpvote(uploadId, userId) {

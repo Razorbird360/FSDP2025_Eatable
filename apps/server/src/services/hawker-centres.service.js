@@ -1,6 +1,40 @@
-import { PrismaClient } from '@prisma/client';
+import prisma from '../lib/prisma.js';
 
-const prisma = new PrismaClient();
+function addTagAggregate(map, { label, confidence }) {
+  if (!label) return;
+
+  const existing = map.get(label);
+  if (!existing) {
+    map.set(label, {
+      label,
+      count: 1,
+      sumConfidence: typeof confidence === 'number' ? confidence : 0,
+    });
+    return;
+  }
+
+  existing.count += 1;
+  if (typeof confidence === 'number') {
+    existing.sumConfidence += confidence;
+  }
+}
+
+function buildTagList(map, limit = 3) {
+  return Array.from(map.values())
+    .map((tag) => ({
+      label: tag.label,
+      count: tag.count,
+      avgConfidence: tag.count > 0 ? tag.sumConfidence / tag.count : 0,
+      reliabilityPercent: Math.round(
+        (tag.count > 0 ? tag.sumConfidence / tag.count : 0) * 100
+      ),
+    }))
+    .sort((a, b) => {
+      if (b.count !== a.count) return b.count - a.count;
+      return b.avgConfidence - a.avgConfidence;
+    })
+    .slice(0, limit);
+}
 
 /**
  * Convert degrees to radians
@@ -152,7 +186,7 @@ async function getRandomStallsBySlug(slug, limit = 3) {
 
 async function getHawkerStallsById(hawkerId) {
   // Implementation for fetching hawker stalls by hawkerId
-  try  {
+  try {
     const stalls = await prisma.stall.findMany({
       where: { hawkerCentreId: hawkerId },
       include: {
@@ -193,7 +227,7 @@ async function getHawkerStallsById(hawkerId) {
 
 async function getHawkerDishesById(hawkerId) {
   // Implementation for fetching hawker dishes by hawkerId
-  try  {
+  try {
     const dishes = await prisma.menuItem.findMany({
       where: {
         stall: { hawkerCentreId: hawkerId },
@@ -205,6 +239,18 @@ async function getHawkerDishesById(hawkerId) {
           orderBy: { upvoteCount: 'desc' },
           take: 1
         },
+        menuItemTagAggs: {
+          orderBy: { count: 'desc' },
+          take: 6,
+          include: {
+            tag: {
+              select: {
+                normalized: true,
+                displayLabel: true
+              }
+            }
+          }
+        }
       }
     });
     if (dishes.length === 0) {
@@ -227,14 +273,104 @@ async function getHawkerDishesById(hawkerId) {
       upvoteTotals.map((row) => [row.menuItemId, row._sum.upvoteCount ?? 0])
     );
 
-    return dishes.map((dish) => ({
-      ...dish,
-      upvoteCount: upvoteByItem.get(dish.id) ?? 0,
-    }));
+    const uploadStats = await prisma.mediaUpload.groupBy({
+      by: ['menuItemId'],
+      where: {
+        menuItemId: { in: dishIds },
+        validationStatus: 'approved',
+      },
+      _count: { _all: true },
+      _max: { createdAt: true },
+    });
+
+    const uploadStatsByMenuItem = new Map(
+      uploadStats.map((stat) => [
+        stat.menuItemId,
+        {
+          approvedUploadCount: stat._count?._all ?? 0,
+          lastApprovedUploadAt: stat._max?.createdAt ?? null,
+        },
+      ])
+    );
+
+    const uploadTags = await prisma.uploadTag.findMany({
+      where: {
+        upload: {
+          menuItemId: { in: dishIds },
+          validationStatus: 'approved',
+        },
+      },
+      select: {
+        confidence: true,
+        evidenceFrom: true,
+        upload: { select: { menuItemId: true } },
+        tag: { select: { normalized: true, displayLabel: true } },
+      },
+    });
+
+    const tagGroupsByMenuItem = new Map();
+
+    for (const row of uploadTags) {
+      const menuItemId = row.upload?.menuItemId;
+      if (!menuItemId) continue;
+
+      const label = row.tag?.displayLabel || row.tag?.normalized;
+      if (!label) continue;
+
+      const evidence = Array.isArray(row.evidenceFrom) ? row.evidenceFrom : [];
+
+      let groups = tagGroupsByMenuItem.get(menuItemId);
+      if (!groups) {
+        groups = {
+          caption: new Map(),
+          image: new Map(),
+        };
+        tagGroupsByMenuItem.set(menuItemId, groups);
+      }
+
+      if (evidence.includes('caption')) {
+        addTagAggregate(groups.caption, {
+          label,
+          confidence: row.confidence,
+        });
+      }
+
+      if (evidence.includes('image')) {
+        addTagAggregate(groups.image, {
+          label,
+          confidence: row.confidence,
+        });
+      }
+    }
+
+
+
+    return dishes.map((dish) => {
+      const stats = uploadStatsByMenuItem.get(dish.id) || {
+        approvedUploadCount: 0,
+        lastApprovedUploadAt: null,
+      };
+
+      const groups = tagGroupsByMenuItem.get(dish.id);
+      const tagGroups = {
+        caption: groups ? buildTagList(groups.caption, 3) : [],
+        image: groups ? buildTagList(groups.image, 3) : [],
+      };
+
+      return {
+        ...dish,
+        approvedUploadCount: stats.approvedUploadCount,
+        lastApprovedUploadAt: stats.lastApprovedUploadAt,
+        tagGroups,
+        upvoteCount: upvoteByItem.get(dish.id) ?? 0,
+      };
+    });
+
+
   } catch (error) {
     console.error(`Error fetching dishes for hawkerId ${hawkerId}:`, error);
     throw new Error('Failed to fetch dishes');
-  } 
+  }
 }
 
 async function getHawkerInfoById(hawkerId) {

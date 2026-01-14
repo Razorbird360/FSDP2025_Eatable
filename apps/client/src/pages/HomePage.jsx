@@ -11,7 +11,7 @@ import HeroAdvertisement from "../ui/HeroAdvertisement";
 import { Button } from "@chakra-ui/react";
 import logo_full from "../assets/logo/logo_full.png";
 import profilePlaceholder from "../assets/navbar/profile_placeholder.jpg";
-import api from "../lib/api";
+import api from "@lib/api";
 import { toaster } from "../components/ui/toaster";
 import { useAuth } from "../features/auth/useAuth";
 import VerificationModal from "../features/verification/components/VerificationModal";

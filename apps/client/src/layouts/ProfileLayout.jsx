@@ -12,7 +12,7 @@ import {
     FiBriefcase,
     FiHelpCircle
 } from "react-icons/fi";
-import api from "../lib/api";
+import api from "@lib/api";
 
 const mobileNavItems = [
     { icon: FiUser, label: "Profile", to: "/profile" },
@@ -102,11 +102,10 @@ export default function ProfileLayout() {
                                         <Link
                                             key={item.to}
                                             to={item.to}
-                                            className={`flex flex-col items-center justify-center py-3 px-2 rounded-xl transition-all ${
-                                                active
-                                                    ? 'bg-[#E7F3E6] text-[#21421B]'
-                                                    : 'text-gray-500 hover:bg-gray-50'
-                                            }`}
+                                            className={`flex flex-col items-center justify-center py-3 px-2 rounded-xl transition-all ${active
+                                                ? 'bg-[#E7F3E6] text-[#21421B]'
+                                                : 'text-gray-500 hover:bg-gray-50'
+                                                }`}
                                         >
                                             <Icon className={`w-6 h-6 mb-1.5 ${active ? 'text-[#21421B]' : 'text-gray-400'}`} />
                                             <span className={`text-xs font-medium ${active ? 'text-[#21421B]' : 'text-gray-500'}`}>
@@ -127,11 +126,10 @@ export default function ProfileLayout() {
                                     <Link
                                         key={item.to}
                                         to={item.to}
-                                        className={`flex flex-col items-center justify-center py-3 px-2 rounded-xl border transition-all ${
-                                            active
-                                                ? 'bg-[#E7F3E6] border-[#21421B] text-[#21421B]'
-                                                : 'bg-white border-gray-100 text-gray-500 hover:bg-gray-50'
-                                        }`}
+                                        className={`flex flex-col items-center justify-center py-3 px-2 rounded-xl border transition-all ${active
+                                            ? 'bg-[#E7F3E6] border-[#21421B] text-[#21421B]'
+                                            : 'bg-white border-gray-100 text-gray-500 hover:bg-gray-50'
+                                            }`}
                                     >
                                         <Icon className={`w-5 h-5 mb-1 ${active ? 'text-[#21421B]' : 'text-gray-400'}`} />
                                         <span className={`text-xs font-medium ${active ? 'text-[#21421B]' : 'text-gray-500'}`}>

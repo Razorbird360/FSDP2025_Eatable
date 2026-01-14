@@ -11,6 +11,9 @@ import netsRoutes from '../services/payment.service.js';
 import verificationRoutes from './verification.routes.js';
 import budgetRoutes from './budget.routes.js';
 import menuRoutes from './menu.routes.js';
+import voucherRoutes from './voucher.routes.js';
+import achievementRoutes from './achievement.routes.js';
+import adminRoutes from './admin.routes.js';
 
 const router = Router();
 
@@ -30,5 +33,8 @@ router.use('/nets-qr', netsRoutes);
 router.use('/verification', verificationRoutes);
 router.use('/budget', budgetRoutes);
 router.use('/menu', menuRoutes);
+router.use('/vouchers', voucherRoutes);
+router.use('/achievements', achievementRoutes);
+router.use('/admin', adminRoutes);
 
 export default router;

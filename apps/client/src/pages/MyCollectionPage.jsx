@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import api from '../lib/api';
+import api from '@lib/api';
 import { supabase } from '../lib/supabase';
+import { formatDate } from '../utils/helpers';
 import UpvoteIcon from '../features/stalls/assets/upvote.svg';
 import DownvoteIcon from '../features/stalls/assets/downvote.svg';
 
@@ -27,6 +28,7 @@ const MyCollectionPage = () => {
     const [reportModalOpen, setReportModalOpen] = useState(false);
     const [reportReason, setReportReason] = useState('');
     const [reportDetails, setReportDetails] = useState('');
+    const [reportTargetItem, setReportTargetItem] = useState(null);
 
     // Get current user
     useEffect(() => {
@@ -98,12 +100,15 @@ const MyCollectionPage = () => {
 
         setReportReason('');
         setReportDetails('');
+        setReportTargetItem(popupItem);
+        setPopupItem(null);
         setReportModalOpen(true);
     };
 
     const handleSubmitReport = async (e) => {
         e.preventDefault();
-        if (!popupItem) return;
+        const target = reportTargetItem || popupItem;
+        if (!target) return;
 
         if (!reportReason) {
             showNotice('Please select a reason to report this photo.');
@@ -111,15 +116,17 @@ const MyCollectionPage = () => {
         }
 
         try {
-            await api.post(`/moderation/report/${popupItem.uploadId}`, {
+            await api.post(`/moderation/report/${target.uploadId}`, {
                 reason: reportReason,
                 details: reportDetails,
             });
 
             setReportedIds((prev) =>
-                prev.includes(popupItem.uploadId) ? prev : [...prev, popupItem.uploadId]
+                prev.includes(target.uploadId) ? prev : [...prev, target.uploadId]
             );
             setReportModalOpen(false);
+            setPopupItem(target);
+            setReportTargetItem(null);
             showNotice("Thanks for reporting. We'll review this photo shortly.");
         } catch (err) {
             console.error('Failed to submit report:', err.response || err);
@@ -162,6 +169,21 @@ const MyCollectionPage = () => {
             showNotice('Failed to withdraw report: ' + (err.response?.data?.error || err.message));
         }
     };
+
+    const closeReportModal = () => {
+        setReportModalOpen(false);
+        if (reportTargetItem) {
+            setPopupItem(reportTargetItem);
+        }
+        setReportTargetItem(null);
+    };
+
+    const popupPostedAt = popupItem?.upload?.createdAt
+        ? formatDate(popupItem.upload.createdAt)
+        : null;
+    const uploadPostedAt = uploadPopupItem?.createdAt
+        ? formatDate(uploadPopupItem.createdAt)
+        : null;
 
     return (
         <div className="bg-white rounded-xl border border-gray-100 p-4 md:p-8 shadow-sm">
@@ -339,6 +361,11 @@ const MyCollectionPage = () => {
                                 <div className="text-xs text-gray-500">
                                     Uploaded by <span className="font-medium">{popupItem.upload.user?.displayName || 'Anonymous foodie'}</span>
                                 </div>
+                                {popupPostedAt && (
+                                    <div className="text-xs text-gray-500">
+                                        Posted on <span className="font-medium">{popupPostedAt}</span>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="flex flex-col items-start md:flex-row md:items-center md:gap-6 gap-1">
@@ -388,11 +415,11 @@ const MyCollectionPage = () => {
             )}
 
             {/* Report Modal */}
-            {reportModalOpen && popupItem && (
+            {reportModalOpen && reportTargetItem && (
                 <div
                     className="fixed inset-0 bg-black/60 z-50 
                         flex items-start justify-center p-4 pt-20"
-                    onClick={() => setReportModalOpen(false)}
+                    onClick={closeReportModal}
                 >
                     <div
                         className="bg-white rounded-xl max-w-md w-full p-5 shadow-2xl"
@@ -439,7 +466,7 @@ const MyCollectionPage = () => {
                             <div className="flex justify-end gap-2 pt-2">
                                 <button
                                     type="button"
-                                    onClick={() => setReportModalOpen(false)}
+                                    onClick={closeReportModal}
                                     className="px-3 py-1.5 text-sm rounded-lg border border-gray-200 hover:bg-gray-50"
                                 >
                                     Cancel
@@ -487,6 +514,11 @@ const MyCollectionPage = () => {
                                 <div className="text-xs text-gray-500">
                                     Uploaded by <span className="font-medium">{uploadPopupItem.user?.displayName || 'You'}</span>
                                 </div>
+                                {uploadPostedAt && (
+                                    <div className="text-xs text-gray-500">
+                                        Posted on <span className="font-medium">{uploadPostedAt}</span>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="flex flex-col items-start md:flex-row md:items-center md:gap-6 gap-1">

@@ -8,21 +8,32 @@ const fallbackFoodImg =
 import qrImg from "../../assets/logo/QrPlaceholder.png";
 import locationImg from "../../assets/logo/LocationIcon.png";
 import clockImg from "../../assets/logo/Clock.png";
-import api from "../../lib/api";
+import api from "@lib/api";
 
 function mapOrderItem(raw) {
   const mi = raw.menuItem || {};
 
   const qty = Number(raw.quantity ?? 1);
 
-  const priceCents =
+  const menuPriceCents =
+    typeof mi.priceCents === "number"
+      ? mi.priceCents
+      : typeof mi.price_cents === "number"
+        ? mi.price_cents
+        : null;
+  const rawUnitCents =
     typeof raw.unitCents === "number"
       ? raw.unitCents
-      : typeof mi.priceCents === "number"
-        ? mi.priceCents
+      : typeof raw.unit_cents === "number"
+        ? raw.unit_cents
+        : null;
+  const unitPriceCents =
+    Number.isFinite(menuPriceCents)
+      ? menuPriceCents
+      : Number.isFinite(rawUnitCents) && qty > 0
+        ? Math.round(rawUnitCents / qty)
         : 0;
-
-  const price = priceCents / 100;
+  const lineTotalCents = unitPriceCents * qty;
 
   const topUpload = Array.isArray(mi.mediaUploads) ? mi.mediaUploads[0] : null;
 
@@ -31,7 +42,8 @@ function mapOrderItem(raw) {
     name: mi.name || "Unnamed item",
     qty,
     notes: raw.request || "",
-    price,
+    unitPrice: unitPriceCents / 100,
+    lineTotal: lineTotalCents / 100,
     img:
       topUpload?.imageUrl ||
       topUpload?.image_url ||
@@ -50,7 +62,7 @@ function generateOrderCode(orderId) {
 export default function OrderCompletedModal({ onClose, orderId: propsOrderId }) {
   const navigate = useNavigate();
   const { orderid: urlOrderId } = useParams();
-  
+
   const orderId = propsOrderId || urlOrderId;
 
   const [stall, setStall] = useState(null);
@@ -138,12 +150,12 @@ export default function OrderCompletedModal({ onClose, orderId: propsOrderId }) 
     }
   }
 
-  const subtotal = items.reduce((sum, item) => sum + item.price * item.qty, 0);
+  const subtotal = items.reduce((sum, item) => sum + item.lineTotal, 0);
   const voucherApplied = 0.0;
 
   const serviceFee =
     orderInfo?.discounts_charges?.find((dc) => dc.type === "fee")?.amountCents /
-      100 || 0;
+    100 || 0;
 
   const total =
     orderInfo?.totalCents != null
@@ -309,7 +321,7 @@ export default function OrderCompletedModal({ onClose, orderId: propsOrderId }) 
                           </div>
                         </div>
                         <span className="font-medium text-gray-900 flex-shrink-0">
-                          ${(item.price * item.qty).toFixed(2)}
+                          ${item.lineTotal.toFixed(2)}
                         </span>
                       </div>
                     ))}

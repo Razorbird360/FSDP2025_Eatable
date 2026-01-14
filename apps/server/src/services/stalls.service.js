@@ -47,6 +47,18 @@ export const stallsService = {
               ],
               take: 1, // only the top one
             },
+            menuItemTagAggs: {
+              orderBy: { count: 'desc' },
+              take: 12,
+              include: {
+                tag: {
+                  select: {
+                    normalized: true,
+                    displayLabel: true,
+                  },
+                },
+              },
+            },
           },
         },
       },
@@ -66,7 +78,34 @@ export const stallsService = {
       ? Math.round(prices.reduce((sum, value) => sum + value, 0) / prices.length)
       : null;
 
-    return { ...stall, maxPrepTimeMins, avgPriceCents };
+    const menuItems = stall.menuItems || [];
+    if (menuItems.length === 0) {
+      return stall;
+    }
+
+    const menuItemIds = menuItems.map((item) => item.id);
+    const uploadCounts = await prisma.mediaUpload.groupBy({
+      by: ['menuItemId'],
+      where: {
+        menuItemId: { in: menuItemIds },
+        validationStatus: 'approved',
+      },
+      _count: { _all: true },
+    });
+
+    const uploadCountsByMenuItem = new Map(
+      uploadCounts.map((row) => [row.menuItemId, row._count?._all ?? 0])
+    );
+
+    return {
+      ...stall,
+      menuItems: menuItems.map((item) => ({
+        ...item,
+        approvedUploadCount: uploadCountsByMenuItem.get(item.id) || 0,
+        maxPrepTimeMins,
+        avgPriceCents
+      })),
+    };
   },
 
 

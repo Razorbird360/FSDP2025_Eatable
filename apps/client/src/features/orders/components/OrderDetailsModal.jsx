@@ -52,10 +52,15 @@ export default function OrderDetailsModal({ order, onClose }) {
     }
 
     // Calculate totals
-    const subtotal = orderItems?.reduce((sum, item) => sum + (item.unitCents * item.quantity), 0) / 100 || 0;
+    const subtotal = orderItems?.reduce((sum, item) => sum + item.unitCents, 0) / 100 || 0;
     const serviceFee = discounts_charges?.find(dc => dc.type === 'fee')?.amountCents / 100 || 0;
-    const voucherApplied = 0.0;
-    const total = totalCents ? totalCents / 100 : (subtotal + serviceFee);
+    const voucherDiscount = discounts_charges?.find(dc => dc.type === 'voucher');
+    const voucherApplied = voucherDiscount?.amountCents / 100 || 0;
+    // If totalCents is available use it, otherwise calculate
+    const total = totalCents ? totalCents / 100 : (subtotal + serviceFee - voucherApplied);
+
+    // Extract voucher info directly from the nested relation
+    const voucherInfo = voucherDiscount?.userVoucher?.voucher;
 
     const displayOrderCode = generateOrderCode(orderId);
 
@@ -204,7 +209,29 @@ export default function OrderDetailsModal({ order, onClose }) {
                                     </p>
                                 ) : (
                                     <div className="space-y-4">
-                                        {orderItems?.map((item) => (
+                                        {orderItems?.map((item) => {
+                                            const qty = Number(item.quantity ?? 1);
+                                            const menuPriceCents =
+                                                typeof item.menuItem?.priceCents === 'number'
+                                                    ? item.menuItem.priceCents
+                                                    : typeof item.menuItem?.price_cents === 'number'
+                                                        ? item.menuItem.price_cents
+                                                        : null;
+                                            const rawUnitCents =
+                                                typeof item.unitCents === 'number'
+                                                    ? item.unitCents
+                                                    : typeof item.unit_cents === 'number'
+                                                        ? item.unit_cents
+                                                        : null;
+                                            const unitPriceCents =
+                                                Number.isFinite(menuPriceCents)
+                                                    ? menuPriceCents
+                                                    : Number.isFinite(rawUnitCents) && qty > 0
+                                                        ? Math.round(rawUnitCents / qty)
+                                                        : 0;
+                                            const lineTotalCents = unitPriceCents * qty;
+
+                                            return (
                                             <div
                                                 key={item.id}
                                                 className="flex items-center justify-between gap-3"
@@ -223,10 +250,11 @@ export default function OrderDetailsModal({ order, onClose }) {
                                                     </div>
                                                 </div>
                                                 <span className="font-medium text-gray-900 flex-shrink-0">
-                                                    ${((item.unitCents * item.quantity) / 100).toFixed(2)}
+                                                    ${(lineTotalCents / 100).toFixed(2)}
                                                 </span>
                                             </div>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 )}
                             </div>
@@ -243,7 +271,9 @@ export default function OrderDetailsModal({ order, onClose }) {
                                         <span>${serviceFee.toFixed(2)}</span>
                                     </div>
                                     <div className="flex justify-between text-gray-600">
-                                        <span>Applied Voucher</span>
+                                        <span>
+                                            Applied Voucher{voucherInfo?.code ? ` (${voucherInfo.code})` : ""}
+                                        </span>
                                         <span>-${voucherApplied.toFixed(2)}</span>
                                     </div>
                                 </div>
@@ -252,7 +282,7 @@ export default function OrderDetailsModal({ order, onClose }) {
                                     <span>${total.toFixed(2)}</span>
                                 </div>
                             </div>
-                        </div>
+                    </div>
                     </div>
                 </div>
             </div>

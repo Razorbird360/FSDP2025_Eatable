@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import { useParams } from "react-router-dom";
 import UpvoteIcon from "../assets/upvote.svg";
 import DownvoteIcon from "../assets/downvote.svg";
-import { useParams } from "react-router-dom";
-import api from "../../../lib/api";
+import api from "@lib/api";
 import { supabase } from "../../../lib/supabase";
+import { formatDate } from "../../../utils/helpers";
 
 export default function StallGallery({ onNavigateToMenuItem }) {
   const { stallId } = useParams();
@@ -51,6 +52,7 @@ export default function StallGallery({ onNavigateToMenuItem }) {
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [reportReason, setReportReason] = useState("");
   const [reportDetails, setReportDetails] = useState("");
+  const [reportTargetId, setReportTargetId] = useState(null);
 
   // ===== Notification bar state =====
   const [notice, setNotice] = useState(null);
@@ -343,12 +345,15 @@ export default function StallGallery({ onNavigateToMenuItem }) {
 
     setReportReason("");
     setReportDetails("");
+    setReportTargetId(popupId);
+    setPopupId(null);
     setReportModalOpen(true);
   };
 
   const handleSubmitReport = async (e) => {
     e.preventDefault();
-    if (!popupId) return;
+    const targetId = reportTargetId || popupId;
+    if (!targetId) return;
 
     if (!reportReason) {
       showNotice("Please select a reason to report this photo.");
@@ -356,20 +361,30 @@ export default function StallGallery({ onNavigateToMenuItem }) {
     }
 
     try {
-      await api.post(`/moderation/report/${popupId}`, {
+      await api.post(`/moderation/report/${targetId}`, {
         reason: reportReason,
         details: reportDetails || "", // Ensure details is at least an empty string
       });
 
       setReportedIds((prev) =>
-        prev.includes(popupId) ? prev : [...prev, popupId]
+        prev.includes(targetId) ? prev : [...prev, targetId]
       );
       setReportModalOpen(false);
+      setPopupId(targetId);
+      setReportTargetId(null);
       showNotice("Thanks for reporting. We'll review this photo shortly.");
     } catch (err) {
       console.error("Failed to submit report:", err.response || err);
       showNotice("Failed to submit report: " + (err.response?.data?.error || err.message));
     }
+  };
+
+  const closeReportModal = () => {
+    setReportModalOpen(false);
+    if (reportTargetId) {
+      setPopupId(reportTargetId);
+    }
+    setReportTargetId(null);
   };
 
 
@@ -415,6 +430,9 @@ export default function StallGallery({ onNavigateToMenuItem }) {
   const popupItem = popupId ? itemById.get(popupId) : null;
   const uploaderName =
     popupItem?.raw?.user?.displayName || "Anonymous foodie";
+  const postedAt = popupItem?.raw?.createdAt
+    ? formatDate(popupItem.raw.createdAt)
+    : null;
 
   // ===== Render =====
   return (
@@ -557,6 +575,11 @@ export default function StallGallery({ onNavigateToMenuItem }) {
                 <div className="text-xs text-gray-500">
                   Uploaded by <span className="font-medium">{uploaderName}</span>
                 </div>
+                {postedAt && (
+                  <div className="text-xs text-gray-500">
+                    Posted on <span className="font-medium">{postedAt}</span>
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center justify-between shrink-0">
@@ -613,10 +636,10 @@ export default function StallGallery({ onNavigateToMenuItem }) {
       )}
 
       {/* ===== REPORT POPUP FORM ===== */}
-      {reportModalOpen && popupId && createPortal(
+      {reportModalOpen && reportTargetId && createPortal(
         <div
           className="fixed inset-0 bg-black/60 z-[1100] flex items-center justify-center p-4"
-          onClick={() => setReportModalOpen(false)}
+          onClick={closeReportModal}
         >
           <div
             className="bg-white rounded-xl max-w-md w-full p-5 shadow-2xl"
@@ -670,7 +693,7 @@ export default function StallGallery({ onNavigateToMenuItem }) {
               <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
-                  onClick={() => setReportModalOpen(false)}
+                  onClick={closeReportModal}
                   className="px-3 py-1.5 text-sm rounded-lg border border-gray-200 hover:bg-gray-50"
                 >
                   Cancel

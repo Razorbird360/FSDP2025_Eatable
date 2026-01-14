@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import api from '../lib/api';
+import api from '@lib/api';
 import { formatPrice, formatDateTime } from '../utils/helpers';
 import OrderDetailsModal from '../features/orders/components/OrderDetailsModal';
 

@@ -7,7 +7,7 @@ import {
   useCallback,
   useEffect,
 } from "react";
-import api from "../../../lib/api"; // adjust path if needed
+import api from "@lib/api"; // adjust path if needed
 
 const CartContext = createContext(null);
 

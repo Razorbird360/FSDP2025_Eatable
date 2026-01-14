@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useCallback, useContext, useRef, useState } from "react";
-import api from "../../../lib/api";
+import api from "@lib/api";
 
 const PhotoUploadContext = createContext(null);
 
