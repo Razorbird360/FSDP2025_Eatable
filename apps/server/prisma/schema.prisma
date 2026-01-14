@@ -9,21 +9,21 @@ datasource db {
 }
 
 model User {
-  id                      String            @id @default(uuid()) @db.Uuid
-  email                   String            @unique
-  displayName             String            @map("display_name")
-  role                    String            @default("user")
-  createdAt               DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt               DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
-  username                String            @unique
-  skipOnboarding          Boolean           @default(false) @map("skip_Onboarding")
+  id                      String              @id @default(uuid()) @db.Uuid
+  email                   String              @unique
+  displayName             String              @map("display_name")
+  role                    String              @default("user")
+  createdAt               DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+  username                String              @unique
+  skipOnboarding          Boolean             @default(false) @map("skip_Onboarding")
   first_name              String?
   last_name               String?
   location                String?
   description             String?
   verified                Boolean?
-  verificationPhotoUrl    String?           @map("verification_photo_url")
-  verificationSubmittedAt DateTime?         @map("verification_submitted_at") @db.Timestamptz(6)
+  verificationPhotoUrl    String?             @map("verification_photo_url")
+  verificationSubmittedAt DateTime?           @map("verification_submitted_at") @db.Timestamptz(6)
   phone                   String?
   language                String?
   reports                 ContentReport[]
@@ -33,6 +33,11 @@ model User {
   ownedStalls             Stall[]
   user_cart               user_cart[]
   favorites               UserFavorite[]
+  userVouchers            UserVoucher[]
+  discounts_charges       discounts_charges[]
+  achievements            UserAchievement[]
+  monthlyActions          UserMonthlyAction[]
+  monthlyBudgets          UserMonthlyBudget[]
 
   @@map("users")
 }
@@ -45,6 +50,7 @@ model Stall {
   location       String?
   cuisineType    String?        @map("cuisine_type")
   tags           String[]       @default([])
+  dietaryTags    String[]       @default([]) @map("dietary_tags")
   createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
   image_url      String?
@@ -71,6 +77,7 @@ model MenuItem {
   updatedAt    DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
   imageUrl     String?        @map("image_url")
   mediaUploads MediaUpload[]
+  menuItemTagAggs MenuItemTagAgg[]
   stall        Stall          @relation(fields: [stallId], references: [id], onDelete: Cascade)
   orderItems   OrderItem[]
   user_cart    user_cart[]
@@ -97,10 +104,49 @@ model MediaUpload {
   aspectRatio       String?           @map("aspect_ratio")
   reports           ContentReport[]
   votes             MediaUploadVote[]
+  uploadTags        UploadTag[]
   menuItem          MenuItem          @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
   user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("media_uploads")
+}
+
+model Tag {
+  id           String            @id @default(uuid()) @db.Uuid
+  normalized   String            @unique
+  displayLabel String            @map("display_label")
+  createdAt    DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  uploadTags   UploadTag[]
+  menuItemAggs MenuItemTagAgg[]
+
+  @@map("tags")
+}
+
+model UploadTag {
+  id           String       @id @default(uuid()) @db.Uuid
+  uploadId     String       @map("upload_id") @db.Uuid
+  tagId        String       @map("tag_id") @db.Uuid
+  confidence   Float
+  evidenceFrom Json         @map("evidence_from")
+  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  upload       MediaUpload  @relation(fields: [uploadId], references: [id], onDelete: Cascade)
+  tag          Tag          @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@map("upload_tags")
+}
+
+model MenuItemTagAgg {
+  id         String   @id @default(uuid()) @db.Uuid
+  menuItemId String   @map("menu_item_id") @db.Uuid
+  tagId      String   @map("tag_id") @db.Uuid
+  count      Int      @default(0)
+  avgConfidence Float? @map("avg_confidence")
+  lastSeenAt DateTime @default(now()) @map("last_seen_at") @db.Timestamptz(6)
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  tag        Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([menuItemId, tagId])
+  @@map("menu_item_tag_aggs")
 }
 
 model MediaUploadVote {
@@ -202,6 +248,7 @@ model HawkerCentre {
   postalCode String?  @map("postal_code")
   latitude   Float
   longitude  Float
+  imageUrl   String?  @map("image_url")
   createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   stalls     Stall[]
@@ -223,6 +270,106 @@ model discounts_charges {
   type        String?
   orderId     String?  @db.Uuid
   amountCents Float?   @db.Real
-  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  orders      Order?   @relation(fields: [orderId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String?       @map("user_id") @db.Uuid
+  userVoucherId   String?       @map("user_voucher_id") @db.Uuid
+  orders          Order?        @relation(fields: [orderId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  user            User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userVoucher     UserVoucher?  @relation(fields: [userVoucherId], references: [id], onDelete: SetNull)
+}
+
+model ExistingVoucher {
+  id             String        @id @default(uuid()) @db.Uuid
+  code           String        @unique
+  description    String?
+  discountAmount Int           @default(0) @map("discount_amount")
+  discountType   String        @default("fixed") @map("discount_type")
+  minSpend       Int           @default(0) @map("min_spend")
+  expiryDate     DateTime?     @map("expiry_date") @db.Timestamptz(6)
+  expiryOnReceiveMonths Int?   @map("expiry_on_receive_months")
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  userVouchers   UserVoucher[]
+
+  @@map("existing_vouchers")
+}
+
+model UserVoucher {
+  id        String          @id @default(uuid()) @db.Uuid
+  userId    String          @map("user_id") @db.Uuid
+  voucherId String          @map("voucher_id") @db.Uuid
+  isUsed    Boolean         @default(false) @map("is_used")
+  expiryDate DateTime?      @map("expiry_date") @db.Timestamptz(6)
+  createdAt DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  voucher   ExistingVoucher @relation(fields: [voucherId], references: [id], onDelete: Cascade)
+  discounts_charges discounts_charges[]
+
+  @@map("user_vouchers")
+}
+
+model Achievement {
+  id          String            @id @default(uuid()) @db.Uuid
+  code        String            @unique // e.g., "VOTER_REWARD"
+  name        String
+  description String?
+  type        String?
+  target      Int?
+  rewardCode  String?           @map("reward_code")
+  isOneTime   Boolean           @default(false) @map("is_one_time")
+  badgeUrl    String?           @map("badge_url")
+  createdAt   DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  users       UserAchievement[]
+
+  @@map("achievements")
+}
+
+model UserAchievement {
+  id            String      @id @default(uuid()) @db.Uuid
+  userId        String      @map("user_id") @db.Uuid
+  achievementId String      @map("achievement_id") @db.Uuid
+  unlockedAt    DateTime    @default(now()) @map("unlocked_at") @db.Timestamptz(6)
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, achievementId])
+  @@map("user_achievements")
+}
+
+model UserMonthlyAction {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  monthYear   String   @map("month_year") // Format: "YYYY-MM"
+  voteCount   Int      @default(0) @map("vote_count")
+  uploadCount Int      @default(0) @map("upload_count")
+  rewarded    Boolean  @default(false) // Whether the monthly voucher has been issued
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, monthYear])
+  @@map("user_monthly_actions")
+}
+
+model UserMonthlyBudget {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  userId          String   @map("user_id") @db.Uuid
+  year            Int
+  month           Int        // 1–12
+
+  budgetCents     Int      @map("budget_cents")
+  alertAtPercent  Int      @default(80) @map("alert_at_percent")
+  alerted  Boolean  @default(false)
+  notifiedAlready  Boolean  @default(false)
+
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, year, month])
+  @@map("user_monthly_budgets")
 }

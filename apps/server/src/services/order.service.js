@@ -39,6 +39,27 @@ const createOrderWithCode = async (tx, data) => {
     throw new Error('Failed to generate unique order code');
 };
 
+const getEffectiveVoucherExpiry = (userVoucher) => {
+    if (!userVoucher) return null;
+    if (userVoucher.expiryDate) return userVoucher.expiryDate;
+
+    const voucher = userVoucher.voucher;
+    if (voucher?.expiryDate) return voucher.expiryDate;
+
+    if (voucher?.expiryOnReceiveMonths && userVoucher.createdAt) {
+        const expiry = new Date(userVoucher.createdAt);
+        expiry.setMonth(expiry.getMonth() + voucher.expiryOnReceiveMonths);
+        return expiry;
+    }
+
+    return null;
+};
+
+const isVoucherExpired = (expiryDate) => {
+    if (!expiryDate) return false;
+    return new Date(expiryDate) < new Date();
+};
+
 
 export const orderService = {
     async getServiceFees(req, res, next) {
@@ -62,13 +83,42 @@ export const orderService = {
         return order;
     },
 
-    async orderPaymentSuccess(orderId) {
-        const updatedOrder = await prisma.order.update({
-            where: { id: orderId },
-            data: { status: 'PAID' },
+  async orderPaymentSuccess(orderId) {
+    const updatedOrder = await prisma.$transaction(async (tx) => {
+      const order = await tx.order.update({
+        where: { id: orderId },
+        data: { status: 'PAID' },
+      });
+
+      const voucherDiscounts = await tx.discounts_charges.findMany({
+        where: {
+          orderId,
+          type: 'voucher',
+          userVoucherId: { not: null },
+        },
+        select: { userVoucherId: true },
+      });
+
+      const voucherIds = [
+        ...new Set(
+          voucherDiscounts
+            .map((discount) => discount.userVoucherId)
+            .filter(Boolean)
+        ),
+      ];
+
+      if (voucherIds.length > 0) {
+        await tx.userVoucher.updateMany({
+          where: { id: { in: voucherIds }, isUsed: false },
+          data: { isUsed: true },
         });
-        return updatedOrder;
-    },
+      }
+
+      return order;
+    });
+
+    return updatedOrder;
+  },
 
     async createOrderFromCart(userId) {
         // 1) Fetch the user's cart
@@ -141,6 +191,76 @@ export const orderService = {
                 });
             }
 
+            // 4a.1) Check for pending voucher discount
+            const pendingVoucherDiscount = await tx.discounts_charges.findFirst({
+                where: {
+                    userId: userId,
+                    type: 'voucher',
+                    orderId: null,
+                },
+            });
+
+            if (pendingVoucherDiscount) {
+                const userVoucherId = pendingVoucherDiscount.userVoucherId;
+
+                if (!userVoucherId) {
+                    await tx.discounts_charges.delete({
+                        where: { id: pendingVoucherDiscount.id },
+                    });
+                } else {
+                    const userVoucher = await tx.userVoucher.findUnique({
+                        where: { id: userVoucherId },
+                        include: { voucher: true },
+                    });
+
+                    const voucher = userVoucher?.voucher;
+                    const expiryDate = getEffectiveVoucherExpiry(userVoucher);
+                    const isInvalid =
+                        !userVoucher ||
+                        userVoucher.userId !== userId ||
+                        userVoucher.isUsed ||
+                        isVoucherExpired(expiryDate) ||
+                        (voucher?.minSpend && totalCents < voucher.minSpend);
+
+                    if (isInvalid) {
+                        await tx.discounts_charges.delete({
+                            where: { id: pendingVoucherDiscount.id },
+                        });
+                    } else {
+                        let discountAmount = 0;
+                        if (voucher.discountType === 'percentage') {
+                            discountAmount = Math.round(totalCents * (voucher.discountAmount / 100));
+                        } else {
+                            discountAmount = voucher.discountAmount;
+                        }
+
+                        if (discountAmount > totalCents) {
+                            discountAmount = totalCents;
+                        }
+
+                        await tx.discounts_charges.update({
+                            where: { id: pendingVoucherDiscount.id },
+                            data: {
+                                orderId: order.id,
+                                amountCents: discountAmount,
+                            },
+                        });
+
+                        await tx.order.update({
+                            where: { id: order.id },
+                            data: {
+                                totalCents: {
+                                    decrement: discountAmount,
+                                },
+                            },
+                        });
+
+                        order.totalCents -= discountAmount;
+
+                    }
+                }
+            }
+
             // 4b) Create order items for each cart row
             await Promise.all(
                 cart.map((cartRow) => {
@@ -187,12 +307,20 @@ export const orderService = {
                 }
             },
         });
-        const info = await prisma.order.findUnique({
-            where: { id: orderId },
-            include: {
-                discounts_charges: true,
+    const info = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        discounts_charges: {
+          include: {
+            userVoucher: {
+              include: {
+                voucher: true,
+              },
             },
-        });
+          },
+        },
+      },
+    });
 
 
         const result = [stall, items, info];
@@ -206,6 +334,15 @@ export const orderService = {
             include: {
                 stall: {
                     select: { id: true, name: true, image_url: true },
+                },
+                discounts_charges: {
+                    include: {
+                        userVoucher: {
+                            include: {
+                                voucher: true
+                            }
+                        }
+                    }
                 },
                 orderItems: {
                     include: {

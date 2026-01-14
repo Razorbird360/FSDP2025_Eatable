@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import api from '../lib/api';
+import api from '@lib/api';
 import { formatPrice, formatDateTime } from '../utils/helpers';
 import OrderDetailsModal from '../features/orders/components/OrderDetailsModal';
 
@@ -13,6 +13,7 @@ const OrdersPage = () => {
         const fetchOrders = async () => {
             try {
                 const response = await api.get('/orders/my');
+                console.log('Fetched orders:', response.data);
                 setOrders(response.data.orders);
             } catch (err) {
                 console.error('Failed to fetch orders:', err);
@@ -27,7 +28,7 @@ const OrdersPage = () => {
 
     if (loading) {
         return (
-            <div className="bg-white rounded-xl border border-gray-100 p-8 min-h-[400px] flex items-center justify-center shadow-sm">
+            <div className="bg-white rounded-xl border border-gray-100 p-4 md:p-8 min-h-[400px] flex items-center justify-center shadow-sm">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#21421B]"></div>
             </div>
         );
@@ -35,7 +36,7 @@ const OrdersPage = () => {
 
     if (error) {
         return (
-            <div className="bg-white rounded-xl border border-gray-100 p-8 min-h-[400px] flex items-center justify-center shadow-sm">
+            <div className="bg-white rounded-xl border border-gray-100 p-4 md:p-8 min-h-[400px] flex items-center justify-center shadow-sm">
                 <p className="text-red-500">{error}</p>
             </div>
         );
@@ -43,7 +44,7 @@ const OrdersPage = () => {
 
     return (
         <>
-            <div className="bg-white rounded-xl border border-gray-100 p-8 shadow-sm">
+            <div className="bg-white rounded-xl border border-gray-100 p-4 md:p-8 shadow-sm">
                 <h1 className="text-xl font-bold mb-6 text-gray-900">
                     My Orders
                 </h1>

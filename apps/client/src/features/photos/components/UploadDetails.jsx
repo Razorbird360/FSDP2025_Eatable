@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import api from "../../../lib/api";
+import api from "@lib/api";
 import { usePhotoUpload } from "../context/PhotoUploadContext";
 import ValidationModal from "../../../components/ValidationModal";
 import { toaster } from "../../../components/ui/toaster";

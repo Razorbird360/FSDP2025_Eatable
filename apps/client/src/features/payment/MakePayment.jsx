@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import NetsLogo from "../../assets/payment/netsQrLogo.png";
 import NetsQrPopup from "./NetsQrPopup";
 import OrderCompletedModal from "./OrderCompleted"; // ⭐ NEW IMPORT
-import api from "../../lib/api";
+import api from "@lib/api";
 
 // Helper: map raw orderItem -> UI-friendly item
 function mapOrderItem(raw) {
@@ -53,6 +53,7 @@ export default function MakePayment() {
   const [orderError, setOrderError] = useState(null);
 
   const [orderInfo, setOrderInfo] = useState(null);
+  const [voucherInfo, setVoucherInfo] = useState(null);
 
   // ⭐ NEW STATE
   const [showOrderSuccess, setShowOrderSuccess] = useState(false);
@@ -91,6 +92,10 @@ export default function MakePayment() {
         setStall(stallObj);
         setItems(itemsArr.map(mapOrderItem));
         setOrderInfo(infoObj || null);
+
+        const voucherDiscount = infoObj?.discounts_charges?.find(dc => dc.type === "voucher");
+        const embeddedVoucher = voucherDiscount?.userVoucher?.voucher || null;
+        setVoucherInfo(embeddedVoucher);
       } catch (err) {
         console.error("Failed to load order:", err);
         setOrderError("Failed to load order details");
@@ -109,10 +114,13 @@ export default function MakePayment() {
     stall?.name || (items.length ? "Your selected stall" : "No stall found");
 
   const subtotal = items.reduce((sum, item) => sum + item.price, 0);
-  const voucherApplied = 0.0; // placeholder
 
   // Extract service fee from orderInfo.discounts_charges where type === "fee"
   const serviceFee = orderInfo?.discounts_charges?.find(dc => dc.type === "fee")?.amountCents / 100 || 0;
+
+  // Extract voucher discount from orderInfo.discounts_charges where type === "voucher"
+  const voucherDiscount = orderInfo?.discounts_charges?.find(dc => dc.type === "voucher");
+  const voucherApplied = voucherDiscount?.amountCents / 100 || 0;
 
   const total = orderInfo?.totalCents / 100 || 0;
 
@@ -336,10 +344,14 @@ export default function MakePayment() {
                       <span>$ {serviceFee.toFixed(2)}</span>
                     </div>
 
-                    <div className="flex justify-between">
-                      <span className="text-gray-700">Applied Voucher</span>
-                      <span>- $ {voucherApplied.toFixed(2)}</span>
-                    </div>
+                    {voucherApplied > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-700">
+                          Applied Voucher {voucherInfo && `(${voucherInfo.code})`}
+                        </span>
+                        <span className="text-green-600">- $ {voucherApplied.toFixed(2)}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between pt-2 border-t mt-2 text-base font-semibold">
                       <span>Total</span>
                       <span>$ {total.toFixed(2)}</span>

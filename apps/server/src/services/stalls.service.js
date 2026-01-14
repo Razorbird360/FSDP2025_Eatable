@@ -23,7 +23,7 @@ export const stallsService = {
   },
 
   async getById(id) {
-    return await prisma.stall.findUnique({
+    const stall = await prisma.stall.findUnique({
       where: { id },
       include: {
         owner: {
@@ -47,10 +47,65 @@ export const stallsService = {
               ],
               take: 1, // only the top one
             },
+            menuItemTagAggs: {
+              orderBy: { count: 'desc' },
+              take: 12,
+              include: {
+                tag: {
+                  select: {
+                    normalized: true,
+                    displayLabel: true,
+                  },
+                },
+              },
+            },
           },
         },
       },
     });
+    if (!stall) {
+      return null;
+    }
+
+    const prepTimes = stall.menuItems
+      .map((item) => item.prepTimeMins)
+      .filter((value) => typeof value === 'number');
+    const maxPrepTimeMins = prepTimes.length ? Math.max(...prepTimes) : 5;
+    const prices = stall.menuItems
+      .map((item) => item.priceCents)
+      .filter((value) => typeof value === 'number');
+    const avgPriceCents = prices.length
+      ? Math.round(prices.reduce((sum, value) => sum + value, 0) / prices.length)
+      : null;
+
+    const menuItems = stall.menuItems || [];
+    if (menuItems.length === 0) {
+      return stall;
+    }
+
+    const menuItemIds = menuItems.map((item) => item.id);
+    const uploadCounts = await prisma.mediaUpload.groupBy({
+      by: ['menuItemId'],
+      where: {
+        menuItemId: { in: menuItemIds },
+        validationStatus: 'approved',
+      },
+      _count: { _all: true },
+    });
+
+    const uploadCountsByMenuItem = new Map(
+      uploadCounts.map((row) => [row.menuItemId, row._count?._all ?? 0])
+    );
+
+    return {
+      ...stall,
+      menuItems: menuItems.map((item) => ({
+        ...item,
+        approvedUploadCount: uploadCountsByMenuItem.get(item.id) || 0,
+        maxPrepTimeMins,
+        avgPriceCents
+      })),
+    };
   },
 
 
