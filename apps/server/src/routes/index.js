@@ -12,7 +12,6 @@ import verificationRoutes from './verification.routes.js';
 import budgetRoutes from './budget.routes.js';
 import menuRoutes from './menu.routes.js';
 import voucherRoutes from './voucher.routes.js';
-import dataRoutes from './data.routes.js';
 import achievementRoutes from './achievement.routes.js';
 import adminRoutes from './admin.routes.js';
 
