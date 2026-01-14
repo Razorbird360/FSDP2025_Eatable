@@ -35,7 +35,6 @@ router.use('/verification', verificationRoutes);
 router.use('/budget', budgetRoutes);
 router.use('/menu', menuRoutes);
 router.use('/vouchers', voucherRoutes);
-router.use('/data', dataRoutes);
 router.use('/achievements', achievementRoutes);
 router.use('/admin', adminRoutes);
 

@@ -40,7 +40,7 @@ import Onboarding from "../features/photos/components/Onboarding";
 import PhotoUpload from "../features/photos/components/PhotoUpload";
 import UploadDetails from "../features/photos/components/UploadDetails";
 import PhotoUploadLayout from "../features/photos/layouts/PhotoUploadLayout";
-import DataPage from "../pages/DataPage";
+
 
 import HawkerMap from "../features/hawkerMap/components/hawkerMap";
 
@@ -154,7 +154,6 @@ function AppRoutes() {
       <Route path="/signup" element={<SignupPage />} />
       <Route path="/register" element={<SignupPage />} />
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/data" element={<DataPage />} />
 
       {/* 404 fallback */}
       <Route path="*" element={<NotFound />} />
