@@ -21,12 +21,12 @@
     "class-variance-authority": "^0.7.1",
     "event-source-polyfill": "^1.0.31",
     "eventsource": "^4.0.0",
+    "lucide-react": "^0.562.0",
     "motion": "^12.23.24",
     "react": "^18.2.0",
     "react-apexcharts": "^1.9.0",
     "react-chartjs-2": "^5.3.1",
     "react-dom": "^18.2.0",
-    "react-icons": "^5.5.0",
     "react-router-dom": "^6.20.0"
   },
   "devDependencies": {

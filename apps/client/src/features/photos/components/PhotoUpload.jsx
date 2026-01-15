@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import switchIcon from "../../../assets/PhotoUpload/switch.svg";
+import { ArrowRightLeft } from 'lucide-react';
 import { usePhotoUpload } from "../context/PhotoUploadContext";
 import ValidationModal from "../../../components/ValidationModal";
 import { toaster } from "../../../components/ui/toaster";
@@ -465,7 +465,7 @@ export default function PhotoUpload() {
                 className="flex h-14 w-14 items-center justify-center transition disabled:opacity-50 disabled:cursor-not-allowed"
                 aria-label="Switch camera"
               >
-                <img src={switchIcon} alt="" className="h-7 w-7" />
+                <ArrowRightLeft className="h-7 w-7 text-[#21421B]" aria-hidden="true" />
               </button>
             </div>
 

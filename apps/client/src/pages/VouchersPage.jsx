@@ -132,12 +132,12 @@ const VouchersPage = () => {
                     >
                       {copiedId === voucher.userVoucherId ? (
                         <>
-                          <Check className="w-4 h-4" />
+                                <Check className="w-4 h-4" />
                           Copied!
                         </>
                       ) : (
                         <>
-                          <Copy className="w-4 h-4" />
+                                <Copy className="w-4 h-4" />
                           {voucher.code}
                         </>
                       )}

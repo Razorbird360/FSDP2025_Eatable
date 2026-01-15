@@ -1,8 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import arrowRight from '../../../assets/hawker/arrow-right.svg';
-import arrowRightWhite from '../../../assets/hawker/arrow-right-white.svg';
-import locationIcon from '../../../assets/hawker/location.svg';
+import { ChevronRight, MapPin } from 'lucide-react';
 import Filters from './Filters';
 import FiltersMobile from './FiltersMobile';
 import StallCard from './StallCard';
@@ -108,7 +106,7 @@ const HawkerCentresPage = () => {
           >
             Home
           </Link>
-          <img src={arrowRight} alt=">" className="w-3 h-3" />
+          <ChevronRight className="w-3 h-3 text-gray-400" aria-hidden="true" />
           <span className="text-brand">Hawkers</span>
         </div>
       </div>
@@ -160,7 +158,7 @@ const HawkerCentresPage = () => {
                     <div className="flex items-center justify-between lg:justify-end gap-4">
                       {/* Distance */}
                       <div className="flex items-center gap-1.5">
-                        <img src={locationIcon} alt="" className="w-4 h-4" />
+                        <MapPin className="w-4 h-4 text-brand" aria-hidden="true" />
                         <span className="text-sm text-brand">
                           {locationStatus === 'granted' && typeof centre.distance === 'number'
                             ? `${centre.distance.toFixed(1)} km`
@@ -212,16 +210,7 @@ const HawkerCentresPage = () => {
               >
                 <span>Load More Hawker Centres</span>
                 <div className="relative w-3 h-3">
-                  <img
-                    src={arrowRight}
-                    alt=""
-                    className="absolute inset-0 w-full h-full rotate-90 transition-opacity duration-300 group-hover:opacity-0"
-                  />
-                  <img
-                    src={arrowRightWhite}
-                    alt=""
-                    className="absolute inset-0 w-full h-full rotate-90 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-                  />
+                  <ChevronRight className="absolute inset-0 h-full w-full rotate-90 text-brand transition-colors duration-300 group-hover:text-white" aria-hidden="true" />
                 </div>
               </button>
             </div>

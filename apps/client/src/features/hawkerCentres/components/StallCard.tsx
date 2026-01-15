@@ -1,5 +1,5 @@
 import { Card, Image } from '@chakra-ui/react';
-import ratingIcon from '../../../assets/hawker/rating.svg';
+import { TrendingUp } from 'lucide-react';
 import placeholderImage from '../../../assets/hawker/hawker-default.jpg';
 
 interface StallCardProps {
@@ -32,7 +32,7 @@ const StallCard = ({ name, cuisineType, imageUrl }: StallCardProps) => {
         <div className="flex items-center justify-between">
           <p className="text-xs lg:text-sm text-gray-600">{displayCuisine}</p>
           <div className="flex items-center gap-1 lg:gap-1.5">
-            <img src={ratingIcon} alt="" className="w-3 h-3 lg:w-4 lg:h-4" />
+            <TrendingUp className="w-3 h-3 lg:w-4 lg:h-4 text-gray-500" aria-hidden="true" />
             <span className="text-sm lg:text-base text-gray-600">{rating}</span>
           </div>
         </div>
