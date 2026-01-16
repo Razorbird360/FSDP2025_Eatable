@@ -13,7 +13,7 @@ from ultralytics import YOLO
 CONF_THRES = 0.8
 ASPECT_MIN = 1.25
 ASPECT_MAX = 2.1
-MIN_AREA_RATIO = 0.15
+MIN_AREA_RATIO = 0.13
 MAX_FRAME_WIDTH = 1280
 
 
@@ -34,12 +34,12 @@ def _resolve_model_path() -> Path:
         return Path(env_path).expanduser().resolve()
 
     base_dir = Path(__file__).resolve().parents[2]  # apps/ai-services
-    local_path = base_dir / "best.pt"
+    local_path = base_dir / "yolov8_small.pt"
     if local_path.exists():
         return local_path
 
     repo_root = base_dir.parent.parent
-    root_path = repo_root / "best.pt"
+    root_path = repo_root / "yolov8_small.pt"
     if root_path.exists():
         return root_path
 
