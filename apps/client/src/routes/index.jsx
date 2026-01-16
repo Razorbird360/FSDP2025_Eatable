@@ -6,7 +6,7 @@ import ProfileLayout from "../layouts/ProfileLayout";
 import AboutPage from "../pages/AboutPage";
 import CommunityPage from "../pages/CommunityPage";
 import HawkerCentresPage from "../features/hawkerCentres/components/HawkerCentresPage";
-import HawkerPage from "../features/hawkerPage/components/hawkerpage.jsx";
+import HawkerPage from "../features/hawkerPage/components/hawkerpage";
 import StallEmenu from "../features/menu/components/StallEmenu";
 import SignupPage from "../features/auth/SignupPage";
 import LoginPage from "../features/auth/LoginPage";

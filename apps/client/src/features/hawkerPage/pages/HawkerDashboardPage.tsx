@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, ReactNode } from 'react';
 import Chart from 'react-apexcharts';
 import { ChevronUp, LayoutDashboard, Salad, Sun } from 'lucide-react';
 import api from '../../../lib/api';
@@ -9,7 +9,73 @@ const CHART_COLORS = ['#A855F7', '#5EBECC', '#EC4899', '#F59E0B', '#6366F1', '#9
 const MAX_DISH_ITEMS = 10;
 const SG_TIMEZONE = 'Asia/Singapore';
 
-const processOrdersByDish = (ordersByDish) => {
+interface DishData {
+  name: string;
+  count: number;
+}
+
+interface WeekData {
+  weekStart: string;
+  count: number;
+}
+
+interface DayData {
+  date: string;
+  count: number;
+}
+
+interface DeltaData {
+  orders?: number;
+  photos?: number;
+  upvotes?: number;
+}
+
+interface TotalsData {
+  orders?: number;
+  photos?: number;
+  upvotes?: number;
+  delta?: DeltaData;
+}
+
+interface DashboardSummary {
+  ordersByDish?: DishData[];
+  ordersByWeek?: WeekData[];
+  ordersByDay?: DayData[];
+  totals?: TotalsData;
+  totalOrdersByDish?: number;
+}
+
+interface UserData {
+  displayName?: string;
+}
+
+interface OrderActivityData {
+  summary: string;
+  orderCode?: string;
+}
+
+interface UpvoteActivityData {
+  menuItem: string;
+}
+
+interface PhotoUploadActivityData {
+  menuItem: string;
+  imageUrl?: string;
+}
+
+interface ActivityItem {
+  type: 'order' | 'upvote' | 'photo_upload';
+  user: UserData;
+  createdAt: string;
+  data: OrderActivityData | UpvoteActivityData | PhotoUploadActivityData;
+}
+
+interface ProcessedDishData {
+  items: DishData[];
+  total: number;
+}
+
+const processOrdersByDish = (ordersByDish?: DishData[]): ProcessedDishData => {
   if (!ordersByDish || ordersByDish.length === 0) return { items: [], total: 0 };
   
   const sorted = [...ordersByDish].sort((a, b) => b.count - a.count);
@@ -24,21 +90,21 @@ const processOrdersByDish = (ordersByDish) => {
   };
 };
 
-const parseSgDate = (dateString) => {
+const parseSgDate = (dateString: string): Date => {
   const [year, month, day] = dateString.split('-').map(Number);
   return new Date(Date.UTC(year, month - 1, day, -8));
 };
 
-const formatSgDateKey = (date) =>
+const formatSgDateKey = (date: Date): string =>
   new Intl.DateTimeFormat('en-CA', { timeZone: SG_TIMEZONE }).format(date);
 
-const addDays = (dateString, days) => {
+const addDays = (dateString: string, days: number): string => {
   const base = parseSgDate(dateString);
   base.setUTCDate(base.getUTCDate() + days);
   return formatSgDateKey(base);
 };
 
-const formatWeekLabelShort = (weekStart) => {
+const formatWeekLabelShort = (weekStart: string): string => {
   const start = parseSgDate(weekStart);
   const end = parseSgDate(addDays(weekStart, 6));
   const startDay = start.toLocaleDateString('en-SG', { day: 'numeric', timeZone: SG_TIMEZONE });
@@ -52,28 +118,28 @@ const formatWeekLabelShort = (weekStart) => {
   return `${startMonth} ${startDay} – ${endMonth} ${endDay}`;
 };
 
-const formatDayLabelShort = (dateString) => {
+const formatDayLabelShort = (dateString: string): string => {
   const date = parseSgDate(dateString);
   const day = date.toLocaleDateString('en-SG', { weekday: 'short', timeZone: SG_TIMEZONE });
   const dayNum = date.toLocaleDateString('en-SG', { day: 'numeric', timeZone: SG_TIMEZONE });
   return `${day} ${dayNum}`;
 };
 
-const getActivityText = (item) => {
+const getActivityText = (item: ActivityItem): ReactNode => {
   switch (item.type) {
     case 'order':
-      return item.data.summary;
+      return (item.data as OrderActivityData).summary;
     case 'upvote':
       return (
         <>
           Upvoted your stall!{' '}
-          <span className="text-white">&quot;{item.data.menuItem}&quot;</span>
+          <span className="text-white">&quot;{(item.data as UpvoteActivityData).menuItem}&quot;</span>
         </>
       );
     case 'photo_upload':
       return (
         <>
-          Uploaded a new photo for <span className="text-[#A8E6A3]">{item.data.menuItem}</span>.
+          Uploaded a new photo for <span className="text-[#A8E6A3]">{(item.data as PhotoUploadActivityData).menuItem}</span>.
         </>
       );
     default:
@@ -81,9 +147,15 @@ const getActivityText = (item) => {
   }
 };
 
-const StatsCard = ({ title, value, delta }) => {
+interface StatsCardProps {
+  title: string;
+  value: number;
+  delta?: number;
+}
+
+const StatsCard = ({ title, value, delta }: StatsCardProps) => {
   const deltaValue = delta !== undefined && delta !== null ? Math.abs(delta) : 0;
-  const isPositive = delta > 0;
+  const isPositive = delta !== undefined && delta > 0;
   const isNeutral = delta === 0 || delta === undefined || delta === null;
   
   return (
@@ -102,7 +174,11 @@ const StatsCard = ({ title, value, delta }) => {
   );
 };
 
-const ActivityItem = ({ item }) => {
+interface ActivityItemProps {
+  item: ActivityItem;
+}
+
+const ActivityItemComponent = ({ item }: ActivityItemProps) => {
   const initial = item.user.displayName?.charAt(0).toUpperCase() || 'R';
   const text = getActivityText(item);
   
@@ -123,15 +199,15 @@ const ActivityItem = ({ item }) => {
         <p className="text-sm text-white/70 leading-relaxed">
           {text}
         </p>
-        {item.type === 'order' && item.data.orderCode && (
+        {item.type === 'order' && (item.data as OrderActivityData).orderCode && (
           <span className="inline-block mt-2 px-2.5 py-1 bg-[#3D5C38] rounded text-xs text-[#A8E6A3] font-mono">
-            #{item.data.orderCode}
+            #{(item.data as OrderActivityData).orderCode}
           </span>
         )}
-        {item.type === 'photo_upload' && item.data.imageUrl && (
+        {item.type === 'photo_upload' && (item.data as PhotoUploadActivityData).imageUrl && (
           <img
-            src={item.data.imageUrl}
-            alt={item.data.menuItem}
+            src={(item.data as PhotoUploadActivityData).imageUrl}
+            alt={(item.data as PhotoUploadActivityData).menuItem}
             className="mt-3 w-full max-w-[200px] h-28 object-cover rounded-xl"
           />
         )}
@@ -141,14 +217,14 @@ const ActivityItem = ({ item }) => {
 };
 
 const HawkerDashboardPage = () => {
-  const [summary, setSummary] = useState(null);
-  const [activity, setActivity] = useState([]);
+  const [summary, setSummary] = useState<DashboardSummary | null>(null);
+  const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [chartView, setChartView] = useState('dish'); // 'dish' or 'day'
-  const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' or 'dishes'
-  const [dayChartMode, setDayChartMode] = useState('week'); // 'week' or 'day'
-  const [selectedWeekStart, setSelectedWeekStart] = useState(null);
+  const [error, setError] = useState<string | null>(null);
+  const [chartView, setChartView] = useState<'dish' | 'day'>('dish');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'dishes'>('dashboard');
+  const [dayChartMode, setDayChartMode] = useState<'week' | 'day'>('week');
+  const [selectedWeekStart, setSelectedWeekStart] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -219,8 +295,8 @@ const HawkerDashboardPage = () => {
     dailyData.map((item) => [item.date, item.count])
   );
 
-  const weekDayLabels = [];
-  const weekDayCounts = [];
+  const weekDayLabels: string[] = [];
+  const weekDayCounts: number[] = [];
 
   if (selectedWeekStart) {
     for (let i = 0; i < 7; i += 1) {
@@ -240,19 +316,19 @@ const HawkerDashboardPage = () => {
   const selectedWeekEnd = selectedWeekStart ? addDays(selectedWeekStart, 6) : null;
   const dayTitle = isWeeklyView
     ? 'Total Orders by Week'
-    : `Orders for ${formatDate(selectedWeekStart, SG_TIMEZONE)} - ${formatDate(
-        selectedWeekEnd,
+    : `Orders for ${formatDate(selectedWeekStart!, SG_TIMEZONE)} - ${formatDate(
+        selectedWeekEnd!,
         SG_TIMEZONE
       )}`;
 
-  const dishChartOptions = {
+  const dishChartOptions: ApexCharts.ApexOptions = {
     chart: { type: 'donut', fontFamily: 'inherit' },
     labels: dishChartData.map(d => d.name),
     colors: CHART_COLORS.slice(0, dishChartData.length),
     legend: { show: false },
     dataLabels: {
       enabled: true,
-      formatter: (val) => `${val.toFixed(0)}%`,
+      formatter: (val: number) => `${val.toFixed(0)}%`,
       style: { fontSize: '12px', fontWeight: 600, colors: ['#fff'] },
       dropShadow: { enabled: false },
     },
@@ -283,14 +359,14 @@ const HawkerDashboardPage = () => {
   };
 
   const dishChartSeries = dishChartData.map(d => d.count);
-  const dayChartOptions = {
+  const dayChartOptions: ApexCharts.ApexOptions = {
     chart: {
       type: 'bar',
       fontFamily: 'inherit',
       toolbar: { show: false },
       events: isWeeklyView
         ? {
-            dataPointSelection: (_, __, config) => {
+            dataPointSelection: (_: unknown, __: unknown, config: { dataPointIndex: number }) => {
               const week = weeklyData[config.dataPointIndex];
               if (week?.weekStart) {
                 setSelectedWeekStart(week.weekStart);
@@ -323,7 +399,7 @@ const HawkerDashboardPage = () => {
     yaxis: {
       labels: {
         style: { fontSize: '12px' },
-        formatter: (val) => (val % 1 === 0 ? val.toString() : ''),
+        formatter: (val: number) => (val % 1 === 0 ? val.toString() : ''),
       },
       min: 0,
       forceNiceScale: true,
@@ -336,7 +412,7 @@ const HawkerDashboardPage = () => {
     },
     tooltip: {
       y: {
-        formatter: (value) => `${value} order${value !== 1 ? 's' : ''}`,
+        formatter: (value: number) => `${value} order${value !== 1 ? 's' : ''}`,
       },
     },
   };
@@ -576,7 +652,7 @@ const HawkerDashboardPage = () => {
           ) : (
             <div className="space-y-5 max-h-[500px] overflow-y-auto pr-2">
               {activity.slice(0, 10).map((item, index) => (
-                <ActivityItem key={`${item.type}-${index}`} item={item} />
+                <ActivityItemComponent key={`${item.type}-${index}`} item={item} />
               ))}
             </div>
           )}

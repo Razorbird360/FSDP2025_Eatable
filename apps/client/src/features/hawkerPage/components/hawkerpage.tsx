@@ -1,4 +1,4 @@
-// src/features/hawkers/pages/HawkerCentreDetailPage.jsx
+// src/features/hawkers/pages/HawkerCentreDetailPage.tsx
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ChevronRight, Clock, LayoutGrid, List, MapPin, TrendingUp } from 'lucide-react';
@@ -15,7 +15,84 @@ const fallbackHeroImg =
 const fallbackDishImg =
   "https://images.unsplash.com/photo-1544025162-d76694265947?q=80&w=800&auto=format&fit=crop";
 
-const formatRelativeDate = (value) => {
+interface TagAgg {
+  label?: string;
+  [key: string]: unknown;
+}
+
+interface MediaUpload {
+  imageUrl?: string;
+  [key: string]: unknown;
+}
+
+interface DishData {
+  id: string;
+  stallId: string;
+  name: string;
+  category?: string;
+  prepTimeMins?: number;
+  priceCents?: number;
+  approvedUploadCount?: number;
+  lastApprovedUploadAt?: string | null;
+  upvoteCount?: number;
+  menuItemTagAggs?: TagAgg[];
+  mediaUploads?: MediaUpload[];
+}
+
+interface Dish {
+  id: string;
+  stallId: string;
+  name: string;
+  stallName: string;
+  cuisine: string;
+  prepTime: string;
+  price: number;
+  imageUrl: string;
+  approvedUploadCount: number;
+  lastApprovedUploadAt: string | null;
+  verified: boolean;
+  tags: TagAgg[];
+  expectations: string | null;
+  orders: number | null;
+  priceCents?: number;
+  prepTimeMins?: number;
+}
+
+interface StallData {
+  id: string;
+  name: string;
+  cuisineType?: string;
+  location?: string;
+  image_url?: string;
+  dietaryTags?: string[];
+  [key: string]: unknown;
+}
+
+interface CentreInfo {
+  id: string;
+  name: string;
+  address: string;
+  postalCode: string;
+  latitude: number | null;
+  longitude: number | null;
+  stallCount: number;
+  openCount: number;
+  imageUrl: string;
+  hours?: string;
+  days?: string;
+}
+
+interface DishCardProps {
+  dish: Dish;
+}
+
+interface StallCardProps {
+  stall: StallData;
+}
+
+type PriceRangeMatcher = (value: number) => boolean;
+
+const formatRelativeDate = (value: string | null | undefined): string | null => {
   if (!value) return null;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
@@ -31,7 +108,7 @@ const formatRelativeDate = (value) => {
   return `${diffMonths}mo ago`;
 };
 
-function DishCard({ dish }) {
+function DishCard({ dish }: DishCardProps) {
   const navigate = useNavigate();
   const verifiedLabel =
     dish.approvedUploadCount > 0
@@ -91,7 +168,7 @@ function DishCard({ dish }) {
   );
 }
 
-function StallCard({ stall }) {
+function StallCard({ stall }: StallCardProps) {
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-3 flex items-center gap-4">
       <div className="w-24 h-24 rounded-xl overflow-hidden flex-shrink-0 bg-slate-100">
@@ -122,13 +199,13 @@ function StallCard({ stall }) {
 }
 
 const HawkerCentreDetailPage = () => {
-  const { hawkerId } = useParams();
-  const navigate = useNavigate(); // 1. Initialize navigate hook
-  const [activeTab, setActiveTab] = useState("dishes");
+  const { hawkerId } = useParams<{ hawkerId: string }>();
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<"dishes" | "stalls">("dishes");
 
   // Centre info from /info/:hawkerId + some UI-only fields
-  const [centre, setCentre] = useState({
-    id: hawkerId,
+  const [centre, setCentre] = useState<CentreInfo>({
+    id: hawkerId || "",
     name: "",
     address: "",
     postalCode: "",
@@ -139,10 +216,10 @@ const HawkerCentreDetailPage = () => {
     imageUrl: fallbackHeroImg,
   });
 
-  const [dishes, setDishes] = useState([]);
-  const [stalls, setStalls] = useState([]);
+  const [dishes, setDishes] = useState<Dish[]>([]);
+  const [stalls, setStalls] = useState<StallData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const filters = useFilters();
   const { coords, status: locationStatus } = useUserLocation();
 
@@ -162,7 +239,7 @@ const HawkerCentreDetailPage = () => {
     (cuisine) => cuisine !== "All" && cuisine !== "Other"
   );
 
-  const priceRangeMatchers = {
+  const priceRangeMatchers: Record<string, PriceRangeMatcher> = {
     "Under $5": (value) => value < 500,
     "$5 - $10": (value) => value >= 500 && value < 1000,
     "$10 - $15": (value) => value >= 1000 && value < 1500,
@@ -186,16 +263,16 @@ const HawkerCentreDetailPage = () => {
         ]);
 
         const info = infoRes.data ?? infoRes;
-        const stallsRaw = stallsRes.data ?? stallsRes ?? [];
-        const dishesRaw = dishesRes.data ?? dishesRes ?? [];
+        const stallsRaw: StallData[] = stallsRes.data ?? stallsRes ?? [];
+        const dishesRaw: DishData[] = dishesRes.data ?? dishesRes ?? [];
 
         if (isCancelled) return;
 
-        const mappedStalls = stallsRaw.map((stall) => ({
+        const mappedStalls: StallData[] = stallsRaw.map((stall) => ({
           ...stall,
         }));
 
-        const mappedDishes = dishesRaw.map((dish) => {
+        const mappedDishes: Dish[] = dishesRaw.map((dish) => {
           const stallForDish = mappedStalls.find(
             (s) => s.id === dish.stallId
           );
@@ -315,7 +392,7 @@ const HawkerCentreDetailPage = () => {
       if (typeof dish.priceCents !== "number") return false;
       const priceMatches = selectedPriceRanges.some((range) => {
         const matcher = priceRangeMatchers[range];
-        return matcher ? matcher(dish.priceCents) : false;
+        return matcher ? matcher(dish.priceCents!) : false;
       });
       if (!priceMatches) return false;
     }
@@ -335,7 +412,7 @@ const HawkerCentreDetailPage = () => {
       typeof centre.latitude === "number" &&
       typeof centre.longitude === "number"
       ? (() => {
-        const toRad = (degrees) => (degrees * Math.PI) / 180;
+        const toRad = (degrees: number) => (degrees * Math.PI) / 180;
         const R = 6371;
         const dLat = toRad(centre.latitude - coords.lat);
         const dLon = toRad(centre.longitude - coords.lng);
