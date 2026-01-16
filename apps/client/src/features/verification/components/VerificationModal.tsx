@@ -1,34 +1,115 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, ChangeEvent } from 'react';
 import { Box, Button, HStack, Text, VStack } from '@chakra-ui/react';
+import { keyframes } from '@emotion/react';
 import { toaster } from '../../../components/ui/toaster';
 
 const TARGET_RATIO = 1.75;
 const FRAME_INTERVAL = 180;
 const WS_URL = import.meta.env.VITE_AI_WS_URL || 'ws://localhost:8000/id/ws';
+const ZOOM_ANIMATION_DURATION = 800; // ms
 
-export default function VerificationModal({ isOpen, onClose, onSuccess: _onSuccess }) {
-  const videoRef = useRef(null);
-  const containerRef = useRef(null);
-  const captureCanvasRef = useRef(null);
-  const wsRef = useRef(null);
-  const mediaStreamRef = useRef(null);
-  const frameTimerRef = useRef(null);
-  const sendInFlightRef = useRef(false);
-  const uploadFrameRef = useRef(null);
-  const statusRef = useRef('SEARCHING');
+// Keyframe animation for the card zoom effect
+const zoomPulse = keyframes`
+  0% {
+    transform: scale(1);
+    opacity: 1;
+    border-width: 2px;
+    box-shadow: 0 0 0 rgba(34, 197, 94, 0);
+  }
+  30% {
+    transform: scale(1.05);
+    border-width: 3px;
+    box-shadow: 0 0 20px rgba(34, 197, 94, 0.5);
+  }
+  60% {
+    transform: scale(1.1);
+    border-width: 4px;
+    box-shadow: 0 0 30px rgba(34, 197, 94, 0.7);
+  }
+  100% {
+    transform: scale(1.15);
+    opacity: 0;
+    border-width: 4px;
+    box-shadow: 0 0 40px rgba(34, 197, 94, 0.9);
+  }
+`;
 
-  const [cameraError, setCameraError] = useState(null);
-  const [imagePreview, setImagePreview] = useState(null);
-  const [uploadPreview, setUploadPreview] = useState(null);
-  const [videoReady, setVideoReady] = useState(false);
-  const [cardDetected, setCardDetected] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [status, setStatus] = useState('SEARCHING');
-  const [statusText, setStatusText] = useState('Show card');
-  const [bbox, setBbox] = useState(null);
-  const [frameMeta, setFrameMeta] = useState(null);
-  const [tooSmall, setTooSmall] = useState(false);
-  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+// Keyframe animation for the final image fade in
+const fadeInScale = keyframes`
+  0% {
+    opacity: 0;
+    transform: scale(1.1);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+`;
+
+// Type definitions
+interface VerificationModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSuccess?: () => Promise<void> | void;
+}
+
+interface FrameMeta {
+  width: number;
+  height: number;
+}
+
+interface ContainerSize {
+  width: number;
+  height: number;
+}
+
+interface OverlayStyle {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+type BoundingBox = [number, number, number, number];
+
+type DetectionStatus = 'SEARCHING' | 'LOCKING' | 'LOCKED';
+
+interface WebSocketPayload {
+  state?: DetectionStatus;
+  bbox?: BoundingBox;
+  frame?: FrameMeta;
+  too_small?: boolean;
+  crop?: string;
+}
+
+export default function VerificationModal({ isOpen, onClose, onSuccess: _onSuccess }: VerificationModalProps) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const captureCanvasRef = useRef<HTMLCanvasElement>(null);
+  const wsRef = useRef<WebSocket | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const frameTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const sendInFlightRef = useRef<boolean>(false);
+  const uploadFrameRef = useRef<File | null>(null);
+  const statusRef = useRef<DetectionStatus>('SEARCHING');
+
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [uploadPreview, setUploadPreview] = useState<string | null>(null);
+  const [videoReady, setVideoReady] = useState<boolean>(false);
+  const [cardDetected, setCardDetected] = useState<boolean>(false);
+  const [submitting, setSubmitting] = useState<boolean>(false);
+  const [status, setStatus] = useState<DetectionStatus>('SEARCHING');
+  const [statusText, setStatusText] = useState<string>('Show card');
+  const [bbox, setBbox] = useState<BoundingBox | null>(null);
+  const [frameMeta, setFrameMeta] = useState<FrameMeta | null>(null);
+  const [tooSmall, setTooSmall] = useState<boolean>(false);
+  const [containerSize, setContainerSize] = useState<ContainerSize>({ width: 0, height: 0 });
+  const [isZoomAnimating, setIsZoomAnimating] = useState<boolean>(false);
+  const [showFinalImage, setShowFinalImage] = useState<boolean>(false);
+  const [lockedBbox, setLockedBbox] = useState<BoundingBox | null>(null);
+  const [lockedFrameMeta, setLockedFrameMeta] = useState<FrameMeta | null>(null);
+  const [frozenFrame, setFrozenFrame] = useState<string | null>(null);
 
   useEffect(() => {
     statusRef.current = status;
@@ -103,6 +184,11 @@ export default function VerificationModal({ isOpen, onClose, onSuccess: _onSucce
     setBbox(null);
     setFrameMeta(null);
     setTooSmall(false);
+    setIsZoomAnimating(false);
+    setShowFinalImage(false);
+    setLockedBbox(null);
+    setLockedFrameMeta(null);
+    setFrozenFrame(null);
     sendInFlightRef.current = false;
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       wsRef.current.send('reset');
@@ -129,7 +215,7 @@ export default function VerificationModal({ isOpen, onClose, onSuccess: _onSucce
     }
   }, []);
 
-  const sendFrameBlob = useCallback(async (blob) => {
+  const sendFrameBlob = useCallback(async (blob: Blob | File) => {
     if (!blob || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
       return;
     }
@@ -140,7 +226,7 @@ export default function VerificationModal({ isOpen, onClose, onSuccess: _onSucce
     try {
       const buffer = await blob.arrayBuffer();
       wsRef.current.send(buffer);
-    } catch (error) {
+    } catch {
       sendInFlightRef.current = false;
     }
   }, []);
@@ -197,12 +283,12 @@ export default function VerificationModal({ isOpen, onClose, onSuccess: _onSucce
     ws.onopen = () => {};
     ws.onclose = () => {};
     ws.onerror = () => {};
-    ws.onmessage = (event) => {
+    ws.onmessage = (event: MessageEvent) => {
       sendInFlightRef.current = false;
-      let payload;
+      let payload: WebSocketPayload;
       try {
-        payload = JSON.parse(event.data);
-      } catch (error) {
+        payload = JSON.parse(event.data as string);
+      } catch {
         return;
       }
 
@@ -213,12 +299,47 @@ export default function VerificationModal({ isOpen, onClose, onSuccess: _onSucce
 
       if (payload.state === 'LOCKED') {
         setCardDetected(true);
-        if (payload.crop) {
-          setImagePreview(payload.crop);
+        // Store the locked bbox and frame meta for the zoom animation
+        setLockedBbox(payload.bbox || null);
+        setLockedFrameMeta(payload.frame || null);
+        
+        // Capture the current video frame as frozen image for the animation
+        const video = videoRef.current;
+        const canvas = captureCanvasRef.current;
+        if (video && canvas && video.readyState >= 2) {
+          const width = video.videoWidth;
+          const height = video.videoHeight;
+          if (width && height) {
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.drawImage(video, 0, 0, width, height);
+              const frameDataUrl = canvas.toDataURL('image/jpeg', 0.9);
+              setFrozenFrame(frameDataUrl);
+            }
+          }
         }
-        setUploadPreview(null);
+        
+        // Start the zoom animation
+        setIsZoomAnimating(true);
+        
+        // Stop the capture loop but keep camera running for a moment
         stopCaptureLoop();
-        stopCamera();
+        
+        // After the zoom animation completes, show the final image and stop camera
+        const cropImage = payload.crop;
+        setTimeout(() => {
+          setIsZoomAnimating(false);
+          setShowFinalImage(true);
+          if (cropImage) {
+            setImagePreview(cropImage);
+          }
+          // Now stop the camera after animation is done
+          stopCamera();
+        }, ZOOM_ANIMATION_DURATION);
+        
+        setUploadPreview(null);
       }
     };
 
@@ -258,7 +379,7 @@ export default function VerificationModal({ isOpen, onClose, onSuccess: _onSucce
     }
   }, [imagePreview, isOpen, startCaptureLoop, stopCaptureLoop, videoReady]);
 
-  const handleFileSelect = async (event) => {
+  const handleFileSelect = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!file) return;
@@ -309,7 +430,7 @@ export default function VerificationModal({ isOpen, onClose, onSuccess: _onSucce
 
   const previewImage = imagePreview || uploadPreview;
 
-  const overlayStyle = useMemo(() => {
+  const overlayStyle = useMemo((): OverlayStyle | null => {
     if (!bbox || !frameMeta || !containerSize.width || !containerSize.height) {
       return null;
     }
@@ -327,6 +448,26 @@ export default function VerificationModal({ isOpen, onClose, onSuccess: _onSucce
       height: (y2 - y1) * scale,
     };
   }, [bbox, containerSize, frameMeta]);
+
+  // Compute the overlay style for the locked/animating bounding box
+  const lockedOverlayStyle = useMemo((): OverlayStyle | null => {
+    if (!lockedBbox || !lockedFrameMeta || !containerSize.width || !containerSize.height) {
+      return null;
+    }
+    const [x1, y1, x2, y2] = lockedBbox;
+    const scale = Math.max(containerSize.width / lockedFrameMeta.width, containerSize.height / lockedFrameMeta.height);
+    const displayWidth = lockedFrameMeta.width * scale;
+    const displayHeight = lockedFrameMeta.height * scale;
+    const offsetX = (containerSize.width - displayWidth) / 2;
+    const offsetY = (containerSize.height - displayHeight) / 2;
+
+    return {
+      left: x1 * scale + offsetX,
+      top: y1 * scale + offsetY,
+      width: (x2 - x1) * scale,
+      height: (y2 - y1) * scale,
+    };
+  }, [lockedBbox, containerSize, lockedFrameMeta]);
 
   if (!isOpen) return null;
 
@@ -368,13 +509,16 @@ export default function VerificationModal({ isOpen, onClose, onSuccess: _onSucce
             width="100%"
             style={{ aspectRatio: TARGET_RATIO }}
           >
-            {previewImage ? (
-              <img src={previewImage} alt="ID preview" className="h-full w-full object-cover" />
+            {/* Base layer: frozen frame during animation, video, or upload preview */}
+            {frozenFrame && isZoomAnimating ? (
+              <img src={frozenFrame} alt="Frozen frame" className="h-full w-full object-cover" />
+            ) : uploadPreview && !showFinalImage ? (
+              <img src={uploadPreview} alt="Upload preview" className="h-full w-full object-cover" />
             ) : (
               <video ref={videoRef} autoPlay playsInline muted className="h-full w-full object-cover" />
             )}
 
-            {overlayStyle && !imagePreview && (
+            {overlayStyle && !imagePreview && !isZoomAnimating && (
               <Box
                 position="absolute"
                 left={`${overlayStyle.left}px`}
@@ -388,7 +532,34 @@ export default function VerificationModal({ isOpen, onClose, onSuccess: _onSucce
               />
             )}
 
-            {previewImage && (
+            {/* Zoom animation overlay when card is locked */}
+            {isZoomAnimating && lockedOverlayStyle && (
+              <Box
+                position="absolute"
+                left={`${lockedOverlayStyle.left}px`}
+                top={`${lockedOverlayStyle.top}px`}
+                width={`${lockedOverlayStyle.width}px`}
+                height={`${lockedOverlayStyle.height}px`}
+                border="2px solid"
+                borderColor="green.400"
+                borderRadius="6px"
+                pointerEvents="none"
+                transformOrigin="center center"
+                animation={`${zoomPulse} ${ZOOM_ANIMATION_DURATION}ms ease-out forwards`}
+              />
+            )}
+
+            {previewImage && showFinalImage && (
+              <Box
+                position="absolute"
+                inset="0"
+                animation={`${fadeInScale} 400ms ease-out forwards`}
+              >
+                <img src={previewImage} alt="ID preview" className="h-full w-full object-cover" />
+              </Box>
+            )}
+
+            {previewImage && showFinalImage && (
               <Button
                 size="sm"
                 rounded="full"
@@ -406,7 +577,7 @@ export default function VerificationModal({ isOpen, onClose, onSuccess: _onSucce
               </Button>
             )}
 
-            {!imagePreview && (
+            {!imagePreview && !isZoomAnimating && (
               <Box
                 position="absolute"
                 bottom="3"
@@ -447,7 +618,7 @@ export default function VerificationModal({ isOpen, onClose, onSuccess: _onSucce
                 borderColor="#21421B"
                 borderWidth="1px"
                 color="#21421B"
-                onClick={() => document.getElementById('verification-file-input').click()}
+                onClick={() => document.getElementById('verification-file-input')?.click()}
               >
                 Upload ID
               </Button>
@@ -484,10 +655,10 @@ export default function VerificationModal({ isOpen, onClose, onSuccess: _onSucce
   );
 }
 
-function fileToDataUrl(file) {
+function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
+    reader.onload = () => resolve(reader.result as string);
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
