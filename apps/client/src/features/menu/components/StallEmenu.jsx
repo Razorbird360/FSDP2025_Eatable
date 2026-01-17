@@ -3,6 +3,9 @@ import { Link, useParams } from "react-router-dom";
 import foodStallIcon from "./Assets/FoodStall_Icon.png";
 import StallGallery from "../../stalls/components/StallGallery";
 import { useCart } from "../../orders/components/CartContext";
+import popularBadgeIcon from "../../../assets/stallBadges/fire_red.svg";
+import mostUploadsBadgeIcon from "../../../assets/stallBadges/uploading_blue.svg";
+import quickBitesBadgeIcon from "../../../assets/stallBadges/fast_purple.svg";
 import api from "@lib/api"; // ⬅️ adjust path if needed
 import { resolveTagConflicts } from "../../../utils/tagging";
 import { useNavigate } from "react-router-dom"
@@ -118,6 +121,104 @@ const getTagStyle = (percent = 0) => {
 };
 
 
+const BADGE_CONFIG = {
+  popular: {
+    label: "Popular",
+    src: popularBadgeIcon,
+    iconClassName: "scale-125 translate-y-[2px]",
+    labelClassName: "-ml-0.5",
+  },
+  mostUploads: {
+    label: "Most uploaded",
+    src: mostUploadsBadgeIcon,
+    iconClassName: "translate-y-px",
+  },
+  fast: {
+    label: "Quick bites",
+    src: quickBitesBadgeIcon,
+    iconClassName: "translate-y-px",
+  },
+};
+
+const getNumericValue = (value) => (Number.isFinite(value) ? value : null);
+
+const getRecencyValue = (value) => {
+  if (!value) return null;
+  const time = new Date(value).getTime();
+  return Number.isFinite(time) ? time : null;
+};
+
+const pickWinnerByValue = (items, valueKey, recencyKey, preferLower = false) => {
+  let winnerId = null;
+  let bestValue = null;
+  let bestRecency = null;
+
+  for (const item of items) {
+    const value = getNumericValue(item[valueKey]);
+    if (value === null) continue;
+    const recency = recencyKey ? getRecencyValue(item[recencyKey]) : null;
+
+    if (bestValue === null) {
+      winnerId = item.id;
+      bestValue = value;
+      bestRecency = recency;
+      continue;
+    }
+
+    const isBetter = preferLower ? value < bestValue : value > bestValue;
+    if (isBetter) {
+      winnerId = item.id;
+      bestValue = value;
+      bestRecency = recency;
+      continue;
+    }
+
+    if (
+      value === bestValue &&
+      recency !== null &&
+      (bestRecency === null || recency > bestRecency)
+    ) {
+      winnerId = item.id;
+      bestRecency = recency;
+    }
+  }
+
+  return winnerId;
+};
+
+function BadgeRow({ badges, className, reserveSpace = false }) {
+  if ((!badges || badges.length === 0) && !reserveSpace) return null;
+  const rowClassName = ["flex flex-wrap items-center gap-2", className]
+    .filter(Boolean)
+    .join(" ");
+  if (!badges || badges.length === 0) {
+    return <div className={rowClassName} />;
+  }
+  return (
+    <div className={rowClassName}>
+      {badges.map((badgeKey) => {
+        const badge = BADGE_CONFIG[badgeKey];
+        if (!badge) return null;
+        return (
+          <span
+            key={badgeKey}
+            className="inline-flex h-6 items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2 text-[11px] font-medium leading-none text-gray-700"
+            title={badge.label}
+          >
+            <img
+              src={badge.src}
+              alt=""
+              className={["h-6 w-6", badge.iconClassName].filter(Boolean).join(" ")}
+              aria-hidden="true"
+            />
+            <span className={badge.labelClassName}>{badge.label}</span>
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
 function ItemDialog({ open, item, onClose, onAdd }) {
   const [qty, setQty] = useState(1);
   const [notes, setNotes] = useState("");
@@ -200,6 +301,7 @@ function ItemDialog({ open, item, onClose, onAdd }) {
               ))}
             </div>
           )}
+          <BadgeRow badges={item.badges} className="mt-3" />
 
           <div className="mt-4">
             <label className="mb-1 block text-sm font-medium">
@@ -319,6 +421,16 @@ export default function StallEmenu() {
                   typeof m.approvedUploadCount === "number"
                     ? m.approvedUploadCount
                     : 0,
+                orderCount:
+                  typeof m.orderCount === "number"
+                    ? m.orderCount
+                    : 0,
+                lastOrderedAt: m.lastOrderedAt || null,
+                lastUploadAt: m.lastUploadAt || null,
+                prepTimeMins:
+                  typeof m.prepTimeMins === "number"
+                    ? m.prepTimeMins
+                    : null,
                 tags: resolveTagConflicts(
                   m.menuItemTagAggs || [],
                   m.approvedUploadCount || 0,
@@ -364,10 +476,55 @@ export default function StallEmenu() {
     };
   }, [stall]);
 
-  const sections = useMemo(() => {
-    const list = Array.from(new Set(menu.map((m) => m.category)));
-    return ["All", ...list];
+  const menuBadges = useMemo(() => {
+    if (menu.length === 0) return new Map();
+    const popularWinnerId = pickWinnerByValue(
+      menu,
+      "orderCount",
+      "lastOrderedAt"
+    );
+    const uploadWinnerId = pickWinnerByValue(
+      menu,
+      "approvedUploadCount",
+      "lastUploadAt"
+    );
+    const fastWinnerId = pickWinnerByValue(
+      menu,
+      "prepTimeMins",
+      "lastOrderedAt",
+      true
+    );
+
+    return new Map(
+      menu.map((item) => {
+        const badges = [];
+        if (popularWinnerId !== null && item.id === popularWinnerId) {
+          badges.push("popular");
+        }
+        if (uploadWinnerId !== null && item.id === uploadWinnerId) {
+          badges.push("mostUploads");
+        }
+        if (fastWinnerId !== null && item.id === fastWinnerId) {
+          badges.push("fast");
+        }
+        return [item.id, badges];
+      })
+    );
   }, [menu]);
+
+  const menuWithBadges = useMemo(
+    () =>
+      menu.map((item) => ({
+        ...item,
+        badges: menuBadges.get(item.id) || [],
+      })),
+    [menu, menuBadges]
+  );
+
+  const sections = useMemo(() => {
+    const list = Array.from(new Set(menuWithBadges.map((m) => m.category)));
+    return ["All", ...list];
+  }, [menuWithBadges]);
 
   useEffect(() => {
     function onDocClick(e) {
@@ -382,7 +539,7 @@ export default function StallEmenu() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return menu.filter((m) => {
+    return menuWithBadges.filter((m) => {
       const matchQuery =
         !q ||
         m.name.toLowerCase().includes(q) ||
@@ -392,7 +549,7 @@ export default function StallEmenu() {
         activeSection === "All" || m.category === activeSection;
       return matchQuery && matchSection;
     });
-  }, [query, activeSection, menu]);
+  }, [query, activeSection, menuWithBadges]);
 
   const grouped = useMemo(() => {
     const bucket = {};
@@ -481,14 +638,14 @@ export default function StallEmenu() {
 
         <section className="rounded-2xl py-6 px-5 md:p-6 flex flex-col md:flex-row md:items-center gap-5 shadow-[0_2px_12px_rgba(0,0,0,0.06)] relative overflow-hidden md:bg-white md:border md:border-slate-200">
           {/* Background image for mobile */}
-          <div 
+          <div
             className="absolute inset-0 md:hidden bg-cover bg-center"
             style={{ backgroundImage: `url(${stallPfp || foodStallIcon})` }}
           />
-          
+
           {/* Dark overlay for mobile */}
           <div className="absolute inset-0 bg-black/60 md:hidden" />
-          
+
           {/* White background for desktop */}
           <div className="hidden md:block absolute inset-0 bg-white" />
 
@@ -593,8 +750,8 @@ export default function StallEmenu() {
               <button
                 onClick={() => setTab("menu")}
                 className={`flex items-center gap-2 px-4 py-2.5 text-sm rounded-lg font-medium transition-colors ${tab === "menu"
-                    ? "bg-[#21421B] text-white"
-                    : "text-gray-400"
+                  ? "bg-[#21421B] text-white"
+                  : "text-gray-400"
                   }`}
               >
                 <Icon.MenuList className="h-4 w-4" />
@@ -603,8 +760,8 @@ export default function StallEmenu() {
               <button
                 onClick={() => setTab("photos")}
                 className={`flex items-center gap-2 px-4 py-2.5 text-sm rounded-lg font-medium transition-colors ${tab === "photos"
-                    ? "bg-[#21421B] text-white"
-                    : "text-gray-400"
+                  ? "bg-[#21421B] text-white"
+                  : "text-gray-400"
                   }`}
               >
                 <Icon.Photo className="h-4 w-4" />
@@ -613,8 +770,8 @@ export default function StallEmenu() {
               <button
                 onClick={() => setTab("about")}
                 className={`flex items-center gap-2 px-4 py-2.5 text-sm rounded-lg font-medium transition-colors ${tab === "about"
-                    ? "bg-[#21421B] text-white"
-                    : "text-gray-400"
+                  ? "bg-[#21421B] text-white"
+                  : "text-gray-400"
                   }`}
               >
                 <Icon.Info className="h-4 w-4" />
@@ -650,8 +807,8 @@ export default function StallEmenu() {
                           setOpenFilter(false);
                         }}
                         className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-100 ${activeSection === s
-                            ? "font-medium text-[#21421B]"
-                            : "text-gray-800"
+                          ? "font-medium text-[#21421B]"
+                          : "text-gray-800"
                           }`}
                       >
                         {s}
@@ -677,8 +834,8 @@ export default function StallEmenu() {
 
                 <div
                   className={`absolute left-0 top-0 z-30 h-10 overflow-hidden transition-all duration-300 ${showSearch
-                      ? "w-[200px] opacity-100 sm:w-[240px]"
-                      : "pointer-events-none w-0 opacity-0"
+                    ? "w-[200px] opacity-100 sm:w-[240px]"
+                    : "pointer-events-none w-0 opacity-0"
                     }`}
                 >
                   <div className="relative h-full">
@@ -730,17 +887,19 @@ export default function StallEmenu() {
                         {items.map((item) => (
                           <li
                             key={`${item.id}-${item.name}`}
-                            className="flex cursor-pointer items-center gap-2.5 rounded-xl border bg-white p-2.5 md:p-4"
+                            className="grid cursor-pointer items-stretch gap-2.5 rounded-xl border bg-white p-2.5 md:p-4 grid-cols-[auto,1fr,auto]"
                             onClick={() => {
                               setSelected(item);
                               setShowItem(true);
                             }}
                           >
-                            <img
-                              src={item.img}
-                              alt={item.name}
-                              className="h-14 w-14 rounded-lg border object-cover sm:h-20 sm:w-20"
-                            />
+                            <div className="self-stretch aspect-square min-h-14 min-w-14 max-h-20 max-w-20 sm:min-h-20 sm:min-w-20 sm:max-h-24 sm:max-w-24">
+                              <img
+                                src={item.img}
+                                alt={item.name}
+                                className="h-full w-full rounded-lg border object-cover"
+                              />
+                            </div>
                             <div className="flex-1">
                               <div className="text-[15px] font-semibold">
                                 {item.name}
@@ -758,9 +917,14 @@ export default function StallEmenu() {
                               <p className="mt-0.5 line-clamp-2 text-[12px] text-gray-600">
                                 {item.desc}
                               </p>
+                              <BadgeRow
+                                badges={item.badges}
+                                className="mt-2 min-h-[24px]"
+                                reserveSpace
+                              />
                             </div>
                             <button
-                              className="ml-2 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#21421B] text-white hover:bg-[#21421B]/90"
+                              className="grid h-8 w-8 shrink-0 place-items-center self-center rounded-full bg-[#21421B] text-white hover:bg-[#21421B]/90"
                               aria-label={`Add ${item.name}`}
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -788,7 +952,7 @@ export default function StallEmenu() {
                   setTab("menu");
 
                   // Find the menu item by ID
-                  const menuItem = menu.find(item => item.id === menuItemId);
+                  const menuItem = menuWithBadges.find((item) => item.id === menuItemId);
                   if (menuItem) {
                     // Open the item dialog
                     setSelected(menuItem);

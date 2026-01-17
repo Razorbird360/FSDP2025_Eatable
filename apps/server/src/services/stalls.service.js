@@ -92,9 +92,40 @@ export const stallsService = {
       },
       _count: { _all: true },
     });
+    const orderCounts = await prisma.orderItem.groupBy({
+      by: ['menuItemId'],
+      where: {
+        menuItemId: { in: menuItemIds },
+      },
+      _sum: { quantity: true },
+    });
+    const orderRecency = await prisma.orderItem.groupBy({
+      by: ['menuItemId'],
+      where: {
+        menuItemId: { in: menuItemIds },
+      },
+      _max: { createdAt: true },
+    });
+    const uploadRecency = await prisma.mediaUpload.groupBy({
+      by: ['menuItemId'],
+      where: {
+        menuItemId: { in: menuItemIds },
+        validationStatus: 'approved',
+      },
+      _max: { createdAt: true },
+    });
 
     const uploadCountsByMenuItem = new Map(
       uploadCounts.map((row) => [row.menuItemId, row._count?._all ?? 0])
+    );
+    const orderCountsByMenuItem = new Map(
+      orderCounts.map((row) => [row.menuItemId, row._sum?.quantity ?? 0])
+    );
+    const orderRecencyByMenuItem = new Map(
+      orderRecency.map((row) => [row.menuItemId, row._max?.createdAt ?? null])
+    );
+    const uploadRecencyByMenuItem = new Map(
+      uploadRecency.map((row) => [row.menuItemId, row._max?.createdAt ?? null])
     );
 
     return {
@@ -102,6 +133,9 @@ export const stallsService = {
       menuItems: menuItems.map((item) => ({
         ...item,
         approvedUploadCount: uploadCountsByMenuItem.get(item.id) || 0,
+        orderCount: orderCountsByMenuItem.get(item.id) || 0,
+        lastOrderedAt: orderRecencyByMenuItem.get(item.id) || null,
+        lastUploadAt: uploadRecencyByMenuItem.get(item.id) || null,
         maxPrepTimeMins,
         avgPriceCents
       })),
