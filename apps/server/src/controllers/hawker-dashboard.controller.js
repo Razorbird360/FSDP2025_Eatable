@@ -60,4 +60,27 @@ export const hawkerDashboardController = {
       next(err);
     }
   },
+
+  async getDishes(req, res, next) {
+    try {
+      const { stallId: requestedStallId, sortBy, sortDir } = req.query;
+      const { stallId, error } = await resolveOwnedStallId(
+        req.user.id,
+        requestedStallId
+      );
+
+      if (error) {
+        return res.status(403).json({ error });
+      }
+
+      const dishes = await hawkerDashboardService.getMenuItems(stallId, {
+        sortBy,
+        sortDir,
+      });
+
+      return res.status(200).json(dishes);
+    } catch (err) {
+      next(err);
+    }
+  },
 };

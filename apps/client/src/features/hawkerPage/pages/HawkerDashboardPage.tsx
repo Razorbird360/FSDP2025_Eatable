@@ -1,6 +1,6 @@
 import { useEffect, useState, ReactNode, useRef, useLayoutEffect } from 'react';
 import Chart from 'react-apexcharts';
-import { ChevronUp, LayoutDashboard, Salad, Sun } from 'lucide-react';
+import { ChevronDown, ChevronUp, LayoutDashboard, MoreVertical, Plus, Salad, Sun } from 'lucide-react';
 import api from '../../../lib/api';
 import { formatDate, formatTimeAgo } from '../../../utils/helpers';
 
@@ -69,6 +69,18 @@ interface ActivityItem {
   createdAt: string;
   data: OrderActivityData | UpvoteActivityData | PhotoUploadActivityData;
 }
+
+interface MenuItemData {
+  id: string;
+  name: string;
+  priceCents: number;
+  category: string | null;
+  prepTimeMins: number | null;
+  imageUrl: string | null;
+}
+
+type SortField = 'name' | 'price' | 'category' | 'prepTime';
+type SortDir = 'asc' | 'desc';
 
 interface ProcessedDishData {
   items: DishData[];
@@ -224,6 +236,7 @@ interface SliderPosition {
 const HawkerDashboardPage = () => {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
+  const [dishes, setDishes] = useState<MenuItemData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [chartView, setChartView] = useState<'dish' | 'day'>('dish');
@@ -231,6 +244,8 @@ const HawkerDashboardPage = () => {
   const [dayChartMode, setDayChartMode] = useState<'week' | 'day'>('week');
   const [selectedWeekStart, setSelectedWeekStart] = useState<string | null>(null);
   const [sliderPosition, setSliderPosition] = useState<SliderPosition>({ left: 0, width: 0 });
+  const [sortField, setSortField] = useState<SortField>('name');
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
   
   const containerRef = useRef<HTMLDivElement>(null);
   const dashboardBtnRef = useRef<HTMLButtonElement>(null);
@@ -260,12 +275,14 @@ const HawkerDashboardPage = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [dashRes, activityRes] = await Promise.all([
+        const [dashRes, activityRes, dishesRes] = await Promise.all([
           api.get('/hawker/dashboard'),
           api.get('/hawker/dashboard/activity', { params: { limit: 10 } }),
+          api.get('/hawker/dashboard/dishes', { params: { sortBy: sortField, sortDir } }),
         ]);
         setSummary(dashRes.data);
         setActivity(activityRes.data.items || []);
+        setDishes(dishesRes.data || []);
       } catch (err) {
         console.error('[HawkerDashboard] Failed to load data:', err);
         setError('Failed to load dashboard data. Please try again.');
@@ -274,7 +291,7 @@ const HawkerDashboardPage = () => {
       }
     };
     fetchData();
-  }, []);
+  }, [sortField, sortDir]);
 
   if (loading) {
     return (
@@ -461,17 +478,26 @@ const HawkerDashboardPage = () => {
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between mb-4 flex-shrink-0">
         <div>
           <h1 className="text-2xl md:text-4xl font-bold text-[#1C201D] mb-1">Dashboard</h1>
-          <p className="text-sm md:text-base text-gray-500">Track your stall&apos;s performance</p>
+          <p className="text-sm md:text-base text-gray-500">
+            {activeTab === 'dashboard' ? "Track your stall's performance" : 'Manage your dishes'}
+          </p>
         </div>
         
         {/* Controls row - on mobile, center the toggle */}
         <div className="flex flex-col md:flex-row items-center md:items-center gap-3 md:gap-4">
-          <div className="hidden md:flex items-center gap-2 text-sm text-gray-500 cursor-pointer hover:text-gray-700">
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
-            <span>Last month</span>
-          </div>
+          {activeTab === 'dashboard' ? (
+            <div className="hidden md:flex items-center gap-2 text-sm text-gray-500 cursor-pointer hover:text-gray-700">
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+              <span>Last month</span>
+            </div>
+          ) : (
+            <button className="hidden md:flex items-center gap-2 bg-[#21421B] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#1a3415] transition-colors">
+              <Plus className="w-4 h-4" />
+              <span>Add Dish</span>
+            </button>
+          )}
           
           {/* Tab Toggle - full width on mobile */}
           <div ref={containerRef} className="relative flex w-full md:w-auto md:inline-flex bg-white rounded-xl p-1 border border-gray-200 shadow-sm gap-1">
@@ -517,164 +543,301 @@ const HawkerDashboardPage = () => {
 
       {/* Main Content */}
       <div className="flex flex-col lg:flex-row gap-4">
-        {/* Left Column - Stats + Chart */}
+        {/* Left Column - Stats + Chart OR Dishes Table */}
         <div className="flex-1 flex flex-col gap-6 md:gap-4">
-          {/* Stats Cards - stacked on mobile, 3 on tablet+ */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
-            <StatsCard
-              title="Total Orders"
-              value={summary?.totals?.orders ?? 0}
-              delta={summary?.totals?.delta?.orders}
-            />
-            <StatsCard
-              title="Total Photos Uploaded"
-              value={summary?.totals?.photos ?? 0}
-              delta={summary?.totals?.delta?.photos}
-            />
-            <StatsCard
-              title="Total Community Upvotes"
-              value={summary?.totals?.upvotes ?? 0}
-              delta={summary?.totals?.delta?.upvotes}
-            />
-          </div>
-
-          {/* Chart Section */}
-          <div className={`flex-1 bg-white rounded-xl md:rounded-2xl border border-gray-100 p-5 md:p-6 shadow-sm ${chartView === 'day' ? 'pb-2 md:pb-6' : ''}`}>
-            <div className="flex items-center justify-between gap-3 mb-4 md:mb-6">
-              {/* Dish Icon - Left side on mobile, beside Day icon on desktop */}
-              <div className="flex items-center md:gap-2 min-w-[40px]">
-                <button
-                  onClick={() => {
-                    setChartView('dish');
-                    setDayChartMode('week');
-                    setSelectedWeekStart(null);
-                  }}
-                  className="p-1 transition-opacity hover:opacity-70"
-                >
-                  <Salad
-                    aria-label="By Dish"
-                    className={`w-6 h-6 ${chartView === 'dish' ? 'text-[#21421B]' : 'text-gray-400'}`}
-                  />
-                </button>
-                <button
-                  onClick={() => {
-                    setChartView('day');
-                    setDayChartMode('week');
-                    setSelectedWeekStart(null);
-                  }}
-                  className="hidden md:block p-1 transition-opacity hover:opacity-70"
-                >
-                  <Sun
-                    aria-label="By Day"
-                    className={`w-6 h-6 ${chartView === 'day' ? 'text-[#21421B]' : 'text-gray-400'}`}
-                  />
-                </button>
-              </div>
-              
-              {/* Centered Title - larger on mobile, handles wrapping */}
-              <div className="flex-1 text-center">
-                <h2 className="text-lg md:text-xl font-bold text-[#1C201D] leading-tight">
-                  {chartView === 'dish' ? 'Total Orders by Dish' : dayTitle}
-                </h2>
+          {activeTab === 'dashboard' ? (
+            <>
+              {/* Stats Cards - stacked on mobile, 3 on tablet+ */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
+                <StatsCard
+                  title="Total Orders"
+                  value={summary?.totals?.orders ?? 0}
+                  delta={summary?.totals?.delta?.orders}
+                />
+                <StatsCard
+                  title="Total Photos Uploaded"
+                  value={summary?.totals?.photos ?? 0}
+                  delta={summary?.totals?.delta?.photos}
+                />
+                <StatsCard
+                  title="Total Community Upvotes"
+                  value={summary?.totals?.upvotes ?? 0}
+                  delta={summary?.totals?.delta?.upvotes}
+                />
               </div>
 
-              {/* Right side - Day icon on mobile, plus All weeks button if applicable */}
-              <div className="flex items-center gap-1 md:gap-2 min-w-[40px] justify-end">
-                <button
-                  onClick={() => {
-                    setChartView('day');
-                    setDayChartMode('week');
-                    setSelectedWeekStart(null);
-                  }}
-                  className="md:hidden p-1 transition-opacity hover:opacity-70"
-                >
-                  <Sun
-                    aria-label="By Day"
-                    className={`w-6 h-6 ${chartView === 'day' ? 'text-[#21421B]' : 'text-gray-400'}`}
-                  />
-                </button>
-                {isDailyView ? (
-                  <button
-                    className="hidden md:flex items-center gap-1.5 text-sm text-[#21421B] hover:text-[#1a3415] font-medium transition-colors"
-                    onClick={() => {
-                      setDayChartMode('week');
-                      setSelectedWeekStart(null);
-                    }}
-                    type="button"
-                  >
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <polyline points="15 18 9 12 15 6" />
-                    </svg>
-                    Weekly View
-                  </button>
+              {/* Chart Section */}
+              <div className={`flex-1 bg-white rounded-xl md:rounded-2xl border border-gray-100 p-5 md:p-6 shadow-sm ${chartView === 'day' ? 'pb-2 md:pb-6' : ''}`}>
+                <div className="flex items-center justify-between gap-3 mb-4 md:mb-6">
+                  {/* Dish Icon - Left side on mobile, beside Day icon on desktop */}
+                  <div className="flex items-center md:gap-2 min-w-[40px]">
+                    <button
+                      onClick={() => {
+                        setChartView('dish');
+                        setDayChartMode('week');
+                        setSelectedWeekStart(null);
+                      }}
+                      className="p-1 transition-opacity hover:opacity-70"
+                    >
+                      <Salad
+                        aria-label="By Dish"
+                        className={`w-6 h-6 ${chartView === 'dish' ? 'text-[#21421B]' : 'text-gray-400'}`}
+                      />
+                    </button>
+                    <button
+                      onClick={() => {
+                        setChartView('day');
+                        setDayChartMode('week');
+                        setSelectedWeekStart(null);
+                      }}
+                      className="hidden md:block p-1 transition-opacity hover:opacity-70"
+                    >
+                      <Sun
+                        aria-label="By Day"
+                        className={`w-6 h-6 ${chartView === 'day' ? 'text-[#21421B]' : 'text-gray-400'}`}
+                      />
+                    </button>
+                  </div>
+                  
+                  {/* Centered Title - larger on mobile, handles wrapping */}
+                  <div className="flex-1 text-center">
+                    <h2 className="text-lg md:text-xl font-bold text-[#1C201D] leading-tight">
+                      {chartView === 'dish' ? 'Total Orders by Dish' : dayTitle}
+                    </h2>
+                  </div>
+
+                  {/* Right side - Day icon on mobile, plus All weeks button if applicable */}
+                  <div className="flex items-center gap-1 md:gap-2 min-w-[40px] justify-end">
+                    <button
+                      onClick={() => {
+                        setChartView('day');
+                        setDayChartMode('week');
+                        setSelectedWeekStart(null);
+                      }}
+                      className="md:hidden p-1 transition-opacity hover:opacity-70"
+                    >
+                      <Sun
+                        aria-label="By Day"
+                        className={`w-6 h-6 ${chartView === 'day' ? 'text-[#21421B]' : 'text-gray-400'}`}
+                      />
+                    </button>
+                    {isDailyView ? (
+                      <button
+                        className="hidden md:flex items-center gap-1.5 text-sm text-[#21421B] hover:text-[#1a3415] font-medium transition-colors"
+                        onClick={() => {
+                          setDayChartMode('week');
+                          setSelectedWeekStart(null);
+                        }}
+                        type="button"
+                      >
+                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <polyline points="15 18 9 12 15 6" />
+                        </svg>
+                        Weekly View
+                      </button>
+                    ) : (
+                      <div className="hidden md:block w-24" />
+                    )}
+                  </div>
+                </div>
+
+                {chartView === 'dish' && dishChartTotal === 0 ? (
+                  <div className="h-64 flex items-center justify-center text-gray-400">
+                    {dishEmptyMessage}
+                  </div>
+                ) : chartView === 'dish' ? (
+                  <div className="flex flex-col md:flex-row items-center justify-center gap-6 md:gap-16 lg:gap-28 py-6 md:py-0">
+                    {/* Chart */}
+                    <div className="flex-shrink-0 w-[260px] md:w-[280px] lg:w-[300px]">
+                      <Chart
+                        options={dishChartOptions}
+                        series={dishChartSeries}
+                        type="donut"
+                        height={typeof window !== 'undefined' && window.innerWidth < 768 ? 260 : 300}
+                      />
+                    </div>
+                    {/* Legend */}
+                    <div className={`flex flex-col ${dishLegendClass} ${dishLegendContainerClass}`}>
+                      {dishChartData.map((dish, index) => (
+                        <div key={dish.name} className={`flex items-center ${dishLegendClass}`}>
+                          <span
+                            className={`${dishDotClass} rounded-full flex-shrink-0`}
+                            style={{ backgroundColor: CHART_COLORS[index] }}
+                          />
+                          <span className="min-w-0 truncate text-gray-800 font-medium text-sm md:text-base">
+                            {dish.name}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : dayChartTotal === 0 ? (
+                  <div className="h-64 flex items-center justify-center text-gray-400">
+                    {dayEmptyMessage}
+                  </div>
                 ) : (
-                  <div className="hidden md:block w-24" />
+                  <div className="flex flex-col">
+                    <div className="mb-[-10px] md:mb-0">
+                      <Chart
+                        key={isWeeklyView ? 'weekly' : selectedWeekStart}
+                        options={dayChartOptions}
+                        series={dayChartSeries}
+                        type="bar"
+                        height={typeof window !== 'undefined' && window.innerWidth < 768 ? 220 : 280}
+                      />
+                    </div>
+                    {isDailyView && (
+                      <button
+                        onClick={() => {
+                          setDayChartMode('week');
+                          setSelectedWeekStart(null);
+                        }}
+                        className="md:hidden mt-[-8px] mb-2 flex items-center justify-center gap-2 py-3.5 w-full bg-[#F5F7F4] rounded-xl text-[#21421B] font-bold text-sm transition-all active:scale-[0.98] active:bg-gray-200"
+                      >
+                        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                          <polyline points="15 18 9 12 15 6" />
+                        </svg>
+                        Back to Weekly View
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            /* Dishes Tab Content */
+            <div className="bg-white rounded-xl md:rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              {/* Mobile Add Dish Button */}
+              <div className="md:hidden p-4 border-b border-gray-100">
+                <button className="w-full flex items-center justify-center gap-2 bg-[#21421B] text-white px-4 py-3 rounded-lg text-sm font-medium">
+                  <Plus className="w-4 h-4" />
+                  <span>Add Dish</span>
+                </button>
+              </div>
+
+              {/* Table Header */}
+              <div className="hidden md:grid grid-cols-[2fr_1fr_1fr_1fr_40px] gap-4 px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+                <button
+                  onClick={() => {
+                    if (sortField === 'name') {
+                      setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+                    } else {
+                      setSortField('name');
+                      setSortDir('asc');
+                    }
+                  }}
+                  className="flex items-center gap-1 text-sm font-medium text-gray-600 hover:text-gray-900"
+                >
+                  Dish Name
+                  <ChevronDown className={`w-4 h-4 transition-transform ${sortField === 'name' && sortDir === 'desc' ? 'rotate-180' : ''}`} />
+                </button>
+                <button
+                  onClick={() => {
+                    if (sortField === 'price') {
+                      setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+                    } else {
+                      setSortField('price');
+                      setSortDir('asc');
+                    }
+                  }}
+                  className="flex items-center gap-1 text-sm font-medium text-gray-600 hover:text-gray-900"
+                >
+                  Price
+                  <ChevronDown className={`w-4 h-4 transition-transform ${sortField === 'price' && sortDir === 'desc' ? 'rotate-180' : ''}`} />
+                </button>
+                <button
+                  onClick={() => {
+                    if (sortField === 'category') {
+                      setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+                    } else {
+                      setSortField('category');
+                      setSortDir('asc');
+                    }
+                  }}
+                  className="flex items-center gap-1 text-sm font-medium text-gray-600 hover:text-gray-900"
+                >
+                  Category
+                  <ChevronDown className={`w-4 h-4 transition-transform ${sortField === 'category' && sortDir === 'desc' ? 'rotate-180' : ''}`} />
+                </button>
+                <button
+                  onClick={() => {
+                    if (sortField === 'prepTime') {
+                      setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+                    } else {
+                      setSortField('prepTime');
+                      setSortDir('asc');
+                    }
+                  }}
+                  className="flex items-center gap-1 text-sm font-medium text-gray-600 hover:text-gray-900"
+                >
+                  Prep Time (min)
+                  <ChevronDown className={`w-4 h-4 transition-transform ${sortField === 'prepTime' && sortDir === 'desc' ? 'rotate-180' : ''}`} />
+                </button>
+                <div />
+              </div>
+
+              {/* Table Body */}
+              <div className="divide-y divide-gray-100">
+                {dishes.length === 0 ? (
+                  <div className="px-6 py-12 text-center text-gray-400">
+                    No dishes found. Add your first dish to get started.
+                  </div>
+                ) : (
+                  dishes.map((dish) => (
+                    <div
+                      key={dish.id}
+                      className="grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr_1fr_40px] gap-2 md:gap-4 px-4 md:px-6 py-4 hover:bg-gray-50/50 transition-colors"
+                    >
+                      {/* Dish Name with Image */}
+                      <div className="flex items-center gap-3">
+                        <div className="w-14 h-14 md:w-12 md:h-12 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                          {dish.imageUrl ? (
+                            <img
+                              src={dish.imageUrl}
+                              alt={dish.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Salad className="w-6 h-6 text-gray-300" />
+                            </div>
+                          )}
+                        </div>
+                        <span className="font-medium text-gray-900 text-sm md:text-base">{dish.name}</span>
+                      </div>
+
+                      {/* Mobile: Price, Category, Prep Time in a row */}
+                      <div className="md:hidden flex items-center gap-4 text-sm text-gray-500 ml-[68px]">
+                        <span>${(dish.priceCents / 100).toFixed(2)}</span>
+                        <span>•</span>
+                        <span>{dish.category || 'Uncategorized'}</span>
+                        <span>•</span>
+                        <span>{dish.prepTimeMins ?? '-'} min</span>
+                      </div>
+
+                      {/* Desktop columns */}
+                      <div className="hidden md:flex items-center text-sm text-gray-700">
+                        ${(dish.priceCents / 100).toFixed(2)}
+                      </div>
+                      <div className="hidden md:flex items-center text-sm text-gray-700">
+                        {dish.category || 'Uncategorized'}
+                      </div>
+                      <div className="hidden md:flex items-center text-sm text-gray-700 justify-center">
+                        {dish.prepTimeMins ?? '-'}
+                      </div>
+
+                      {/* Actions */}
+                      <div className="hidden md:flex items-center justify-center">
+                        <button className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
+                          <MoreVertical className="w-5 h-5 text-gray-400" />
+                        </button>
+                      </div>
+                    </div>
+                  ))
                 )}
               </div>
             </div>
-
-            {chartView === 'dish' && dishChartTotal === 0 ? (
-              <div className="h-64 flex items-center justify-center text-gray-400">
-                {dishEmptyMessage}
-              </div>
-            ) : chartView === 'dish' ? (
-              <div className="flex flex-col md:flex-row items-center justify-center gap-6 md:gap-16 lg:gap-28 py-6 md:py-0">
-                {/* Chart */}
-                <div className="flex-shrink-0 w-[260px] md:w-[280px] lg:w-[300px]">
-                  <Chart
-                    options={dishChartOptions}
-                    series={dishChartSeries}
-                    type="donut"
-                    height={typeof window !== 'undefined' && window.innerWidth < 768 ? 260 : 300}
-                  />
-                </div>
-                {/* Legend */}
-                <div className={`flex flex-col ${dishLegendClass} ${dishLegendContainerClass}`}>
-                  {dishChartData.map((dish, index) => (
-                    <div key={dish.name} className={`flex items-center ${dishLegendClass}`}>
-                      <span
-                        className={`${dishDotClass} rounded-full flex-shrink-0`}
-                        style={{ backgroundColor: CHART_COLORS[index] }}
-                      />
-                      <span className="min-w-0 truncate text-gray-800 font-medium text-sm md:text-base">
-                        {dish.name}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : dayChartTotal === 0 ? (
-              <div className="h-64 flex items-center justify-center text-gray-400">
-                {dayEmptyMessage}
-              </div>
-            ) : (
-              <div className="flex flex-col">
-                <div className="mb-[-10px] md:mb-0">
-                  <Chart
-                    key={isWeeklyView ? 'weekly' : selectedWeekStart}
-                    options={dayChartOptions}
-                    series={dayChartSeries}
-                    type="bar"
-                    height={typeof window !== 'undefined' && window.innerWidth < 768 ? 220 : 280}
-                  />
-                </div>
-                {isDailyView && (
-                  <button
-                    onClick={() => {
-                      setDayChartMode('week');
-                      setSelectedWeekStart(null);
-                    }}
-                    className="md:hidden mt-[-8px] mb-2 flex items-center justify-center gap-2 py-3.5 w-full bg-[#F5F7F4] rounded-xl text-[#21421B] font-bold text-sm transition-all active:scale-[0.98] active:bg-gray-200"
-                  >
-                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                      <polyline points="15 18 9 12 15 6" />
-                    </svg>
-                    Back to Weekly View
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
+          )}
         </div>
 
         {/* Right Column - Activity Panel */}
@@ -683,7 +846,7 @@ const HawkerDashboardPage = () => {
           {activity.length === 0 ? (
             <p className="text-white/50 text-sm">No recent activity</p>
           ) : (
-            <div className="space-y-5 max-h-[500px] overflow-y-auto pr-2 scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+            <div className="space-y-5 max-h-[500px] overflow-y-auto pr-2">
               {activity.slice(0, 10).map((item, index) => (
                 <ActivityItemComponent key={`${item.type}-${index}`} item={item} />
               ))}

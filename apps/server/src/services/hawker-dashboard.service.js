@@ -340,4 +340,36 @@ export const hawkerDashboardService = {
       nextCursor: null,
     };
   },
+
+  async getMenuItems(stallId, { sortBy = 'name', sortDir = 'asc' } = {}) {
+    const validSortFields = {
+      name: 'name',
+      price: 'priceCents',
+      category: 'category',
+      prepTime: 'prepTimeMins',
+    };
+
+    const orderByField = validSortFields[sortBy] || 'name';
+    const orderByDir = sortDir === 'desc' ? 'desc' : 'asc';
+
+    const menuItems = await prisma.menuItem.findMany({
+      where: {
+        stallId,
+        isActive: true,
+      },
+      select: {
+        id: true,
+        name: true,
+        priceCents: true,
+        category: true,
+        prepTimeMins: true,
+        imageUrl: true,
+      },
+      orderBy: {
+        [orderByField]: orderByDir,
+      },
+    });
+
+    return menuItems;
+  },
 };
