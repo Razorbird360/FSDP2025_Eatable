@@ -683,7 +683,7 @@ const HawkerDashboardPage = () => {
           {activity.length === 0 ? (
             <p className="text-white/50 text-sm">No recent activity</p>
           ) : (
-            <div className="space-y-5 max-h-[500px] overflow-y-auto pr-2">
+            <div className="space-y-5 max-h-[500px] overflow-y-auto pr-2 scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
               {activity.slice(0, 10).map((item, index) => (
                 <ActivityItemComponent key={`${item.type}-${index}`} item={item} />
               ))}
