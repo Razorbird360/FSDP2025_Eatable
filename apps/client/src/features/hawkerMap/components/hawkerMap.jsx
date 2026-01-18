@@ -4,7 +4,6 @@ import { useSearchParams, useNavigate } from "react-router-dom"
 import { GoogleMap, Marker, OverlayView, useLoadScript } from "@react-google-maps/api"
 import { useHawkerCentres } from "../hooks/hawkerMap"
 
-
 const containerStyle = { width: "100%", height: "100dvh" }
 const libraries = ["places", "marker"]
 
@@ -67,9 +66,7 @@ function CustomAdvancedMarker({ map, position, title, content, zIndex, onClick }
   return null
 }
 
-// Stable Marker Component
 function HawkerCentreMarker({ map, centre, isSelected, isMain, zoom, onMarkerClick }) {
-  // compute values without hooks (safe even if centre is null)
   const lat = Number(centre?.latitude);
   const lng = Number(centre?.longitude);
   const hasValidPos = Number.isFinite(lat) && Number.isFinite(lng);
@@ -77,16 +74,13 @@ function HawkerCentreMarker({ map, centre, isSelected, isMain, zoom, onMarkerCli
   const LABEL_ZOOM_THRESHOLD = 11;
   const showLabel = Boolean(centre) && (isMain || isSelected || (zoom ?? 0) >= LABEL_ZOOM_THRESHOLD);
 
-  // hooks must be called unconditionally
   const handleClick = useCallback(() => {
     if (!centre) return;
     onMarkerClick?.(centre);
   }, [onMarkerClick, centre]);
 
   const content = useMemo(() => {
-    // return null safely when we cannot build content
-    if (!centre) return null;
-    if (typeof document === "undefined") return null;
+    if (!centre || typeof document === "undefined") return null;
 
     const wrapper = document.createElement("div");
     wrapper.className = "hawker-marker relative flex items-center justify-center";
@@ -119,7 +113,6 @@ function HawkerCentreMarker({ map, centre, isSelected, isMain, zoom, onMarkerCli
     return wrapper;
   }, [centre, showLabel, isSelected]);
 
-  // now it is safe to return conditionally (after hooks)
   if (!centre || !hasValidPos) return null;
 
   return (
@@ -134,10 +127,8 @@ function HawkerCentreMarker({ map, centre, isSelected, isMain, zoom, onMarkerCli
   );
 }
 
-
 export default function HawkerMap() {
   const { hawkerCentres: centres = [], loading: isLoading } = useHawkerCentres()
-
   const { isLoaded } = useLoadScript({
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
     libraries
@@ -147,52 +138,51 @@ export default function HawkerMap() {
   const centreIdFromUrl = searchParams.get("centreId")
   const navigate = useNavigate()
 
-  // Map state
+  const [isSheetOpen, setIsSheetOpen] = useState(true)
+  const sheetPeekPx = 92 
+  const sheetMaxVh = 0.82 
+  const sheetRef = useRef(null)
+
+  const originInputRef = useRef(null)
+  const searchInputRef = useRef(null)
+
   const [center, setCenter] = useState({ lat: 1.3521, lng: 103.8198 })
   const [zoom, setZoom] = useState(12)
   const [mapInstance, setMapInstance] = useState(null)
-
-  // Side menu state
   const [panelSelected, setPanelSelected] = useState(null)
-
-  // Popup state
   const [popupSelected, setPopupSelected] = useState(null)
   const [showPopup, setShowPopup] = useState(false)
   const [popupPos, setPopupPos] = useState(null)
   const [activeImageIndex, setActiveImageIndex] = useState(0)
-
-  // Search UI
   const [searchText, setSearchText] = useState("")
   const [isSearchDirty, setIsSearchDirty] = useState(false)
-
-  // Travel / directions
   const [travelMode, setTravelMode] = useState("DRIVING")
   const [activeDirections, setActiveDirections] = useState(null)
   const [directionsError, setDirectionsError] = useState("")
   const [isRouting, setIsRouting] = useState(false)
-
-  // Preview distance
   const [previewDistance, setPreviewDistance] = useState("")
-
-  // Location
   const [userLocation, setUserLocation] = useState(null)
   const [isLocating, setIsLocating] = useState(false)
   const [locationError, setLocationError] = useState("")
-
-  // Transit route UI
   const [selectedRouteIndex, setSelectedRouteIndex] = useState(0)
   const [showRouteDetails, setShowRouteDetails] = useState(true)
   const [isTransitChoosingRoute, setIsTransitChoosingRoute] = useState(true)
-
-  // Origin search
   const [originText, setOriginText] = useState("")
   const [originSuggestions, setOriginSuggestions] = useState([])
   const [originLocation, setOriginLocation] = useState(null)
-
   const [hasInitialCentered, setHasInitialCentered] = useState(false)
-
   const directionsRendererInstanceRef = useRef(null)
   const mapWrapRef = useRef(null)
+
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      (err) => console.error(err),
+      { enableHighAccuracy: true, maximumAge: 10000 }
+    );
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, []);
 
   const forceMapResize = useCallback(map => {
     if (!map || !window.google?.maps?.event) return
@@ -215,7 +205,7 @@ export default function HawkerMap() {
 
     const r = directionsRendererInstanceRef.current
     if (r) {
-      r.setDirections({ routes: [] }) // hard clear polyline
+      r.setDirections({ routes: [] })
       r.setMap(null)
     }
   }, [])
@@ -233,12 +223,10 @@ export default function HawkerMap() {
     return centres.filter(c => (c.name || "").toLowerCase().includes(q))
   }, [centres, searchText])
 
-  // Reset gallery index when popup changes
   useEffect(() => {
     setActiveImageIndex(0)
   }, [popupSelected])
 
-  // Calculate preview distance (crow flies / simple driving query) for the popup
   useEffect(() => {
     if (!window.google?.maps || !popupSelected) {
       setPreviewDistance("")
@@ -275,20 +263,17 @@ export default function HawkerMap() {
     )
   }, [popupSelected, originLocation, userLocation])
 
-  // RENDER DIRECTIONS ON MAP
   useEffect(() => {
     if (!mapInstance || !window.google?.maps) return
 
     if (!directionsRendererInstanceRef.current) {
       directionsRendererInstanceRef.current = new window.google.maps.DirectionsRenderer({
         suppressMarkers: true,
-        preserveViewport: true // We handle bounds manually in runRoute
+        preserveViewport: true 
       })
     }
 
     const renderer = directionsRendererInstanceRef.current
-
-    // Always detach + clear first to prevent stale polyline
     renderer.setDirections({ routes: [] })
     renderer.setMap(null)
 
@@ -299,7 +284,6 @@ export default function HawkerMap() {
     }
   }, [mapInstance, activeDirections, selectedRouteIndex])
 
-  // Initial centering logic
   useEffect(() => {
     if (!mapInstance || hasInitialCentered || !baseCentre) return
 
@@ -313,20 +297,16 @@ export default function HawkerMap() {
     setCenter(target)
     setZoom(14)
     setHasInitialCentered(true)
-
     forceMapResize(mapInstance)
   }, [mapInstance, baseCentre, hasInitialCentered, forceMapResize])
 
-  // Resize observer
   useEffect(() => {
     if (!mapInstance || !mapWrapRef.current) return
-
     const observer = new ResizeObserver(() => forceMapResize(mapInstance))
     observer.observe(mapWrapRef.current)
     return () => observer.disconnect()
   }, [mapInstance, forceMapResize])
 
-  // URL sync logic
   useEffect(() => {
     if (!focusedCentre) return
 
@@ -341,7 +321,6 @@ export default function HawkerMap() {
       const pos = { lat, lng }
       setCenter(pos)
       setZoom(14)
-
       setPopupSelected(focusedCentre)
       setPopupPos(pos)
       setShowPopup(false)
@@ -356,7 +335,6 @@ export default function HawkerMap() {
 
   const handleMarkerClick = useCallback(centre => {
     setPopupSelected(centre)
-
     const lat = Number(centre.latitude)
     const lng = Number(centre.longitude)
     if (Number.isFinite(lat) && Number.isFinite(lng)) {
@@ -382,7 +360,6 @@ export default function HawkerMap() {
         const pos = { lat, lng }
         setPopupPos(pos)
         setShowPopup(true)
-
         if (mapInstance) {
           mapInstance.panTo(pos)
           mapInstance.setZoom(15)
@@ -391,16 +368,16 @@ export default function HawkerMap() {
         setPopupPos(null)
         setShowPopup(false)
       }
-
       clearDirections()
+      setIsSheetOpen(true)
     },
     [clearDirections, mapInstance]
   )
 
-  // Origin Handlers
   const handleOriginFocus = () => {
-    if (originText === "Current location" || originText === "📍 Detecting location...") {
+    if (originText.trim()) {
       setOriginText("")
+      setOriginLocation(null)
     }
     setOriginSuggestions([CURRENT_LOC_OPTION])
   }
@@ -460,7 +437,6 @@ export default function HawkerMap() {
           if (mapInstance) {
             mapInstance.panTo(loc)
             mapInstance.setZoom(15)
-            setZoom(15)
           }
         },
         () => {
@@ -489,7 +465,6 @@ export default function HawkerMap() {
         if (mapInstance) {
           mapInstance.panTo(loc)
           mapInstance.setZoom(15)
-          setZoom(15)
         }
       }
     })
@@ -549,8 +524,8 @@ export default function HawkerMap() {
     setPanelSelected(popupSelected)
     setSearchText(popupSelected.name)
     setIsSearchDirty(false)
-
     clearDirections()
+    setIsSheetOpen(true)
 
     if (originLocation) {
       runRoute(originLocation, popupSelected)
@@ -582,7 +557,6 @@ export default function HawkerMap() {
         setCenter(loc)
         mapInstance.panTo(loc)
         mapInstance.setZoom(15)
-        setZoom(15)
 
         runRoute(loc, popupSelected)
       },
@@ -601,18 +575,10 @@ export default function HawkerMap() {
 
   const stallImages = useMemo(() => {
     if (!popupSelected?.stalls || !Array.isArray(popupSelected.stalls)) return []
-
     const pickImage = stall =>
-      stall?.image ||
-      stall?.imageUrl ||
-      stall?.image_url ||
-      stall?.photo ||
-      stall?.photoUrl ||
-      stall?.photo_url ||
-      stall?.thumbnail ||
-      stall?.thumbnailUrl ||
-      stall?.thumbnail_url ||
-      null
+      stall?.image || stall?.imageUrl || stall?.image_url || stall?.photo || 
+      stall?.photoUrl || stall?.photo_url || stall?.thumbnail || 
+      stall?.thumbnailUrl || stall?.thumbnail_url || null
 
     return popupSelected.stalls
       .map(s => pickImage(s))
@@ -621,7 +587,6 @@ export default function HawkerMap() {
       .map(p => getImageUrl(p))
   }, [popupSelected])
 
-  // Navigation handlers (CLAMPED)
   const handleNextImage = (e) => {
     e.stopPropagation()
     setActiveImageIndex((prev) => Math.min(prev + 1, stallImages.length - 1))
@@ -632,11 +597,6 @@ export default function HawkerMap() {
     setActiveImageIndex((prev) => Math.max(prev - 1, 0))
   }
 
-  // Navigation state checks
-  const hasImages = stallImages.length > 0
-  const hasPrev = hasImages && activeImageIndex > 0
-  const hasNext = hasImages && activeImageIndex < stallImages.length - 1
-
   const currentRoute = activeDirections?.routes?.[selectedRouteIndex] || null
   const currentLeg = currentRoute?.legs?.[0] || null
   const heroImage = stallImages[activeImageIndex] || stallImages[0] || null
@@ -644,26 +604,294 @@ export default function HawkerMap() {
   if (!isLoaded) return <div className="p-6">Loading map…</div>
   if (isLoading) return <div className="p-6">Loading hawker centres…</div>
 
-  const upvotes =
-    panelSelected?.upvotes ??
-    panelSelected?.upvoteCount ??
-    panelSelected?.upvote_count ??
-    panelSelected?.likes ??
-    0
+  // --- UI FRAGMENTS ---
 
-  const POPUP_WIDTH = 280
-  const MARKER_HEIGHT = 30
-  const GAP = 12
-  const POPUP_HEIGHT = 260
+  const menuHeaderDesktop = (
+    <div className="mb-6 flex items-center gap-3">
+      <button
+        type="button"
+        onClick={() => navigate(-1)}
+        className="flex h-10 w-10 items-center justify-center rounded-full border border-[#D1D5DB] text-sm text-[#21421B] hover:bg-[#F6FBF2]"
+      >
+        ←
+      </button>
+      <h1 className="text-3xl font-bold text-[#21421B]">
+        Hawker map <span className="text-sm font-normal text-gray-400">({centres.length} centres)</span>
+      </h1>
+    </div>
+  )
+
+  const menuBody = (
+    <>
+      <div className="mb-4">
+        <label className="mb-1 block text-xs font-semibold text-gray-700">Your location</label>
+        <div className="relative">
+          <input
+            ref={originInputRef}
+            type="text"
+            placeholder="Enter your location or address"
+            className="w-full rounded-xl border border-[#D1D5DB] px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#21421B]"
+            value={originText}
+            onChange={handleOriginChange}
+            onFocus={handleOriginFocus}
+            autoComplete="off"
+          />
+
+          {originSuggestions.length > 0 && (
+            <ul className="absolute z-30 mt-1 max-h-60 w-full overflow-y-auto rounded-2xl border border-[#E5E7EB] bg-white shadow-lg">
+              {originSuggestions.map(prediction => (
+                <li key={prediction.place_id}>
+                  <button
+                    type="button"
+                    className="flex w-full flex-col px-4 py-2 text-left hover:bg-[#F6FBF2]"
+                    onMouseDown={(e) => {
+                      e.preventDefault()
+                      originInputRef.current?.blur()
+                      searchInputRef.current?.blur()
+                      handleSelectOriginSuggestion(prediction)
+                    }}
+                    onTouchStart={(e) => {
+                      e.preventDefault()
+                      originInputRef.current?.blur()
+                      searchInputRef.current?.blur()
+                      handleSelectOriginSuggestion(prediction)
+                    }}
+                  >
+                    <span className="text-sm text-gray-900">{prediction.description}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+
+      <div className="relative">
+        <input
+          ref={searchInputRef}
+          type="text"
+          placeholder="Search hawker centre"
+          className="w-full rounded-xl border border-[#D1D5DB] px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#21421B]"
+          value={searchText}
+          onChange={handleSearchChange}
+          autoComplete="off"
+        />
+
+        {isSearchDirty && searchText.trim() !== "" && matchingCentres.length > 0 && (
+          <ul className="absolute z-30 mt-1 max-h-60 w-full overflow-y-auto rounded-2xl border border-[#E5E7EB] bg-white shadow-lg">
+            {matchingCentres.map(c => (
+              <li key={c.id}>
+                <button
+                  type="button"
+                  className="flex w-full flex-col px-4 py-2 text-left hover:bg-[#F6FBF2]"
+                  onMouseDown={(e) => {
+                    e.preventDefault()
+                    originInputRef.current?.blur()
+                    searchInputRef.current?.blur()
+                    handleSelectCentreFromList(c)
+                  }}
+                  onTouchStart={(e) => {
+                    e.preventDefault()
+                    originInputRef.current?.blur()
+                    searchInputRef.current?.blur()
+                    handleSelectCentreFromList(c)
+                  }}
+                >
+                  <span className="text-sm font-semibold text-gray-900">{c.name}</span>
+                  <span className="text-xs text-gray-500">{c.address}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div className="mt-3 rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm">
+        {panelSelected ? (
+          <>
+            <div>
+              <h2 className="text-base font-semibold text-gray-900">{panelSelected.name}</h2>
+              <p className="mt-1 text-sm text-gray-600">{panelSelected.address}</p>
+            </div>
+
+            <div className="mt-3 flex gap-2">
+              {[
+                { key: "DRIVING", label: "Drive" },
+                { key: "WALKING", label: "Walk" },
+                { key: "TRANSIT", label: "Public" }
+              ].map(option => (
+                <button
+                  key={option.key}
+                  type="button"
+                  onClick={() => {
+                    setTravelMode(option.key)
+                    clearDirections()
+                  }}
+                  className={`flex-1 rounded-xl border px-2 py-1 text-xs font-medium ${
+                    travelMode === option.key ? "bg-[#21421B] text-white border-[#21421B]" : "bg-white text-gray-700 border-[#D1D5DB]"
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={(e) => {
+                if (window.matchMedia("(max-width: 767px)").matches) {
+                  originInputRef.current?.blur()
+                  searchInputRef.current?.blur()
+                  if (document.activeElement?.blur) document.activeElement.blur()
+                }
+
+                if (!panelSelected) return
+                const o = originLocation || userLocation
+                if (!o) {
+                  setLocationError("Set your origin above, or allow location access.")
+                  return
+                }
+                runRoute(o, panelSelected)
+              }}
+              disabled={isRouting || isLocating}
+              className="mt-4 w-full rounded-xl bg-[#21421B] px-4 py-2 text-sm font-semibold text-white hover:bg-[#1a3416] disabled:opacity-60"
+            >
+              {isRouting ? "Finding route…" : "Re-route to selected"}
+            </button>
+
+            {directionsError && <p className="mt-2 text-xs text-red-500">{directionsError}</p>}
+            {locationError && <p className="mt-1 text-xs text-red-500">{locationError}</p>}
+
+            {/* TRANSIT MODE UI (Public Transport) */}
+            {travelMode === "TRANSIT" && activeDirections?.routes?.length > 0 && (
+              <div className="mt-4 border-t border-[#E5E7EB] pt-3">
+                {isTransitChoosingRoute ? (
+                  <>
+                    <p className="text-xs font-semibold text-gray-700">Choose a route</p>
+                    <div className="mt-2 max-h-40 space-y-2 overflow-auto pr-1">
+                      {activeDirections.routes.map((route, idx) => {
+                        const leg = route.legs?.[0]
+                        if (!leg) return null
+
+                        const duration = leg.duration?.text
+                        const distance = leg.distance?.text
+                        const depart = leg.departure_time?.text
+                        const arrive = leg.arrival_time?.text
+                        const modeSummary = buildModeSummary(route)
+
+                        return (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => {
+                              setSelectedRouteIndex(idx)
+                              setIsTransitChoosingRoute(false)
+                            }}
+                            className={`flex w-full items-center justify-between rounded-xl border px-3 py-3 text-left text-xs min-h-[64px] ${
+                              idx === selectedRouteIndex
+                                ? "border-[#21421B] bg-[#F6FBF2]"
+                                : "border-[#E5E7EB] bg-white"
+                            }`}
+                          >
+                            <div className="flex flex-col">
+                              <span className="font-semibold text-gray-900">
+                                {duration} • {distance}
+                              </span>
+                              {modeSummary && (
+                                <span className="mt-1 text-[11px] text-gray-600">{modeSummary}</span>
+                              )}
+                            </div>
+                            {(depart || arrive) && (
+                              <span className="ml-3 text-[11px] text-gray-500 whitespace-nowrap">
+                                {depart} – {arrive}
+                              </span>
+                            )}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </>
+                ) : (
+                  currentLeg && (
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <button
+                          type="button"
+                          className="flex items-center text-[11px] text-gray-500"
+                          onClick={() => setIsTransitChoosingRoute(true)}
+                        >
+                          <span className="mr-1">←</span>
+                          <span>Back to routes</span>
+                        </button>
+                        <div className="text-right text-xs text-gray-700">
+                          <p className="font-medium">
+                            {currentLeg.duration?.text} • {currentLeg.distance?.text}
+                          </p>
+                          {currentLeg.departure_time?.text && currentLeg.arrival_time?.text && (
+                            <p className="text-[11px] text-gray-500">
+                              {currentLeg.departure_time.text} – {currentLeg.arrival_time.text}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <ul className="mt-3 max-h-40 space-y-1 overflow-auto pr-1 text-sm text-gray-900">
+                        {currentLeg.steps.map((step, index) => (
+                          <li key={index} className="flex gap-2 pb-3">
+                            <span className="mt-1 h-2 w-2 flex-shrink-0 rounded-full bg-[#21421B]" />
+                            <span>{step.instructions.replace(/<[^>]+>/g, "")} ({step.distance.text})</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )
+                )}
+              </div>
+            )}
+
+            {/* DRIVING/WALKING MODE UI */}
+            {currentLeg && travelMode !== "TRANSIT" && (
+              <div className="mt-4 border-t border-[#E5E7EB] pt-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium text-gray-900">{currentLeg.duration?.text} • {currentLeg.distance?.text}</p>
+                  <button type="button" className="text-[11px] text-gray-500 underline" onClick={() => setShowRouteDetails(prev => !prev)}>
+                    {showRouteDetails ? "Hide directions" : "Show directions"}
+                  </button>
+                </div>
+                {showRouteDetails && (
+                  <ul className="mt-2 max-h-40 space-y-1 overflow-auto pr-1 text-sm text-gray-900">
+                    {currentLeg.steps.map((step, index) => (
+                      <li key={index} className="flex gap-2 pb-3">
+                        <span className="mt-1 h-2 w-2 flex-shrink-0 rounded-full bg-[#21421B]" />
+                        <span>{step.instructions.replace(/<[^>]+>/g, "")} ({step.distance.text})</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </>
+        ) : (
+          <p className="text-sm text-gray-600">Search for a hawker centre or click a marker to begin.</p>
+        )}
+      </div>
+    </>
+  )
+
+  const POPUP_WIDTH_VAL = 280
 
   return (
     <div className={`w-full min-h-screen bg-[#F6FBF2] ${showPopup ? "popup-open" : ""}`}>
       <style>
         {`
-          .popup-open .hawker-label {
-            opacity: 0;
-            transition: opacity 120ms ease;
+          .popup-open .hawker-label { opacity: 0; transition: opacity 120ms ease; }
+          .recenter-btn {
+             position: absolute; right: 20px; bottom: 120px; z-index: 10;
+             background: white; border-radius: 50%; width: 48px; height: 48px;
+             display: flex; align-items: center; justify-content: center;
+             box-shadow: 0 2px 6px rgba(0,0,0,0.3); border: none; cursor: pointer;
           }
+          @media (min-width: 768px) { .recenter-btn { bottom: 30px; } }
         `}
       </style>
 
@@ -673,16 +901,16 @@ export default function HawkerMap() {
             mapContainerStyle={containerStyle}
             center={center}
             zoom={zoom}
-            onLoad={map => {
-              setMapInstance(map)
-              forceMapResize(map)
-            }}
+            onLoad={map => { setMapInstance(map); forceMapResize(map); }}
             onZoomChanged={() => {
-              if (!mapInstance) return
-              const z = mapInstance.getZoom()
-              if (typeof z === "number") setZoom(z)
+              if (!mapInstance) return;
+              const z = mapInstance.getZoom();
+              if (typeof z === "number") setZoom(z);
             }}
-            onClick={() => setShowPopup(false)}
+            onClick={() => {
+              setShowPopup(false);
+              if (window.matchMedia("(max-width: 767px)").matches) setIsSheetOpen(false);
+            }}
             options={{
               mapTypeId: "roadmap",
               mapId: import.meta.env.VITE_GOOGLE_MAP_ID,
@@ -695,528 +923,99 @@ export default function HawkerMap() {
             {userLocation && (
               <Marker
                 position={userLocation}
-                icon="https://maps.google.com/mapfiles/ms/icons/blue-dot.png"
+                icon={{
+                  path: window.google?.maps?.SymbolPath?.CIRCLE,
+                  fillColor: "#4285F4",
+                  fillOpacity: 1,
+                  strokeColor: "white",
+                  strokeWeight: 2,
+                  scale: 7
+                }}
                 zIndex={4000}
               />
             )}
 
-            {/* Stable Mapping Handler */}
-            {mapInstance &&
-              centres.map(c => (
-                <HawkerCentreMarker
-                  key={c.id}
-                  map={mapInstance}
-                  centre={c}
-                  isSelected={panelSelected?.id === c.id}
-                  isMain={focusedCentre?.id === c.id}
-                  zoom={zoom}
-                  onMarkerClick={handleMarkerClick}
-                />
-              ))}
+            {mapInstance && centres.map(c => (
+              <HawkerCentreMarker
+                key={c.id}
+                map={mapInstance}
+                centre={c}
+                isSelected={panelSelected?.id === c.id}
+                isMain={focusedCentre?.id === c.id}
+                zoom={zoom}
+                onMarkerClick={handleMarkerClick}
+              />
+            ))}
 
             {popupSelected && showPopup && popupPos && (
               <OverlayView
                 position={popupPos}
                 mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
-                getPixelPositionOffset={() => ({
-                  x: -(POPUP_WIDTH / 2),
-                  y: -(POPUP_HEIGHT + MARKER_HEIGHT + GAP)
-                })}
+                getPixelPositionOffset={() => ({ x: -(POPUP_WIDTH_VAL / 2), y: -(POPUP_HEIGHT + MARKER_HEIGHT + GAP) })}
               >
-                <div
-                  style={{
-                    width: POPUP_WIDTH,
-                    borderRadius: 12,
-                    zIndex: 5000,
-                    overflow: "hidden",
-                    boxShadow: "0 4px 25px rgba(0,0,0,0.25)",
-                    background: "white",
-                    position: "relative",
-                    display: "flex",
-                    flexDirection: "column",
-                    fontFamily: "system-ui, -apple-system, sans-serif"
-                  }}
-                  onClick={e => e.stopPropagation()}
-                >
-                  <button
-                    type="button"
-                    onClick={() => setShowPopup(false)}
-                    style={{
-                      position: "absolute",
-                      top: 8,
-                      right: 8,
-                      width: 28,
-                      height: 28,
-                      borderRadius: "50%",
-                      background: "rgba(0,0,0,0.5)",
-                      color: "white",
-                      border: "none",
-                      fontSize: 18,
-                      lineHeight: "28px",
-                      cursor: "pointer",
-                      zIndex: 30, // Higher than dots
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center"
-                    }}
-                    aria-label="Close"
-                  >
-                    ×
-                  </button>
-
-                  {/* CAROUSEL IMAGE AREA */}
-                  <div
-                    style={{
-                      height: 150,
-                      width: "100%",
-                      backgroundColor: "#e5e7eb",
-                      position: "relative",
-                      overflow: "hidden"
-                    }}
-                  >
-                    {/* Main Image Layer */}
-                    <div
-                      style={{
-                        width: "100%",
-                        height: "100%",
-                        backgroundImage: heroImage ? `url(${heroImage})` : "none",
-                        backgroundSize: "cover",
-                        backgroundPosition: "center",
-                        transition: "background-image 0.3s ease-in-out"
-                      }}
-                    />
-
-                    {!heroImage && (
-                      <div
-                        style={{
-                          position: "absolute",
-                          inset: 0,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          color: "#9ca3af",
-                          fontSize: 40
-                        }}
-                      >
-                        🏪
-                      </div>
-                    )}
-
-                    {/* Gradient Overlay for text/dots legibility */}
-                    <div
-                      style={{
-                        position: "absolute",
-                        inset: 0,
-                        background: "linear-gradient(to bottom, rgba(0,0,0,0) 60%, rgba(0,0,0,0.5) 100%)",
-                        pointerEvents: "none"
-                      }}
-                    />
-
-                    {/* ARROWS - show only when valid */}
-                    {hasPrev && (
-                      <button
-                        type="button"
-                        onClick={handlePrevImage}
-                        style={{
-                          position: "absolute",
-                          left: 8,
-                          top: "50%",
-                          transform: "translateY(-50%)",
-                          width: 24,
-                          height: 24,
-                          borderRadius: "50%",
-                          background: "rgba(255,255,255,0.8)",
-                          border: "none",
-                          cursor: "pointer",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: 16,
-                          color: "#333",
-                          paddingBottom: 2,
-                          zIndex: 20
-                        }}
-                        aria-label="Previous image"
-                      >
-                        ‹
-                      </button>
-                    )}
-
-                    {hasNext && (
-                      <button
-                        type="button"
-                        onClick={handleNextImage}
-                        style={{
-                          position: "absolute",
-                          right: 8,
-                          top: "50%",
-                          transform: "translateY(-50%)",
-                          width: 24,
-                          height: 24,
-                          borderRadius: "50%",
-                          background: "rgba(255,255,255,0.8)",
-                          border: "none",
-                          cursor: "pointer",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: 16,
-                          color: "#333",
-                          paddingBottom: 2,
-                          zIndex: 20
-                        }}
-                        aria-label="Next image"
-                      >
-                        ›
-                      </button>
-                    )}
-
-                    {/* PAGINATION DOTS - Only show if > 1 image */}
-                    {stallImages.length > 1 && (
-                      <div
-                        style={{
-                          position: "absolute",
-                          bottom: 10,
-                          left: 0,
-                          right: 0,
-                          display: "flex",
-                          justifyContent: "center",
-                          gap: 6,
-                          zIndex: 20
-                        }}
-                      >
-                        {stallImages.map((_, idx) => (
-                          <button
-                            key={idx}
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setActiveImageIndex(idx)
-                            }}
-                            style={{
-                              width: 6,
-                              height: 6,
-                              borderRadius: "50%",
-                              background: idx === activeImageIndex ? "#FFFFFF" : "rgba(255,255,255,0.5)",
-                              border: "none",
-                              padding: 0,
-                              cursor: "pointer",
-                              transition: "background 0.2s"
-                            }}
-                          />
-                        ))}
-                      </div>
-                    )}
+                <div style={{ width: POPUP_WIDTH_VAL, borderRadius: 12, zIndex: 5000, overflow: "hidden", boxShadow: "0 4px 25px rgba(0,0,0,0.25)", background: "white", position: "relative", display: "flex", flexDirection: "column", fontFamily: "system-ui, -apple-system, sans-serif" }} onClick={e => e.stopPropagation()}>
+                  <button type="button" onClick={() => setShowPopup(false)} style={{ position: "absolute", top: 8, right: 8, width: 28, height: 28, borderRadius: "50%", background: "rgba(0,0,0,0.5)", color: "white", border: "none", fontSize: 18, cursor: "pointer", zIndex: 30, display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
+                  <div style={{ height: 150, width: "100%", backgroundColor: "#e5e7eb", position: "relative", overflow: "hidden" }}>
+                    <div style={{ width: "100%", height: "100%", backgroundImage: heroImage ? `url(${heroImage})` : "none", backgroundSize: "cover", backgroundPosition: "center", transition: "background-image 0.3s ease" }} />
+                    <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(0,0,0,0) 60%, rgba(0,0,0,0.5) 100%)", pointerEvents: "none" }} />
                   </div>
-
                   <div style={{ padding: "12px 16px" }}>
-                    <div
-                      style={{
-                        fontSize: 16,
-                        fontWeight: 700,
-                        color: "#111827",
-                        lineHeight: "1.2",
-                        marginBottom: 6
-                      }}
-                    >
-                      {popupSelected.name}
+                    <div style={{ fontSize: 16, fontWeight: 700, color: "#111827", marginBottom: 6 }}>{popupSelected.name}</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#4B5563", marginBottom: 14 }}>
+                      <span>🚗 {previewDistance || "Calculating..."}</span>
                     </div>
-
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 6,
-                        fontSize: 13,
-                        color: "#4B5563",
-                        marginBottom: 14
-                      }}
-                    >
-                      <span style={{ fontSize: 14 }}>🚗</span>
-                      {previewDistance ? (
-                        <span>{previewDistance} by car</span>
-                      ) : (
-                        <span>{userLocation ? "Calculating..." : "Enter location for distance"}</span>
-                      )}
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={handleGetDirectionsFromPopup}
-                      disabled={isRouting || isLocating}
-                      style={{
-                        width: "100%",
-                        borderRadius: 8,
-                        padding: "10px 0",
-                        fontSize: 13,
-                        fontWeight: 600,
-                        background: "#21421B",
-                        color: "white",
-                        border: "none",
-                        cursor: "pointer",
-                        opacity: isRouting || isLocating ? 0.7 : 1
-                      }}
-                    >
-                      {isLocating ? "Detecting location..." : isRouting ? "Finding route..." : "Get directions"}
-                    </button>
+                    <button type="button" onClick={handleGetDirectionsFromPopup} style={{ width: "100%", borderRadius: 8, padding: "10px 0", fontSize: 13, fontWeight: 600, background: "#21421B", color: "white", border: "none", cursor: "pointer" }}>Get directions</button>
                   </div>
                 </div>
               </OverlayView>
             )}
           </GoogleMap>
+
+          <button className="recenter-btn" onClick={() => userLocation && mapInstance?.panTo(userLocation)}>
+            <span style={{ fontSize: '20px' }}>🎯</span>
+          </button>
         </div>
 
-        {/* SIDE MENU */}
-        <div className="absolute left-6 top-6 z-20 max-w-sm w-[430px] bg-white rounded-[24px] shadow-lg p-6">
-          <div className="mb-4 flex items-center gap-2">
+        {/* DESKTOP SIDE MENU */}
+        <div className="absolute left-6 top-6 z-20 hidden md:block max-w-sm w-[430px] bg-white rounded-[24px] shadow-lg p-6 max-h-[90vh] overflow-y-auto">
+          {menuHeaderDesktop}
+          {menuBody}
+        </div>
+
+        {/* MOBILE BOTTOM SHEET */}
+        <div className="absolute inset-x-0 bottom-0 z-30 md:hidden">
+          <div
+            ref={sheetRef}
+            className="mx-3 overflow-hidden rounded-t-[24px] border border-[#E5E7EB] bg-white shadow-[0_-10px_30px_rgba(0,0,0,0.12)]"
+            style={{
+              height: isSheetOpen ? `min(${Math.round(sheetMaxVh * 100)}vh, 680px)` : `${sheetPeekPx}px`,
+              transition: "height 240ms cubic-bezier(0.4, 0, 0.2, 1)",
+            }}
+          >
             <button
               type="button"
-              onClick={() => navigate(-1)}
-              className="flex h-8 w-8 items-center justify-center rounded-full border border-[#D1D5DB] text-sm text-[#21421B] hover:bg-[#F6FBF2]"
+              onClick={() => setIsSheetOpen((p) => !p)}
+              className="w-full px-4 pt-3 pb-2 focus:outline-none"
+              aria-expanded={isSheetOpen}
             >
-              ←
+              <div className="mx-auto h-1.5 w-12 rounded-full bg-[#D1D5DB]" />
+              <div className="mt-2 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl font-bold text-[#21421B]">Hawker map</span>
+                </div>
+                <span className="text-xs text-gray-500">{isSheetOpen ? "Swipe down" : "Swipe up"}</span>
+              </div>
             </button>
-            <h1 className="text-2xl font-bold text-[#21421B]">
-              Hawker map <span className="text-xs font-normal text-gray-400">({centres.length} centres)</span>
-            </h1>
-          </div>
 
-          <div className="mb-4">
-            <label className="mb-1 block text-xs font-semibold text-gray-700">Your location</label>
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Enter your location or address"
-                className="w-full rounded-xl border border-[#D1D5DB] px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#21421B]"
-                value={originText}
-                onChange={handleOriginChange}
-                onFocus={handleOriginFocus}
-                autoComplete="off"
-              />
-
-              {originSuggestions.length > 0 && (
-                <ul className="absolute z-30 mt-1 max-h-60 w-full overflow-y-auto rounded-2xl border border-[#E5E7EB] bg-white shadow-lg">
-                  {originSuggestions.map(prediction => (
-                    <li key={prediction.place_id}>
-                      <button
-                        type="button"
-                        className="flex w-full flex-col px-4 py-2 text-left hover:bg-[#F6FBF2]"
-                        onClick={() => handleSelectOriginSuggestion(prediction)}
-                      >
-                        <span className="text-sm text-gray-900">{prediction.description}</span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
+            <div
+              className="px-4 pb-20"
+              style={{
+                height: `calc(100% - 56px)`,
+                overflowY: isSheetOpen ? "auto" : "hidden",
+              }}
+            >
+              {menuBody}
             </div>
-          </div>
-
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Search hawker centre"
-              className="w-full rounded-xl border border-[#D1D5DB] px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#21421B]"
-              value={searchText}
-              onChange={handleSearchChange}
-              autoComplete="off"
-            />
-
-            {isSearchDirty && searchText.trim() !== "" && matchingCentres.length > 0 && (
-              <ul className="absolute z-30 mt-1 max-h-60 w-full overflow-y-auto rounded-2xl border border-[#E5E7EB] bg-white shadow-lg">
-                {matchingCentres.map(c => (
-                  <li key={c.id}>
-                    <button
-                      type="button"
-                      className="flex w-full flex-col px-4 py-2 text-left hover:bg-[#F6FBF2]"
-                      onClick={() => handleSelectCentreFromList(c)}
-                    >
-                      <span className="text-sm font-semibold text-gray-900">{c.name}</span>
-                      <span className="text-xs text-gray-500">{c.address}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          <div className="mt-3 rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm">
-            {panelSelected ? (
-              <>
-                <div>
-                  <h2 className="text-base font-semibold text-gray-900">{panelSelected.name}</h2>
-                  <p className="mt-1 text-sm text-gray-600">{panelSelected.address}</p>
-                  <p className="mt-1 text-xs text-gray-400">
-                    Lat {panelSelected.latitude} Lng {panelSelected.longitude}
-                  </p>
-                </div>
-
-                <div className="mt-3 flex gap-2">
-                  {[
-                    { key: "DRIVING", label: "Drive" },
-                    { key: "WALKING", label: "Walk" },
-                    { key: "TRANSIT", label: "Public" }
-                  ].map(option => (
-                    <button
-                      key={option.key}
-                      type="button"
-                      onClick={() => {
-                        setTravelMode(option.key)
-                        clearDirections()
-                      }}
-                      className={`flex-1 rounded-xl border px-2 py-1 text-xs font-medium ${
-                        travelMode === option.key
-                          ? "bg-[#21421B] text-white border-[#21421B]"
-                          : "bg-white text-gray-700 border-[#D1D5DB]"
-                      }`}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!panelSelected) return
-                    // Pass panelSelected explicit to avoid confusion
-                    if (originLocation) return runRoute(originLocation, panelSelected)
-                    if (userLocation) return runRoute(userLocation, panelSelected)
-                    setLocationError("Set your origin above, or allow location access.")
-                  }}
-                  disabled={isRouting || isLocating}
-                  className="mt-4 w-full rounded-xl bg-[#21421B] px-4 py-2 text-sm font-semibold text-white hover:bg-[#1a3416] disabled:opacity-60"
-                >
-                  {isRouting ? "Finding route…" : "Re-route to selected"}
-                </button>
-
-                {directionsError && <p className="mt-2 text-xs text-red-500">{directionsError}</p>}
-                {locationError && <p className="mt-1 text-xs text-red-500">{locationError}</p>}
-
-                {Number.isFinite(upvotes) && upvotes > 0 && (
-                  <p className="mt-2 text-[11px] text-gray-500">👍 {upvotes} upvotes</p>
-                )}
-
-                {travelMode === "TRANSIT" && activeDirections?.routes?.length > 0 && (
-                  <div className="mt-4 border-t border-[#E5E7EB] pt-3">
-                    {isTransitChoosingRoute ? (
-                      <>
-                        <p className="text-xs font-semibold text-gray-700">Choose a route</p>
-                        <div className="mt-2 max-h-40 space-y-2 overflow-auto pr-1">
-                          {activeDirections.routes.map((route, idx) => {
-                            const leg = route.legs?.[0]
-                            if (!leg) return null
-
-                            const duration = leg.duration?.text
-                            const distance = leg.distance?.text
-                            const depart = leg.departure_time?.text
-                            const arrive = leg.arrival_time?.text
-                            const modeSummary = buildModeSummary(route)
-
-                            return (
-                              <button
-                                key={idx}
-                                type="button"
-                                onClick={() => {
-                                  setSelectedRouteIndex(idx)
-                                  setIsTransitChoosingRoute(false)
-                                }}
-                                className={`flex w-full items-center justify-between rounded-xl border px-3 py-3 text-left text-xs min-h-[64px] ${
-                                  idx === selectedRouteIndex
-                                    ? "border-[#21421B] bg-[#F6FBF2]"
-                                    : "border-[#E5E7EB] bg-white"
-                                }`}
-                              >
-                                <div className="flex flex-col">
-                                  <span className="font-semibold text-gray-900">
-                                    {duration} • {distance}
-                                  </span>
-                                  {modeSummary && (
-                                    <span className="mt-1 text-[11px] text-gray-600">{modeSummary}</span>
-                                  )}
-                                </div>
-                                {(depart || arrive) && (
-                                  <span className="ml-3 text-[11px] text-gray-500 whitespace-nowrap">
-                                    {depart} – {arrive}
-                                  </span>
-                                )}
-                              </button>
-                            )
-                          })}
-                        </div>
-                      </>
-                    ) : (
-                      currentLeg && (
-                        <div>
-                          <div className="flex items-center justify-between">
-                            <button
-                              type="button"
-                              className="flex items-center text-[11px] text-gray-500"
-                              onClick={() => setIsTransitChoosingRoute(true)}
-                            >
-                              <span className="mr-1">←</span>
-                              <span>Back to routes</span>
-                            </button>
-                            <div className="text-right text-xs text-gray-700">
-                              <p className="font-medium">
-                                {currentLeg.duration?.text} • {currentLeg.distance?.text}
-                              </p>
-                              {currentLeg.departure_time?.text && currentLeg.arrival_time?.text && (
-                                <p className="text-[11px] text-gray-500">
-                                  {currentLeg.departure_time.text} – {currentLeg.arrival_time.text}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-
-                          <ul className="mt-3 max-h-40 space-y-1 overflow-auto pr-1 text-sm text-gray-900">
-                            {currentLeg.steps.map((step, index) => (
-                              <li key={index} className="flex gap-2 pb-3">
-                                <span className="mt-1 h-2 w-2 flex-shrink-0 rounded-full bg-[#21421B]" />
-                                <span>{step.instructions.replace(/<[^>]+>/g, "")} ({step.distance.text})</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )
-                    )}
-                  </div>
-                )}
-
-                {currentLeg && travelMode !== "TRANSIT" && (
-                  <div className="mt-4 border-t border-[#E5E7EB] pt-3">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium text-gray-900">
-                        {currentLeg.duration?.text} • {currentLeg.distance?.text}
-                      </p>
-                      <button
-                        type="button"
-                        className="ml-3 text-[11px] text-gray-500 underline"
-                        onClick={() => setShowRouteDetails(prev => !prev)}
-                      >
-                        {showRouteDetails ? "Hide directions" : "Show directions"}
-                      </button>
-                    </div>
-
-                    {showRouteDetails && (
-                      <ul className="mt-2 max-h-40 space-y-1 overflow-auto pr-1 text-sm text-gray-900">
-                        {currentLeg.steps.map((step, index) => (
-                          <li key={index} className="flex gap-2 pb-3">
-                            <span className="mt-1 h-2 w-2 flex-shrink-0 rounded-full bg-[#21421B]" />
-                            <span>{step.instructions.replace(/<[^>]+>/g, "")} ({step.distance.text})</span>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                )}
-              </>
-            ) : (
-              <p className="text-sm text-gray-600">
-                Use the search list to choose a centre, or click a marker to preview. The side menu only changes when
-                you tap “Get directions”.
-              </p>
-            )}
           </div>
         </div>
       </div>
