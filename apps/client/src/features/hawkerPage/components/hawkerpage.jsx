@@ -1,5 +1,5 @@
 // src/features/hawkers/pages/HawkerCentreDetailPage.jsx
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ChevronRight, Clock, LayoutGrid, List, MapPin, TrendingUp } from 'lucide-react';
 import Filters from "../../hawkerCentres/components/Filters";
@@ -143,7 +143,6 @@ const HawkerCentreDetailPage = () => {
   const navigate = useNavigate(); // 1. Initialize navigate hook
   const { profile } = useAuth();
   const [activeTab, setActiveTab] = useState("dishes");
-  const viewedDishIdsRef = useRef(new Set());
 
   // Centre info from /info/:hawkerId + some UI-only fields
   const [centre, setCentre] = useState({
@@ -295,10 +294,6 @@ const HawkerCentreDetailPage = () => {
     };
   }, [hawkerId, profile?.id]);
 
-  useEffect(() => {
-    viewedDishIdsRef.current = new Set();
-  }, [hawkerId]);
-
   const handleDishClick = (dish) => {
     const userId = profile?.id ?? null;
     const anonId = userId ? null : getOrCreateAnonId();
@@ -380,32 +375,6 @@ const HawkerCentreDetailPage = () => {
 
     return true;
   });
-
-  useEffect(() => {
-    if (activeTab !== "dishes") return;
-    if (!filteredDishes.length) return;
-    const userId = profile?.id ?? null;
-    const anonId = userId ? null : getOrCreateAnonId();
-
-    filteredDishes.forEach((dish) => {
-      if (!dish?.id) return;
-      if (viewedDishIdsRef.current.has(dish.id)) return;
-      viewedDishIdsRef.current.add(dish.id);
-      trackEvent({
-        userId,
-        anonId,
-        eventType: "view",
-        itemId: dish.id,
-        categoryId: dish.category || dish.cuisine || null,
-        metadata: {
-          source: "hawker-centre",
-          hawkerId,
-          priceCents: dish.priceCents,
-          tags: buildDishTags(dish),
-        },
-      });
-    });
-  }, [activeTab, filteredDishes, hawkerId, profile?.id]);
 
   const distanceKm =
     locationStatus === "granted" &&
