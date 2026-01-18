@@ -15,6 +15,7 @@ import menuRoutes from './menu.routes.js';
 import voucherRoutes from './voucher.routes.js';
 import achievementRoutes from './achievement.routes.js';
 import adminRoutes from './admin.routes.js';
+import eventsRoutes from './events.routes.js';
 
 const router = Router();
 
@@ -38,5 +39,6 @@ router.use('/menu', menuRoutes);
 router.use('/vouchers', voucherRoutes);
 router.use('/achievements', achievementRoutes);
 router.use('/admin', adminRoutes);
+router.use('/events', eventsRoutes);
 
 export default router;
