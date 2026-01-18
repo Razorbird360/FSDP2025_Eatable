@@ -587,15 +587,6 @@ export default function HawkerMap() {
       .map(p => getImageUrl(p))
   }, [popupSelected])
 
-  const handleNextImage = (e) => {
-    e.stopPropagation()
-    setActiveImageIndex((prev) => Math.min(prev + 1, stallImages.length - 1))
-  }
-
-  const handlePrevImage = (e) => {
-    e.stopPropagation()
-    setActiveImageIndex((prev) => Math.max(prev - 1, 0))
-  }
 
   const currentRoute = activeDirections?.routes?.[selectedRouteIndex] || null
   const currentLeg = currentRoute?.legs?.[0] || null
@@ -738,7 +729,7 @@ export default function HawkerMap() {
 
             <button
               type="button"
-              onClick={(e) => {
+              onClick={() => {
                 if (window.matchMedia("(max-width: 767px)").matches) {
                   originInputRef.current?.blur()
                   searchInputRef.current?.blur()
@@ -879,6 +870,10 @@ export default function HawkerMap() {
   )
 
   const POPUP_WIDTH_VAL = 280
+  const POPUP_HEIGHT = 260
+  const MARKER_HEIGHT = 30
+  const GAP = 12
+
 
   return (
     <div className={`w-full min-h-screen bg-[#F6FBF2] ${showPopup ? "popup-open" : ""}`}>
