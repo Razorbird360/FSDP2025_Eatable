@@ -1,5 +1,5 @@
 // src/features/hawkers/pages/HawkerCentreDetailPage.jsx
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ChevronRight, Clock, LayoutGrid, List, MapPin, TrendingUp } from 'lucide-react';
 import Filters from "../../hawkerCentres/components/Filters";
@@ -8,6 +8,8 @@ import api from "@lib/api";
 import { useFilters } from "../../hawkerCentres/hooks/useFilters";
 import { useUserLocation } from "../../hawkerCentres/hooks/useUserLocation";
 import { resolveTagConflicts } from "../../../utils/tagging";
+import { useAuth } from "../../auth/useAuth";
+import { getOrCreateAnonId, trackEvent } from "@lib/events";
 
 const fallbackHeroImg =
   "https://images.unsplash.com/photo-1544027993-37dbfe43562a?q=80&w=800&auto=format&fit=crop";
@@ -31,7 +33,15 @@ const formatRelativeDate = (value) => {
   return `${diffMonths}mo ago`;
 };
 
-function DishCard({ dish }) {
+const buildDishTags = (dish) => {
+  if (!dish?.tags) return [];
+  if (!Array.isArray(dish.tags)) return [];
+  return dish.tags
+    .map((tag) => (typeof tag === "string" ? tag : tag?.label))
+    .filter(Boolean);
+};
+
+function DishCard({ dish, onClick }) {
   const navigate = useNavigate();
   const verifiedLabel =
     dish.approvedUploadCount > 0
@@ -39,9 +49,16 @@ function DishCard({ dish }) {
       : "No verified photos yet";
   const lastUploadLabel = formatRelativeDate(dish.lastApprovedUploadAt);
 
+  const handleClick = () => {
+    if (onClick) {
+      onClick(dish);
+    }
+    navigate(`/stalls/${dish.stallId}`);
+  };
+
   return (
     <div
-      onClick={() => navigate(`/stalls/${dish.stallId}`)}
+      onClick={handleClick}
       className="bg-white rounded-xl shadow-[0_2px_12px_rgba(0,0,0,0.08)] overflow-hidden cursor-pointer transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_8px_24px_rgba(0,0,0,0.12)]"
     >
       <div className="aspect-[4/3] w-full overflow-hidden">
@@ -124,7 +141,9 @@ function StallCard({ stall }) {
 const HawkerCentreDetailPage = () => {
   const { hawkerId } = useParams();
   const navigate = useNavigate(); // 1. Initialize navigate hook
+  const { profile } = useAuth();
   const [activeTab, setActiveTab] = useState("dishes");
+  const viewedDishIdsRef = useRef(new Set());
 
   // Centre info from /info/:hawkerId + some UI-only fields
   const [centre, setCentre] = useState({
@@ -179,10 +198,21 @@ const HawkerCentreDetailPage = () => {
       setError(null);
 
       try {
+        const userId = profile?.id ?? null;
+        const anonId = userId ? null : getOrCreateAnonId();
+        const dishParams = {};
+        if (userId) {
+          dishParams.userId = userId;
+        } else if (anonId) {
+          dishParams.anonId = anonId;
+        }
+
         const [infoRes, stallsRes, dishesRes] = await Promise.all([
           api.get(`/hawker-centres/info/${hawkerId}`),
           api.get(`/hawker-centres/stalls/${hawkerId}`),
-          api.get(`/hawker-centres/dishes/${hawkerId}`),
+          api.get(`/hawker-centres/dishes/${hawkerId}/recommended`, {
+            params: dishParams,
+          }),
         ]);
 
         const info = infoRes.data ?? infoRes;
@@ -263,7 +293,29 @@ const HawkerCentreDetailPage = () => {
     return () => {
       isCancelled = true;
     };
+  }, [hawkerId, profile?.id]);
+
+  useEffect(() => {
+    viewedDishIdsRef.current = new Set();
   }, [hawkerId]);
+
+  const handleDishClick = (dish) => {
+    const userId = profile?.id ?? null;
+    const anonId = userId ? null : getOrCreateAnonId();
+    trackEvent({
+      userId,
+      anonId,
+      eventType: "click",
+      itemId: dish.id,
+      categoryId: dish.category || dish.cuisine || null,
+      metadata: {
+        source: "hawker-centre",
+        hawkerId,
+        priceCents: dish.priceCents,
+        tags: buildDishTags(dish),
+      },
+    });
+  };
 
   const filteredStalls = stalls.filter((stall) => {
     const stallCuisine = stall.cuisineType ?? "";
@@ -328,6 +380,32 @@ const HawkerCentreDetailPage = () => {
 
     return true;
   });
+
+  useEffect(() => {
+    if (activeTab !== "dishes") return;
+    if (!filteredDishes.length) return;
+    const userId = profile?.id ?? null;
+    const anonId = userId ? null : getOrCreateAnonId();
+
+    filteredDishes.forEach((dish) => {
+      if (!dish?.id) return;
+      if (viewedDishIdsRef.current.has(dish.id)) return;
+      viewedDishIdsRef.current.add(dish.id);
+      trackEvent({
+        userId,
+        anonId,
+        eventType: "view",
+        itemId: dish.id,
+        categoryId: dish.category || dish.cuisine || null,
+        metadata: {
+          source: "hawker-centre",
+          hawkerId,
+          priceCents: dish.priceCents,
+          tags: buildDishTags(dish),
+        },
+      });
+    });
+  }, [activeTab, filteredDishes, hawkerId, profile?.id]);
 
   const distanceKm =
     locationStatus === "granted" &&
@@ -548,7 +626,11 @@ const HawkerCentreDetailPage = () => {
               {activeTab === "dishes" && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-5">
                   {filteredDishes.map((dish) => (
-                    <DishCard key={dish.id} dish={dish} />
+                    <DishCard
+                      key={dish.id}
+                      dish={dish}
+                      onClick={handleDishClick}
+                    />
                   ))}
                   {filteredDishes.length === 0 && (
                     <p className="text-sm text-gray-500 col-span-full">

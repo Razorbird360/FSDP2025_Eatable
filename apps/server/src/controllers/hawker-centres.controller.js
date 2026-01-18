@@ -73,6 +73,25 @@ async function getHawkerDishes(req, res) {
   }
 }
 
+async function getHawkerRecommendedDishes(req, res) {
+  try {
+    const { hawkerId } = req.params;
+    const userId = req.query.userId || null;
+    const anonId = req.query.anonId || null;
+    const dishes = await hawkerCentresService.getHawkerRecommendedDishesById(
+      hawkerId,
+      { userId, anonId }
+    );
+    res.json(dishes);
+  } catch (error) {
+    console.error(
+      `Error fetching recommended dishes for hawkerId ${req.params.hawkerId}:`,
+      error
+    );
+    res.status(500).json({ error: 'Failed to fetch recommended dishes' });
+  }
+}
+
 async function getHawkerInfo(req, res) {
   // Implementation for fetching hawker centre info by hawkerId
   try {
@@ -90,5 +109,6 @@ export default {
   getRandomStalls,
   getHawkerStalls,
   getHawkerDishes,
+  getHawkerRecommendedDishes,
   getHawkerInfo
 };
