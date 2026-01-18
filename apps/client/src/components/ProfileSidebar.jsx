@@ -6,7 +6,6 @@ import {
   Clock,
   DollarSign,
   Gift,
-  Heart,
   HelpCircle,
   Settings,
   Shield,
@@ -57,7 +56,6 @@ export default function ProfileSidebar() {
             label="Uploads History"
             to="/my-collection"
           />
-          <SidebarItem icon={Heart} label="Favourites" to="/favourites" />
           <SidebarItem icon={Gift} label="Vouchers" to="/vouchers" />
           <SidebarItem icon={Award} label="Achievements" to="/achievements" />
           <SidebarItem
