@@ -1,4 +1,4 @@
-import { useEffect, useState, ReactNode, useRef, useLayoutEffect } from 'react';
+import { useEffect, useState, ReactNode, useRef } from 'react';
 import Chart from 'react-apexcharts';
 import { ChevronUp, LayoutDashboard, Salad, Sun } from 'lucide-react';
 import api from '../../../lib/api';
@@ -231,13 +231,14 @@ const HawkerDashboardPage = () => {
   const [dayChartMode, setDayChartMode] = useState<'week' | 'day'>('week');
   const [selectedWeekStart, setSelectedWeekStart] = useState<string | null>(null);
   const [sliderPosition, setSliderPosition] = useState<SliderPosition>({ left: 0, width: 0 });
+  const [isSliderReady, setIsSliderReady] = useState(false);
   
   const containerRef = useRef<HTMLDivElement>(null);
   const dashboardBtnRef = useRef<HTMLButtonElement>(null);
   const dishesBtnRef = useRef<HTMLButtonElement>(null);
 
-  // Update slider position when active tab changes
-  useLayoutEffect(() => {
+  // Update slider position when active tab changes or container resizes
+  useEffect(() => {
     const updateSliderPosition = () => {
       const activeBtn = activeTab === 'dashboard' ? dashboardBtnRef.current : dishesBtnRef.current;
       const container = containerRef.current;
@@ -245,16 +246,42 @@ const HawkerDashboardPage = () => {
       if (activeBtn && container) {
         const containerRect = container.getBoundingClientRect();
         const btnRect = activeBtn.getBoundingClientRect();
-        setSliderPosition({
-          left: btnRect.left - containerRect.left,
-          width: btnRect.width,
-        });
+        
+        // Only update if we have actual dimensions
+        if (btnRect.width > 0) {
+          setSliderPosition({
+            left: btnRect.left - containerRect.left,
+            width: btnRect.width,
+          });
+          setIsSliderReady(true);
+        }
       }
     };
     
+    // Initial calculation with multiple retries to handle font loading and layout
     updateSliderPosition();
+    
+    // Retry after a short delay in case fonts or layout aren't ready
+    const retryTimeouts = [50, 100, 200].map(delay => 
+      setTimeout(updateSliderPosition, delay)
+    );
+    
+    // Use ResizeObserver to catch layout changes
+    let resizeObserver: ResizeObserver | null = null;
+    if (containerRef.current) {
+      resizeObserver = new ResizeObserver(() => {
+        updateSliderPosition();
+      });
+      resizeObserver.observe(containerRef.current);
+    }
+    
     window.addEventListener('resize', updateSliderPosition);
-    return () => window.removeEventListener('resize', updateSliderPosition);
+    
+    return () => {
+      retryTimeouts.forEach(clearTimeout);
+      resizeObserver?.disconnect();
+      window.removeEventListener('resize', updateSliderPosition);
+    };
   }, [activeTab]);
 
   useEffect(() => {
@@ -477,10 +504,11 @@ const HawkerDashboardPage = () => {
           <div ref={containerRef} className="relative flex w-full md:w-auto md:inline-flex bg-white rounded-xl p-1 border border-gray-200 shadow-sm gap-1">
             {/* Sliding background */}
             <div 
-              className="absolute top-1 bottom-1 bg-[#21421B] rounded-lg transition-all duration-300 ease-in-out"
+              className={`absolute top-1 bottom-1 bg-[#21421B] rounded-lg ${isSliderReady ? 'transition-all duration-300 ease-in-out' : ''}`}
               style={{
                 left: sliderPosition.left,
                 width: sliderPosition.width,
+                opacity: isSliderReady ? 1 : 0,
               }}
             />
             
@@ -491,9 +519,9 @@ const HawkerDashboardPage = () => {
               className="relative z-10 flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-base md:text-sm font-medium"
             >
               <LayoutDashboard
-                className={`w-5 h-5 md:w-4 md:h-4 transition-colors duration-300 ${activeTab === 'dashboard' ? 'text-white' : 'text-gray-500'}`}
+                className={`w-5 h-5 md:w-4 md:h-4 transition-colors duration-300 ${activeTab === 'dashboard' && isSliderReady ? 'text-white' : 'text-gray-500'}`}
               />
-              <span className={`transition-colors duration-300 ${activeTab === 'dashboard' ? 'text-white' : 'text-gray-500'}`}>
+              <span className={`transition-colors duration-300 ${activeTab === 'dashboard' && isSliderReady ? 'text-white' : 'text-gray-500'}`}>
                 Dashboard
               </span>
             </button>
@@ -505,9 +533,9 @@ const HawkerDashboardPage = () => {
               className="relative z-10 flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-base md:text-sm font-medium"
             >
               <Salad
-                className={`w-5 h-5 md:w-4 md:h-4 transition-colors duration-300 ${activeTab === 'dishes' ? 'text-white' : 'text-gray-500'}`}
+                className={`w-5 h-5 md:w-4 md:h-4 transition-colors duration-300 ${activeTab === 'dishes' && isSliderReady ? 'text-white' : 'text-gray-500'}`}
               />
-              <span className={`transition-colors duration-300 ${activeTab === 'dishes' ? 'text-white' : 'text-gray-500'}`}>
+              <span className={`transition-colors duration-300 ${activeTab === 'dishes' && isSliderReady ? 'text-white' : 'text-gray-500'}`}>
                 Dishes
               </span>
             </button>
