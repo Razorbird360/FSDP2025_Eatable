@@ -1,6 +1,6 @@
 import { useEffect, useState, ReactNode, useRef, useLayoutEffect } from 'react';
 import Chart from 'react-apexcharts';
-import { ChevronDown, ChevronUp, LayoutDashboard, MoreVertical, Plus, Salad, Sun } from 'lucide-react';
+import { ChevronDown, ChevronUp, ChevronsUpDown, LayoutDashboard, MoreVertical, Plus, Salad, Sun } from 'lucide-react';
 import api from '../../../lib/api';
 import { formatDate, formatTimeAgo } from '../../../utils/helpers';
 
@@ -80,7 +80,49 @@ interface MenuItemData {
 }
 
 type SortField = 'name' | 'price' | 'category' | 'prepTime';
-type SortDir = 'asc' | 'desc';
+type SortDir = 'none' | 'asc' | 'desc';
+type SortConfig = Record<SortField, SortDir>;
+
+const SORT_FIELDS_PRIORITY: SortField[] = ['name', 'price', 'category', 'prepTime'];
+
+const getDefaultSortConfig = (): SortConfig => ({
+  name: 'none',
+  price: 'none',
+  category: 'none',
+  prepTime: 'none',
+});
+
+const sortDishes = (dishes: MenuItemData[], config: SortConfig): MenuItemData[] => {
+  const activeFields = SORT_FIELDS_PRIORITY.filter((f) => config[f] !== 'none');
+  if (activeFields.length === 0) return dishes;
+
+  return [...dishes].sort((a, b) => {
+    for (const field of activeFields) {
+      const dir = config[field];
+      let cmp = 0;
+
+      switch (field) {
+        case 'name':
+          cmp = (a.name || '').localeCompare(b.name || '');
+          break;
+        case 'price':
+          cmp = a.priceCents - b.priceCents;
+          break;
+        case 'category':
+          cmp = (a.category || '').localeCompare(b.category || '');
+          break;
+        case 'prepTime':
+          cmp = (a.prepTimeMins ?? 0) - (b.prepTimeMins ?? 0);
+          break;
+      }
+
+      if (cmp !== 0) {
+        return dir === 'desc' ? -cmp : cmp;
+      }
+    }
+    return 0;
+  });
+};
 
 interface ProcessedDishData {
   items: DishData[];
@@ -244,8 +286,7 @@ const HawkerDashboardPage = () => {
   const [dayChartMode, setDayChartMode] = useState<'week' | 'day'>('week');
   const [selectedWeekStart, setSelectedWeekStart] = useState<string | null>(null);
   const [sliderPosition, setSliderPosition] = useState<SliderPosition>({ left: 0, width: 0 });
-  const [sortField, setSortField] = useState<SortField>('name');
-  const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const [sortConfig, setSortConfig] = useState<SortConfig>(getDefaultSortConfig);
   
   const containerRef = useRef<HTMLDivElement>(null);
   const dashboardBtnRef = useRef<HTMLButtonElement>(null);
@@ -278,7 +319,7 @@ const HawkerDashboardPage = () => {
         const [dashRes, activityRes, dishesRes] = await Promise.all([
           api.get('/hawker/dashboard'),
           api.get('/hawker/dashboard/activity', { params: { limit: 10 } }),
-          api.get('/hawker/dashboard/dishes', { params: { sortBy: sortField, sortDir } }),
+          api.get('/hawker/dashboard/dishes'),
         ]);
         setSummary(dashRes.data);
         setActivity(activityRes.data.items || []);
@@ -291,7 +332,7 @@ const HawkerDashboardPage = () => {
       }
     };
     fetchData();
-  }, [sortField, sortDir]);
+  }, []);
 
   if (loading) {
     return (
@@ -473,7 +514,7 @@ const HawkerDashboardPage = () => {
   ];
 
   return (
-    <section className="px-4 md:px-[4vw] pt-10 pb-4 md:py-6 w-full min-h-[calc(100vh-64px)] bg-[#F5F7F4] overflow-y-auto">
+    <section className="px-4 md:px-[4vw] pt-10 pb-4 md:py-6 w-full min-h-[calc(100vh-64px)] bg-[#fbf7f0] overflow-y-auto">
       {/* Header - stacks on mobile */}
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between mb-4 flex-shrink-0">
         <div>
@@ -493,7 +534,7 @@ const HawkerDashboardPage = () => {
               <span>Last month</span>
             </div>
           ) : (
-            <button className="hidden md:flex items-center gap-2 bg-[#21421B] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#1a3415] transition-colors">
+            <button className="hidden md:flex items-center gap-2 bg-[#21421B] text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-[#1a3415] transition-colors">
               <Plus className="w-4 h-4" />
               <span>Add Dish</span>
             </button>
@@ -517,7 +558,7 @@ const HawkerDashboardPage = () => {
               className="relative z-10 flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-base md:text-sm font-medium"
             >
               <LayoutDashboard
-                className={`w-5 h-5 md:w-4 md:h-4 transition-colors duration-300 ${activeTab === 'dashboard' ? 'text-white' : 'text-gray-500'}`}
+                className={`w-5 h-5 md:w-4 md:h-4 transition-all duration-300 ease-out ${activeTab === 'dashboard' ? 'text-white scale-110 rotate-3' : 'text-gray-500 scale-100 rotate-0'}`}
               />
               <span className={`transition-colors duration-300 ${activeTab === 'dashboard' ? 'text-white' : 'text-gray-500'}`}>
                 Dashboard
@@ -531,7 +572,7 @@ const HawkerDashboardPage = () => {
               className="relative z-10 flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-base md:text-sm font-medium"
             >
               <Salad
-                className={`w-5 h-5 md:w-4 md:h-4 transition-colors duration-300 ${activeTab === 'dishes' ? 'text-white' : 'text-gray-500'}`}
+                className={`w-5 h-5 md:w-4 md:h-4 transition-all duration-300 ease-out ${activeTab === 'dishes' ? 'text-white scale-110 -rotate-6' : 'text-gray-500 scale-100 rotate-0'}`}
               />
               <span className={`transition-colors duration-300 ${activeTab === 'dishes' ? 'text-white' : 'text-gray-500'}`}>
                 Dishes
@@ -581,7 +622,7 @@ const HawkerDashboardPage = () => {
                     >
                       <Salad
                         aria-label="By Dish"
-                        className={`w-6 h-6 ${chartView === 'dish' ? 'text-[#21421B]' : 'text-gray-400'}`}
+                        className={`w-6 h-6 transition-all duration-300 ease-out ${chartView === 'dish' ? 'text-[#21421B] scale-110 -rotate-12' : 'text-gray-400 scale-100 rotate-0'}`}
                       />
                     </button>
                     <button
@@ -594,7 +635,7 @@ const HawkerDashboardPage = () => {
                     >
                       <Sun
                         aria-label="By Day"
-                        className={`w-6 h-6 ${chartView === 'day' ? 'text-[#21421B]' : 'text-gray-400'}`}
+                        className={`w-6 h-6 transition-all duration-300 ease-out ${chartView === 'day' ? 'text-[#21421B] scale-110 rotate-45' : 'text-gray-400 scale-100 rotate-0'}`}
                       />
                     </button>
                   </div>
@@ -618,7 +659,7 @@ const HawkerDashboardPage = () => {
                     >
                       <Sun
                         aria-label="By Day"
-                        className={`w-6 h-6 ${chartView === 'day' ? 'text-[#21421B]' : 'text-gray-400'}`}
+                        className={`w-6 h-6 transition-all duration-300 ease-out ${chartView === 'day' ? 'text-[#21421B] scale-110 rotate-45' : 'text-gray-400 scale-100 rotate-0'}`}
                       />
                     </button>
                     {isDailyView ? (
@@ -706,7 +747,7 @@ const HawkerDashboardPage = () => {
             </>
           ) : (
             /* Dishes Tab Content */
-            <div className="bg-white rounded-xl md:rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="flex-1 bg-white rounded-xl md:rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
               {/* Mobile Add Dish Button */}
               <div className="md:hidden p-4 border-b border-gray-100">
                 <button className="w-full flex items-center justify-center gap-2 bg-[#21421B] text-white px-4 py-3 rounded-lg text-sm font-medium">
@@ -715,64 +756,36 @@ const HawkerDashboardPage = () => {
                 </button>
               </div>
 
+
               {/* Table Header */}
               <div className="hidden md:grid grid-cols-[2fr_1fr_1fr_1fr_40px] gap-4 px-6 py-4 border-b border-gray-100 bg-gray-50/50">
-                <button
-                  onClick={() => {
-                    if (sortField === 'name') {
-                      setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
-                    } else {
-                      setSortField('name');
-                      setSortDir('asc');
-                    }
-                  }}
-                  className="flex items-center gap-1 text-sm font-medium text-gray-600 hover:text-gray-900"
-                >
-                  Dish Name
-                  <ChevronDown className={`w-4 h-4 transition-transform ${sortField === 'name' && sortDir === 'desc' ? 'rotate-180' : ''}`} />
-                </button>
-                <button
-                  onClick={() => {
-                    if (sortField === 'price') {
-                      setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
-                    } else {
-                      setSortField('price');
-                      setSortDir('asc');
-                    }
-                  }}
-                  className="flex items-center gap-1 text-sm font-medium text-gray-600 hover:text-gray-900"
-                >
-                  Price
-                  <ChevronDown className={`w-4 h-4 transition-transform ${sortField === 'price' && sortDir === 'desc' ? 'rotate-180' : ''}`} />
-                </button>
-                <button
-                  onClick={() => {
-                    if (sortField === 'category') {
-                      setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
-                    } else {
-                      setSortField('category');
-                      setSortDir('asc');
-                    }
-                  }}
-                  className="flex items-center gap-1 text-sm font-medium text-gray-600 hover:text-gray-900"
-                >
-                  Category
-                  <ChevronDown className={`w-4 h-4 transition-transform ${sortField === 'category' && sortDir === 'desc' ? 'rotate-180' : ''}`} />
-                </button>
-                <button
-                  onClick={() => {
-                    if (sortField === 'prepTime') {
-                      setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
-                    } else {
-                      setSortField('prepTime');
-                      setSortDir('asc');
-                    }
-                  }}
-                  className="flex items-center gap-1 text-sm font-medium text-gray-600 hover:text-gray-900"
-                >
-                  Prep Time (min)
-                  <ChevronDown className={`w-4 h-4 transition-transform ${sortField === 'prepTime' && sortDir === 'desc' ? 'rotate-180' : ''}`} />
-                </button>
+                {(['name', 'price', 'category', 'prepTime'] as const).map((field) => {
+                  const labels: Record<SortField, string> = {
+                    name: 'Dish Name',
+                    price: 'Price',
+                    category: 'Category',
+                    prepTime: 'Prep Time (min)',
+                  };
+                  const dir = sortConfig[field];
+                  const handleClick = () => {
+                    setSortConfig((prev) => ({
+                      ...prev,
+                      [field]: prev[field] === 'none' ? 'desc' : prev[field] === 'desc' ? 'asc' : 'none',
+                    }));
+                  };
+                  return (
+                    <button
+                      key={field}
+                      onClick={handleClick}
+                      className="flex items-center gap-1 text-sm font-medium text-gray-600 hover:text-gray-900"
+                    >
+                      {labels[field]}
+                      {dir === 'none' && <ChevronsUpDown className="w-4 h-4 text-gray-400" />}
+                      {dir === 'desc' && <ChevronDown className="w-4 h-4" />}
+                      {dir === 'asc' && <ChevronUp className="w-4 h-4" />}
+                    </button>
+                  );
+                })}
                 <div />
               </div>
 
@@ -783,7 +796,7 @@ const HawkerDashboardPage = () => {
                     No dishes found. Add your first dish to get started.
                   </div>
                 ) : (
-                  dishes.map((dish) => (
+                  sortDishes(dishes, sortConfig).map((dish) => (
                     <div
                       key={dish.id}
                       className="grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr_1fr_40px] gap-2 md:gap-4 px-4 md:px-6 py-4 hover:bg-gray-50/50 transition-colors"
@@ -819,10 +832,10 @@ const HawkerDashboardPage = () => {
                       <div className="hidden md:flex items-center text-sm text-gray-700">
                         ${(dish.priceCents / 100).toFixed(2)}
                       </div>
-                      <div className="hidden md:flex items-center text-sm text-gray-700">
+                      <div className="hidden md:flex items-center justify-center text-sm text-gray-700">
                         {dish.category || 'Uncategorized'}
                       </div>
-                      <div className="hidden md:flex items-center text-sm text-gray-700 justify-center">
+                      <div className="hidden md:flex items-center justify-center text-sm text-gray-700">
                         {dish.prepTimeMins ?? '-'}
                       </div>
 
@@ -846,7 +859,7 @@ const HawkerDashboardPage = () => {
           {activity.length === 0 ? (
             <p className="text-white/50 text-sm">No recent activity</p>
           ) : (
-            <div className="space-y-5 max-h-[500px] overflow-y-auto pr-2">
+            <div className="space-y-5 max-h-[500px] overflow-y-auto pr-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
               {activity.slice(0, 10).map((item, index) => (
                 <ActivityItemComponent key={`${item.type}-${index}`} item={item} />
               ))}
