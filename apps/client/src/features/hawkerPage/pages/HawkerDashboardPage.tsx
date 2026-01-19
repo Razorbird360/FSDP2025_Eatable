@@ -3,6 +3,7 @@ import Chart from 'react-apexcharts';
 import { ChevronDown, ChevronUp, ChevronsUpDown, LayoutDashboard, MoreVertical, Plus, Salad, Sun } from 'lucide-react';
 import api from '../../../lib/api';
 import { formatDate, formatTimeAgo } from '../../../utils/helpers';
+import '../styles/hawkerDashboard.css';
 
 const CHART_COLORS = ['#A855F7', '#5EBECC', '#EC4899', '#F59E0B', '#6366F1', '#94A3B8'];
 
@@ -545,9 +546,11 @@ const HawkerDashboardPage = () => {
       {/* Header - stacks on mobile */}
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between mb-4 flex-shrink-0">
         <div>
-          <h1 className="text-2xl md:text-4xl font-bold text-[#1C201D] mb-1">Dashboard</h1>
+          <h1 className="text-2xl md:text-4xl font-bold text-[#1C201D] mb-1">
+            {activeTab === 'dashboard' ? 'Dashboard' : 'Dishes'}
+          </h1>
           <p className="text-sm md:text-base text-gray-500">
-            {activeTab === 'dashboard' ? "Track your stall's performance" : 'Manage your dishes'}
+            {activeTab === 'dashboard' ? "Track your stall's performance" : 'View and manage your menu items'}
           </p>
         </div>
         
@@ -561,7 +564,7 @@ const HawkerDashboardPage = () => {
               <span>Last month</span>
             </div>
           ) : (
-            <button className="hidden md:flex items-center gap-2 bg-[#21421B] text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-[#1a3415] transition-colors">
+            <button className="hidden md:flex items-center gap-2 bg-[#21421B] text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-[#1a3415] transition-colors animate-[fadeSlideRight_0.3s_ease-out]">
               <Plus className="w-4 h-4" />
               <span>Add Dish</span>
             </button>
@@ -617,7 +620,7 @@ const HawkerDashboardPage = () => {
           {activeTab === 'dashboard' ? (
             <>
               {/* Stats Cards - stacked on mobile, 3 on tablet+ */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4 animate-[slideInFromLeft_0.3s_ease-out]">
                 <StatsCard
                   title="Total Orders"
                   value={summary?.totals?.orders ?? 0}
@@ -636,7 +639,7 @@ const HawkerDashboardPage = () => {
               </div>
 
               {/* Chart Section */}
-              <div className={`flex-1 bg-white rounded-xl md:rounded-2xl border border-gray-100 p-5 md:p-6 shadow-sm ${chartView === 'day' ? 'pb-2 md:pb-6' : ''}`}>
+              <div className={`flex-1 bg-white rounded-xl md:rounded-2xl border border-gray-100 p-5 md:p-6 shadow-sm animate-[slideInFromLeft_0.3s_ease-out] ${chartView === 'day' ? 'pb-2 md:pb-6' : ''}`}>
                 <div className="flex items-center justify-between gap-3 mb-4 md:mb-6">
                   {/* Dish Icon - Left side on mobile, beside Day icon on desktop */}
                   <div className="flex items-center md:gap-2 min-w-[40px]">
@@ -775,7 +778,7 @@ const HawkerDashboardPage = () => {
             </>
           ) : (
             /* Dishes Tab Content */
-            <div className="flex-1 bg-white rounded-xl md:rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="flex-1 bg-white rounded-xl md:rounded-2xl border border-gray-100 shadow-sm overflow-hidden animate-[slideInFromRight_0.3s_ease-out]">
               {/* Mobile Add Dish Button */}
               <div className="md:hidden p-4 border-b border-gray-100">
                 <button className="w-full flex items-center justify-center gap-2 bg-[#21421B] text-white px-4 py-3 rounded-lg text-sm font-medium">
