@@ -721,7 +721,7 @@ export default function VerificationModal({
               }}
             >
               {/* Base layer: frozen frame during animation, video, or upload preview */}
-              {frozenFrame && isZoomAnimating ? (
+              {frozenFrame ? (
                 <img
                   src={frozenFrame}
                   alt="Frozen frame"
