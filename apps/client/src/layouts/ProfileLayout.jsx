@@ -6,11 +6,11 @@ import {
     Briefcase,
     Clock,
     Gift,
-    Heart,
     HelpCircle,
     Settings,
     UploadCloud,
     User,
+    DollarSign,
 } from "lucide-react";
 import api from "@lib/api";
 
@@ -18,7 +18,7 @@ const mobileNavItems = [
     { icon: User, label: "Profile", to: "/profile" },
     { icon: Clock, label: "Orders", to: "/orders" },
     { icon: UploadCloud, label: "Uploads", to: "/my-collection" },
-    { icon: Heart, label: "Favourites", to: "/favourites" },
+    { icon: DollarSign, label: "Budget", to: "/spendingsPage" },
     { icon: Gift, label: "Vouchers", to: "/vouchers" },
     { icon: Award, label: "Achievements", to: "/achievements" },
 ];
