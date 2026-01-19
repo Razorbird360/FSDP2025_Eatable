@@ -586,7 +586,7 @@ const HawkerDashboardPage = () => {
             <button
               ref={dashboardBtnRef}
               onClick={() => setActiveTab('dashboard')}
-              className="relative z-10 flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-base md:text-sm font-medium"
+              className="relative z-10 flex-1 md:flex-initial flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-base md:text-sm font-medium"
             >
               <LayoutDashboard
                 className={`w-5 h-5 md:w-4 md:h-4 transition-all duration-300 ease-out ${activeTab === 'dashboard' && isSliderReady ? 'text-white scale-110 rotate-3' : 'text-gray-500 scale-100 rotate-0'}`}
@@ -600,7 +600,7 @@ const HawkerDashboardPage = () => {
             <button
               ref={dishesBtnRef}
               onClick={() => setActiveTab('dishes')}
-              className="relative z-10 flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-base md:text-sm font-medium"
+              className="relative z-10 flex-1 md:flex-initial flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-base md:text-sm font-medium"
             >
               <Salad
                 className={`w-5 h-5 md:w-4 md:h-4 transition-all duration-300 ease-out ${activeTab === 'dishes' && isSliderReady ? 'text-white scale-110 -rotate-6' : 'text-gray-500 scale-100 rotate-0'}`}
@@ -778,109 +778,112 @@ const HawkerDashboardPage = () => {
             </>
           ) : (
             /* Dishes Tab Content */
-            <div className="flex-1 bg-white rounded-xl md:rounded-2xl border border-gray-100 shadow-sm overflow-hidden animate-[slideInFromRight_0.3s_ease-out]">
-              {/* Mobile Add Dish Button */}
-              <div className="md:hidden p-4 border-b border-gray-100">
-                <button className="w-full flex items-center justify-center gap-2 bg-[#21421B] text-white px-4 py-3 rounded-lg text-sm font-medium">
-                  <Plus className="w-4 h-4" />
-                  <span>Add Dish</span>
-                </button>
-              </div>
+            <>
+              <div className="flex-1 bg-white rounded-xl md:rounded-2xl border border-gray-100 shadow-sm overflow-hidden animate-[slideInFromRight_0.3s_ease-out]">
 
+                {/* Table Header */}
+                <div className="hidden md:grid grid-cols-[2fr_1fr_1fr_1fr_40px] gap-4 px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+                  {(['name', 'price', 'category', 'prepTime'] as const).map((field) => {
+                    const labels: Record<SortField, string> = {
+                      name: 'Dish Name',
+                      price: 'Price',
+                      category: 'Category',
+                      prepTime: 'Prep Time (min)',
+                    };
+                    const dir = sortConfig[field];
+                    const handleClick = () => {
+                      setSortConfig((prev) => ({
+                        ...prev,
+                        [field]: prev[field] === 'none' ? 'desc' : prev[field] === 'desc' ? 'asc' : 'none',
+                      }));
+                    };
+                    return (
+                      <button
+                        key={field}
+                        onClick={handleClick}
+                        className={`flex items-center gap-1 text-sm font-medium text-gray-600 hover:text-gray-900 ${field === 'prepTime' ? 'justify-center' : ''}`}
+                      >
+                        {labels[field]}
+                        {dir === 'none' && <ChevronsUpDown className="w-4 h-4 text-gray-400" />}
+                        {dir === 'desc' && <ChevronDown className="w-4 h-4" />}
+                        {dir === 'asc' && <ChevronUp className="w-4 h-4" />}
+                      </button>
+                    );
+                  })}
+                  <div />
+                </div>
 
-              {/* Table Header */}
-              <div className="hidden md:grid grid-cols-[2fr_1fr_1fr_1fr_40px] gap-4 px-6 py-4 border-b border-gray-100 bg-gray-50/50">
-                {(['name', 'price', 'category', 'prepTime'] as const).map((field) => {
-                  const labels: Record<SortField, string> = {
-                    name: 'Dish Name',
-                    price: 'Price',
-                    category: 'Category',
-                    prepTime: 'Prep Time (min)',
-                  };
-                  const dir = sortConfig[field];
-                  const handleClick = () => {
-                    setSortConfig((prev) => ({
-                      ...prev,
-                      [field]: prev[field] === 'none' ? 'desc' : prev[field] === 'desc' ? 'asc' : 'none',
-                    }));
-                  };
-                  return (
-                    <button
-                      key={field}
-                      onClick={handleClick}
-                      className="flex items-center gap-1 text-sm font-medium text-gray-600 hover:text-gray-900"
-                    >
-                      {labels[field]}
-                      {dir === 'none' && <ChevronsUpDown className="w-4 h-4 text-gray-400" />}
-                      {dir === 'desc' && <ChevronDown className="w-4 h-4" />}
-                      {dir === 'asc' && <ChevronUp className="w-4 h-4" />}
-                    </button>
-                  );
-                })}
-                <div />
-              </div>
-
-              {/* Table Body */}
-              <div className="divide-y divide-gray-100">
-                {dishes.length === 0 ? (
-                  <div className="px-6 py-12 text-center text-gray-400">
-                    No dishes found. Add your first dish to get started.
-                  </div>
-                ) : (
-                  sortDishes(dishes, sortConfig).map((dish) => (
-                    <div
-                      key={dish.id}
-                      className="grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr_1fr_40px] gap-2 md:gap-4 px-4 md:px-6 py-4 hover:bg-gray-50/50 transition-colors"
-                    >
-                      {/* Dish Name with Image */}
-                      <div className="flex items-center gap-3">
-                        <div className="w-14 h-14 md:w-12 md:h-12 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
-                          {dish.imageUrl ? (
-                            <img
-                              src={dish.imageUrl}
-                              alt={dish.name}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <Salad className="w-6 h-6 text-gray-300" />
-                            </div>
-                          )}
-                        </div>
-                        <span className="font-medium text-gray-900 text-sm md:text-base">{dish.name}</span>
-                      </div>
-
-                      {/* Mobile: Price, Category, Prep Time in a row */}
-                      <div className="md:hidden flex items-center gap-4 text-sm text-gray-500 ml-[68px]">
-                        <span>${(dish.priceCents / 100).toFixed(2)}</span>
-                        <span>•</span>
-                        <span>{dish.category || 'Uncategorized'}</span>
-                        <span>•</span>
-                        <span>{dish.prepTimeMins ?? '-'} min</span>
-                      </div>
-
-                      {/* Desktop columns */}
-                      <div className="hidden md:flex items-center text-sm text-gray-700">
-                        ${(dish.priceCents / 100).toFixed(2)}
-                      </div>
-                      <div className="hidden md:flex items-center justify-center text-sm text-gray-700">
-                        {dish.category || 'Uncategorized'}
-                      </div>
-                      <div className="hidden md:flex items-center justify-center text-sm text-gray-700">
-                        {dish.prepTimeMins ?? '-'}
-                      </div>
-
-                      {/* Actions */}
-                      <div className="hidden md:flex items-center justify-center">
-                        <button className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
-                          <MoreVertical className="w-5 h-5 text-gray-400" />
-                        </button>
-                      </div>
+                {/* Table Body */}
+                <div className="divide-y divide-gray-100">
+                  {dishes.length === 0 ? (
+                    <div className="px-6 py-12 text-center text-gray-400">
+                      No dishes found. Add your first dish to get started.
                     </div>
-                  ))
-                )}
+                  ) : (
+                    sortDishes(dishes, sortConfig).map((dish) => (
+                      <div
+                        key={dish.id}
+                        className="grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr_1fr_40px] gap-2 md:gap-4 px-4 md:px-6 py-4 hover:bg-gray-50/50 transition-colors"
+                      >
+                        {/* Mobile: Image centered with text beside it */}
+                        <div className="flex items-center gap-4 md:gap-3">
+                          <div className="w-16 h-16 md:w-12 md:h-12 rounded-xl md:rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                            {dish.imageUrl ? (
+                              <img
+                                src={dish.imageUrl}
+                                alt={dish.name}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center">
+                                <Salad className="w-7 h-7 md:w-6 md:h-6 text-gray-300" />
+                              </div>
+                            )}
+                          </div>
+                          {/* Mobile: Name and details stacked beside image */}
+                          <div className="flex flex-col md:hidden">
+                            <span className="font-medium text-gray-900 text-base">{dish.name}</span>
+                            <div className="flex items-center gap-2 text-sm text-gray-500 mt-0.5">
+                              <span>${(dish.priceCents / 100).toFixed(2)}</span>
+                              <span>•</span>
+                              <span>{dish.category || 'Uncategorized'}</span>
+                              <span>•</span>
+                              <span>{dish.prepTimeMins ?? '-'} min</span>
+                            </div>
+                          </div>
+                          {/* Desktop: Just name */}
+                          <span className="hidden md:inline font-medium text-gray-900 text-base">{dish.name}</span>
+                        </div>
+
+                        {/* Desktop columns */}
+                        <div className="hidden md:flex items-center text-sm text-gray-700">
+                          ${(dish.priceCents / 100).toFixed(2)}
+                        </div>
+                        <div className="hidden md:flex items-center text-sm text-gray-700">
+                          {dish.category || 'Uncategorized'}
+                        </div>
+                        <div className="hidden md:flex items-center justify-center text-sm text-gray-700">
+                          {dish.prepTimeMins ?? '-'}
+                        </div>
+
+                        {/* Actions */}
+                        <div className="hidden md:flex items-center justify-center">
+                          <button className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
+                            <MoreVertical className="w-5 h-5 text-gray-400" />
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
-            </div>
+
+              {/* Mobile Add Dish Button - Outside white box */}
+              <button className="md:hidden w-full flex items-center justify-center gap-2 bg-[#21421B] text-white px-4 py-3.5 rounded-xl text-sm font-medium mt-4 animate-[fadeSlideRight_0.3s_ease-out]">
+                <Plus className="w-4 h-4" />
+                <span>Add Dish</span>
+              </button>
+            </>
           )}
         </div>
 
