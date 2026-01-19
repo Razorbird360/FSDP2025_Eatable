@@ -142,7 +142,6 @@ class VerificationState:
                     ref_face = get_best_face(app, self.card_face_crop)
                     if ref_face is not None:
                         self.ref_embedding = normalize_embedding(ref_face.embedding)
-                        print(f"[DEBUG] Extracted ref embedding from card face crop")
 
             if self.face_validation_window_start is not None:
                 if self.ref_embedding is not None:
@@ -272,12 +271,6 @@ class VerificationState:
                     self.card_face_bbox = face_bbox
                     self.ref_embedding = ref_embedding
 
-                    if ref_embedding is not None:
-                        print(f"[DEBUG] Card face embedding extracted successfully")
-                    elif face_crop is not None:
-                        print(f"[DEBUG] Card face crop extracted (embedding deferred)")
-                    else:
-                        print(f"[DEBUG] No face crop from card extraction")
                     self.ref_embedding_attempted = False
                     self.reset_face_validation()
 
