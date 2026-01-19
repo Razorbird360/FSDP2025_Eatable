@@ -62,6 +62,9 @@ class VerificationPayload:
     face_similarity: Optional[float] = None
     face_detected: bool = False
     matched: bool = False
+    validation_done: bool = False
+    validation_failed: bool = False
+    best_similarity: Optional[float] = None
 
 
 class VerificationState:
@@ -94,6 +97,9 @@ class VerificationState:
         self.reset()
 
     def update_face(self, frame: np.ndarray) -> VerificationPayload:
+        if self.face_validation_done and self.face_payload is not None:
+            return self.face_payload
+
         frame = resize_frame(frame)
         height, width = frame.shape[:2]
         face_model = get_face_model()
@@ -106,6 +112,9 @@ class VerificationState:
         confidence = 0.0
         bbox = None
         area_ratio = 0.0
+        validation_done = False
+        validation_failed = False
+        best_similarity = self.face_validation_best_similarity
 
         # Normalized face bbox for frontend overlay (0-1 range)
         normalized_face_bbox: Optional[Tuple[float, float, float, float]] = None
@@ -126,34 +135,7 @@ class VerificationState:
                 float(y2) / float(height),
             )
 
-            if self.face_validation_start is None:
-                self.face_validation_start = now
-
-            if now - self.face_validation_start < self.face_grace_sec:
-                return VerificationPayload(
-                    state="FACE_VALIDATION",
-                    bbox=bbox,
-                    confidence=confidence,
-                    area_ratio=area_ratio,
-                    frame_width=width,
-                    frame_height=height,
-                    too_small=False,
-                    face_similarity=None,
-                    face_detected=face_detected,
-                    matched=False,
-                    face_bbox=normalized_face_bbox,
-                    face_crop=None,
-                )
-
-            if self.ref_embedding is None and not self.ref_embedding_attempted and self.card_face_crop is not None:
-                self.ref_embedding_attempted = True
-                app = get_insightface_app()
-                ref_face = get_best_face(app, self.card_face_crop)
-                if ref_face is not None:
-                    self.ref_embedding = normalize_embedding(ref_face.embedding)
-                    print(f"[DEBUG] Extracted ref embedding from card face crop")
-
-            # Track face stillness for match confirmation
+            # Track face stillness for validation start
             if self.face_last_center is None:
                 self.face_last_center = center
                 self.face_still_start = now
@@ -166,36 +148,66 @@ class VerificationState:
                     self.face_still_start = now
                 self.face_last_center = center
 
-            still_enough = False
-            if self.face_still_start is not None and now - self.face_still_start >= self.face_stillness_sec:
-                still_enough = True
+            still_enough = (
+                self.face_still_start is not None
+                and now - self.face_still_start >= self.face_stillness_sec
+            )
 
-            self.face_hits.append(still_enough)
-            stable = sum(self.face_hits) >= self.face_min_hits
+            if still_enough and self.face_validation_window_start is None:
+                self.face_validation_window_start = now
+                self.face_validation_best_similarity = None
+                best_similarity = None
 
-            # Compute similarity on every frame (for real-time display)
-            if self.ref_embedding is not None:
-                crop = crop_face_from_bbox(frame, np.array([x1, y1, x2, y2], dtype=np.float32), 0.15)
-                if crop is None or crop.size == 0:
-                    crop = frame[max(0, int(y1)) : min(height, int(y2)), max(0, int(x1)) : min(width, int(x2))]
-                app = get_insightface_app()
-                face = get_best_face(app, crop) if crop is not None else None
-                if face is not None:
-                    emb = normalize_embedding(face.embedding)
-                    similarity = cosine_similarity(emb, self.ref_embedding)
-                    # Only confirm match when face has been stable for required duration
-                    if stable and similarity >= FACE_MATCH_THRESHOLD:
-                        matched = True
-                        self.state = "LOCKED"
-                        print(f"[DEBUG] Face matched! Similarity: {similarity:.3f}")
+                if self.ref_embedding is None and not self.ref_embedding_attempted and self.card_face_crop is not None:
+                    self.ref_embedding_attempted = True
+                    app = get_insightface_app()
+                    ref_face = get_best_face(app, self.card_face_crop)
+                    if ref_face is not None:
+                        self.ref_embedding = normalize_embedding(ref_face.embedding)
+                        print(f"[DEBUG] Extracted ref embedding from card face crop")
+
+            if self.face_validation_window_start is not None:
+                if self.ref_embedding is not None:
+                    crop = crop_face_from_bbox(
+                        frame, np.array([x1, y1, x2, y2], dtype=np.float32), 0.15
+                    )
+                    if crop is None or crop.size == 0:
+                        crop = frame[
+                            max(0, int(y1)) : min(height, int(y2)),
+                            max(0, int(x1)) : min(width, int(x2)),
+                        ]
+                    app = get_insightface_app()
+                    face = get_best_face(app, crop) if crop is not None else None
+                    if face is not None:
+                        emb = normalize_embedding(face.embedding)
+                        similarity = cosine_similarity(emb, self.ref_embedding)
+                        if self.face_validation_best_similarity is None:
+                            self.face_validation_best_similarity = similarity
+                        else:
+                            self.face_validation_best_similarity = max(
+                                self.face_validation_best_similarity, similarity
+                            )
+                        best_similarity = self.face_validation_best_similarity
+
+                if now - self.face_validation_window_start >= 1.0:
+                    best_similarity = self.face_validation_best_similarity
+                    if best_similarity is not None:
+                        validation_done = True
+                        matched = bool(best_similarity >= FACE_MATCH_THRESHOLD)
+                        validation_failed = not matched
+                        self.face_validation_done = True
+                        self.face_validation_failed = validation_failed
         else:
             self.face_hits.clear()
             self.face_last_center = None
             self.face_still_start = None
             self.face_validation_start = None
             self.ref_embedding_attempted = False
+            if not self.face_validation_done:
+                self.face_validation_window_start = None
+                self.face_validation_best_similarity = None
 
-        return VerificationPayload(
+        payload = VerificationPayload(
             state="FACE_VALIDATION",
             bbox=bbox,
             confidence=confidence,
@@ -208,7 +220,13 @@ class VerificationState:
             matched=matched,
             face_bbox=normalized_face_bbox,
             face_crop=None,
+            validation_done=validation_done,
+            validation_failed=validation_failed,
+            best_similarity=best_similarity,
         )
+        if validation_done:
+            self.face_payload = payload
+        return payload
 
     def reset(self) -> None:
         self.state = "SEARCHING"
@@ -224,6 +242,23 @@ class VerificationState:
         self.face_last_center: Optional[Tuple[float, float]] = None
         self.face_validation_start: Optional[float] = None
         self.ref_embedding_attempted = False
+        self.face_validation_window_start: Optional[float] = None
+        self.face_validation_best_similarity: Optional[float] = None
+        self.face_validation_done: bool = False
+        self.face_validation_failed: bool = False
+        self.face_payload: Optional[VerificationPayload] = None
+
+    def reset_face_validation(self) -> None:
+        self.face_hits.clear()
+        self.face_still_start = None
+        self.face_last_center = None
+        self.face_validation_start = None
+        self.ref_embedding_attempted = False
+        self.face_validation_window_start = None
+        self.face_validation_best_similarity = None
+        self.face_validation_done = False
+        self.face_validation_failed = False
+        self.face_payload = None
 
     def update(self, detection: FrameDetection, frame: np.ndarray) -> VerificationPayload:
         if self.state == "LOCKED" and self.locked_payload:
@@ -260,17 +295,18 @@ class VerificationState:
                     )
                     self.card_face_crop = face_crop
                     self.card_face_bbox = face_bbox
+                    self.ref_embedding = ref_embedding
 
                     # Debug: save face crop to disk
                     _debug_save_image("face_crop", face_crop)
                     if ref_embedding is not None:
-                        self.ref_embedding = ref_embedding
                         print(f"[DEBUG] Card face embedding extracted successfully")
                     elif face_crop is not None:
                         print(f"[DEBUG] Card face crop extracted (embedding deferred)")
                     else:
                         print(f"[DEBUG] No face crop from card extraction")
                     self.ref_embedding_attempted = False
+                    self.reset_face_validation()
 
                     normalized_face_bbox = None
                     if face_bbox and card_crop is not None and card_crop.size > 0:

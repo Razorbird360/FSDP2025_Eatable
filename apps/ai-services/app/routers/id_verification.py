@@ -37,6 +37,8 @@ async def id_verification_ws(websocket: WebSocket):
                 text = message["text"].strip().lower()
                 if text == "reset":
                     state.reset()
+                elif text == "retry_face":
+                    state.reset_face_validation()
                 continue
 
             frame_bytes = message.get("bytes")
@@ -47,14 +49,14 @@ async def id_verification_ws(websocket: WebSocket):
             if frame is None:
                 continue
 
-            if state.state == "LOCKED" and state.locked_payload and state.locked_payload.matched:
-                await websocket.send_text(json.dumps(_payload_to_dict(state.locked_payload)))
+            if state.state == "LOCKED" and state.face_validation_done and state.face_payload:
+                await websocket.send_text(json.dumps(_payload_to_dict(state.face_payload)))
                 continue
 
             if state.state == "LOCKED" and state.locked_payload:
                 payload = state.update_face(frame)
-                if payload.matched:
-                    state.locked_payload = payload
+                if payload.validation_done:
+                    state.face_payload = payload
                 await websocket.send_text(json.dumps(_payload_to_dict(payload)))
                 continue
 
@@ -80,6 +82,8 @@ def _payload_to_dict(payload):
         "too_small": payload.too_small,
         "face_detected": payload.face_detected,
         "matched": payload.matched,
+        "validation_done": payload.validation_done,
+        "validation_failed": payload.validation_failed,
     }
     if payload.crop:
         response["crop"] = payload.crop
@@ -89,4 +93,6 @@ def _payload_to_dict(payload):
         response["face_bbox"] = payload.face_bbox
     if payload.face_similarity is not None:
         response["face_similarity"] = payload.face_similarity
+    if payload.best_similarity is not None:
+        response["best_similarity"] = payload.best_similarity
     return response

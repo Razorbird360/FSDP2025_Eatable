@@ -117,9 +117,12 @@ interface WebSocketPayload {
   face_crop?: string;
   face_bbox?: [number, number, number, number];
   face_similarity?: number;
+  best_similarity?: number;
   confidence?: number;
   face_detected?: boolean;
   matched?: boolean;
+  validation_done?: boolean;
+  validation_failed?: boolean;
 }
 
 export default function VerificationModal({
@@ -138,6 +141,7 @@ export default function VerificationModal({
   const faceStageRef = useRef<boolean>(false);
   const freezeFrameRef = useRef<boolean>(false);
   const lockHandledRef = useRef<boolean>(false);
+  const faceLogRef = useRef<number>(0);
 
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -176,11 +180,14 @@ export default function VerificationModal({
   const [facePreviewRotation, setFacePreviewRotation] = useState<number>(0);
   const [showFaceIntro, setShowFaceIntro] = useState<boolean>(false);
   const [fadeFaceIntro, setFadeFaceIntro] = useState<boolean>(false);
+  const [faceValidationDone, setFaceValidationDone] = useState<boolean>(false);
+  const [faceValidationFailed, setFaceValidationFailed] = useState<boolean>(false);
+  const [showFaceOverlay, setShowFaceOverlay] = useState<boolean>(true);
+  const [initDots, setInitDots] = useState<number>(0);
   // Live face detection state for overlay during FACE_VALIDATION
   const [liveFaceBbox, setLiveFaceBbox] = useState<
     [number, number, number, number] | null
   >(null);
-  const [liveFaceConfidence, setLiveFaceConfidence] = useState<number>(0);
   const [liveFaceSimilarity, setLiveFaceSimilarity] = useState<number | null>(
     null
   );
@@ -215,8 +222,12 @@ export default function VerificationModal({
 
   useEffect(() => {
     if (status === 'FACE_VALIDATION') {
-      if (faceMatched) {
+      if (faceValidationDone && faceValidationFailed) {
+        setStatusText('Validation failed');
+      } else if (faceValidationDone && faceMatched) {
         setStatusText(faceMatchedText || 'Face detected');
+      } else if (faceValidationFailed) {
+        setStatusText('Validation failed');
       } else if (noFaceOnCard) {
         setStatusText('No face on ID - retake photo');
       } else if (faceDetected) {
@@ -235,7 +246,16 @@ export default function VerificationModal({
     } else {
       setStatusText('Show card');
     }
-  }, [faceDetected, faceMatched, faceMatchedText, noFaceOnCard, status, tooSmall]);
+  }, [
+    faceDetected,
+    faceMatched,
+    faceMatchedText,
+    faceValidationDone,
+    faceValidationFailed,
+    noFaceOnCard,
+    status,
+    tooSmall,
+  ]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -308,8 +328,9 @@ export default function VerificationModal({
     setFaceFrame(null);
     setFaceStageActive(false);
     setFacePreviewRotation(0);
+    setFaceValidationDone(false);
+    setFaceValidationFailed(false);
     setLiveFaceBbox(null);
-    setLiveFaceConfidence(0);
     setLiveFaceSimilarity(null);
     setNoFaceOnCard(false);
     sendInFlightRef.current = false;
@@ -460,24 +481,40 @@ export default function VerificationModal({
       // Update live face detection state during FACE_VALIDATION
       if (payload.state === 'FACE_VALIDATION') {
         setLiveFaceBbox(payload.face_bbox || null);
-        setLiveFaceConfidence(payload.confidence || 0);
         setLiveFaceSimilarity(
           payload.face_similarity !== undefined ? payload.face_similarity : null
         );
+        const now = Date.now();
+        if (now - faceLogRef.current > 500) {
+          const similarity =
+            payload.best_similarity ?? payload.face_similarity ?? null;
+          console.log(
+            `[Face] conf=${(payload.confidence ?? 0).toFixed(2)} sim=${
+              similarity !== null ? similarity.toFixed(3) : 'n/a'
+            }`
+          );
+          faceLogRef.current = now;
+        }
+      }
+
+      if (payload.validation_done !== undefined) {
+        setFaceValidationDone(Boolean(payload.validation_done));
+      }
+      if (payload.validation_failed !== undefined) {
+        setFaceValidationFailed(Boolean(payload.validation_failed));
       }
 
       if (payload.matched !== undefined) {
         setFaceMatched(Boolean(payload.matched));
-        if (payload.matched) {
-          setFreezeFrame(true);
-          setFaceStageActive(false);
-          setFaceMatchedText('Face detected');
-          stopCaptureLoop();
-          stopCamera();
-          sendInFlightRef.current = false;
-        } else {
-          setFreezeFrame(false);
-        }
+      }
+
+      if (payload.validation_done) {
+        setFreezeFrame(true);
+        setFaceStageActive(false);
+        setFaceMatchedText(payload.matched ? 'Face detected' : 'Validation failed');
+        stopCaptureLoop();
+        stopCamera();
+        sendInFlightRef.current = false;
       }
 
       if (payload.state === 'LOCKED' && !lockHandledRef.current) {
@@ -618,6 +655,24 @@ export default function VerificationModal({
     startCamera('card');
   }, [resetDetectionState, startCamera, stopCaptureLoop]);
 
+  const handleRetryFaceValidation = useCallback(() => {
+    setFreezeFrame(false);
+    setFaceStageActive(true);
+    setFaceMatched(false);
+    setFaceValidationDone(false);
+    setFaceValidationFailed(false);
+    setFaceMatchedText('');
+    setFaceFrame(null);
+    setLiveFaceBbox(null);
+    setLiveFaceSimilarity(null);
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send('retry_face');
+    }
+    startCamera('face');
+    startCaptureLoop();
+    setStatus('FACE_VALIDATION');
+  }, [startCamera, startCaptureLoop]);
+
   const handleFacePreviewLoad = useCallback(
     (event: React.SyntheticEvent<HTMLImageElement>) => {
       const img = event.currentTarget;
@@ -667,6 +722,39 @@ export default function VerificationModal({
     !previewImage &&
     !freezeFrame &&
     (!wsReady || !videoReady || !hasReceivedPayload);
+  const descriptionText = showFaceLayout
+    ? "Align your face in the frame so we can match it to your ID."
+    : "Capture a clear photo of your ID. We&apos;ll validate it on our secure server before proceeding.";
+
+  const liveFaceOval = useMemo(() => {
+    if (!liveFaceBbox) return null;
+    const [x1, y1, x2, y2] = liveFaceBbox;
+    const width = x2 - x1;
+    const height = y2 - y1;
+    const extraX = width * 0.2;
+    const extraY = height * 0.15;
+    const nx1 = Math.max(0, x1 - extraX);
+    const ny1 = Math.max(0, y1 - extraY);
+    const nx2 = Math.min(1, x2 + extraX);
+    const ny2 = Math.min(1, y2 + extraY);
+    return [nx1, ny1, nx2, ny2] as const;
+  }, [liveFaceBbox]);
+
+  useEffect(() => {
+    if (!isInitializing) {
+      setInitDots(0);
+      return undefined;
+    }
+
+    const pattern = [0, 1, 2, 3, 3];
+    let index = 0;
+    const interval = setInterval(() => {
+      setInitDots(pattern[index]);
+      index = (index + 1) % pattern.length;
+    }, 350);
+
+    return () => clearInterval(interval);
+  }, [isInitializing]);
 
   const overlayStyle = useMemo((): OverlayStyle | null => {
     if (!bbox || !frameMeta || !containerSize.width || !containerSize.height) {
@@ -750,8 +838,7 @@ export default function VerificationModal({
             Verify Your Identity
           </Text>
           <Text fontSize="sm" color="gray.600">
-            Capture a clear photo of your ID. We&apos;ll validate it on our
-            secure server before proceeding.
+            {descriptionText}
           </Text>
 
           <Box
@@ -830,7 +917,8 @@ export default function VerificationModal({
                   px={6}
                 >
                   <Text color="white" fontSize="sm" fontWeight="semibold">
-                    Initializing camera &amp; websocket connection...
+                    Initializing camera &amp; websocket connection
+                    {'.'.repeat(initDots)}
                   </Text>
                 </Box>
               )}
@@ -845,11 +933,16 @@ export default function VerificationModal({
                   justifyContent="center"
                   pointerEvents="none"
                   zIndex={3}
+                  overflow="hidden"
                   animation={
                     fadeFaceIntro ? `${fadeOut} 800ms ease-out forwards` : undefined
                   }
                 >
-                  <UserRound size={144} strokeWidth={1} color="white" />
+                  <UserRound
+                    strokeWidth={0.5}
+                    color="white"
+                    style={{ width: '100%', height: '100%', transform: 'scale(1.2)' }}
+                  />
                 </Box>
               )}
 
@@ -876,45 +969,27 @@ export default function VerificationModal({
               {/* Live face detection overlay during FACE_VALIDATION */}
               {status === 'FACE_VALIDATION' &&
                 faceStageActive &&
-                liveFaceBbox &&
+                liveFaceOval &&
                 !isInitializing &&
+                showFaceOverlay &&
                 !freezeFrame && (
                   <Box
                     position="absolute"
-                    left={`${liveFaceBbox[0] * 100}%`}
-                    top={`${liveFaceBbox[1] * 100}%`}
-                    width={`${(liveFaceBbox[2] - liveFaceBbox[0]) * 100}%`}
-                    height={`${(liveFaceBbox[3] - liveFaceBbox[1]) * 100}%`}
+                    left={`${liveFaceOval[0] * 100}%`}
+                    top={`${liveFaceOval[1] * 100}%`}
+                    width={`${(liveFaceOval[2] - liveFaceOval[0]) * 100}%`}
+                    height={`${(liveFaceOval[3] - liveFaceOval[1]) * 100}%`}
                     border="2px solid"
                     borderColor={
-                      liveFaceSimilarity !== null && liveFaceSimilarity >= 0.4
+                      liveFaceSimilarity !== null && liveFaceSimilarity >= 0.35
                         ? 'green.400'
                         : faceDetected
                           ? 'yellow.300'
                           : 'orange.300'
                     }
-                    borderRadius="6px"
+                    borderRadius="9999px"
                     pointerEvents="none"
-                  >
-                    {/* Debug info: confidence and similarity scores */}
-                    <Box
-                      position="absolute"
-                      top="-28px"
-                      left="0"
-                      bg="rgba(0,0,0,0.75)"
-                      color="white"
-                      px={2}
-                      py={1}
-                      fontSize="xs"
-                      fontFamily="mono"
-                      borderRadius="4px"
-                      whiteSpace="nowrap"
-                    >
-                      Conf: {liveFaceConfidence.toFixed(2)}
-                      {liveFaceSimilarity !== null &&
-                        ` | Sim: ${liveFaceSimilarity.toFixed(3)}`}
-                    </Box>
-                  </Box>
+                  />
                 )}
 
               {/* Zoom animation overlay when card is locked */}
@@ -1095,6 +1170,19 @@ export default function VerificationModal({
                   </Button>
                 )}
 
+                {faceValidationFailed && (
+                  <Button
+                    rounded="full"
+                    bg="#21421B"
+                    color="white"
+                    _hover={{ bg: '#1A3517' }}
+                    _active={{ bg: '#142812' }}
+                    onClick={handleRetryFaceValidation}
+                  >
+                    Retry validation
+                  </Button>
+                )}
+
                 <Button
                   rounded="full"
                   variant="ghost"
@@ -1103,6 +1191,42 @@ export default function VerificationModal({
                 >
                   Cancel
                 </Button>
+
+                <Box
+                  display="flex"
+                  alignItems="center"
+                  justifyContent="center"
+                  gap={8}
+                  border="1px solid"
+                  borderColor={
+                    showFaceOverlay ? '#21421B' : 'rgba(33, 66, 27, 0.2)'
+                  }
+                  rounded="full"
+                  px={5}
+                  h="40px"
+                  width="100%"
+                  bg={showFaceOverlay ? '#21421B' : '#F8FDF3'}
+                  cursor="pointer"
+                  transition="background-color 160ms ease, border-color 160ms ease"
+                  onClick={() => setShowFaceOverlay((prev) => !prev)}
+                >
+                  <Text
+                    fontSize="sm"
+                    color={showFaceOverlay ? 'white' : '#21421B'}
+                    fontWeight="medium"
+                    transition="color 160ms ease"
+                  >
+                    Face overlay
+                  </Text>
+                  <Text
+                    fontSize="sm"
+                    fontWeight="semibold"
+                    color={showFaceOverlay ? '#E5F3D9' : '#4A6351'}
+                    transition="color 160ms ease"
+                  >
+                    {showFaceOverlay ? 'On' : 'Off'}
+                  </Text>
+                </Box>
               </VStack>
             )}
           </Box>
