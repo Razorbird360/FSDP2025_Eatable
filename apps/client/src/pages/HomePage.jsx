@@ -137,8 +137,8 @@ function HomePage() {
         };
       }
       return {
-        text: 'Edit Stall Menu',
-        link: `/stall/manage/${profile.stallId}`,
+        text: 'Hawker Dashboard',
+        link: '/hawker/dashboard',
       };
     }
 
