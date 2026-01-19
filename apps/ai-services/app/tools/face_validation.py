@@ -434,23 +434,56 @@ def get_best_face(app: FaceAnalysis, image: np.ndarray):
 def extract_card_face(
     card_image: np.ndarray,
 ) -> tuple[Optional[np.ndarray], Optional[tuple[int, int, int, int]], Optional[np.ndarray]]:
+    """Extract face from card image with rotation correction.
+
+    Uses extract_upright_face to find the best rotation and return
+    a properly oriented face crop along with the face embedding.
+
+    Returns:
+        tuple of (face_crop, bbox, embedding) where embedding is the normalized
+        face embedding from InsightFace, or None if extraction failed.
+    """
     if card_image is None or card_image.size == 0:
         return None, None, None
 
     face_model = get_face_model()
-    faces = detect_faces_yolo(card_image, face_model)
-    if not faces:
-        return None, None, None
+    face_crop = None
+    bbox = None
 
-    best_face = max(faces, key=lambda f: (f["score"], f["area_ratio"]))
-    bbox = tuple(int(round(value)) for value in best_face["bbox"])[:4]
-    bbox = (bbox[0], bbox[1], bbox[2], bbox[3])
-    face_crop = crop_face_from_bbox(card_image, best_face["bbox"], PADDING_RATIO)
-    if face_crop is None or face_crop.size == 0:
-        x1, y1, x2, y2 = bbox
-        face_crop = card_image[
-            max(0, y1) : min(card_image.shape[0], y2),
-            max(0, x1) : min(card_image.shape[1], x2),
-        ]
+    # Use extract_upright_face for rotation correction (like validation_pipeline.py)
+    crop_result, meta, error = extract_upright_face(card_image, face_model)
+    if error or crop_result is None:
+        # Fallback: try direct detection without rotation
+        faces = detect_faces_yolo(card_image, face_model)
+        if not faces:
+            return None, None, None
 
-    return face_crop, bbox, None
+        best_face = max(faces, key=lambda f: (f["score"], f["area_ratio"]))
+        bbox = tuple(int(round(value)) for value in best_face["bbox"])[:4]
+        bbox = (bbox[0], bbox[1], bbox[2], bbox[3])
+        face_crop = crop_face_from_bbox(card_image, best_face["bbox"], PADDING_RATIO)
+        if face_crop is None or face_crop.size == 0:
+            x1, y1, x2, y2 = bbox
+            face_crop = card_image[
+                max(0, y1) : min(card_image.shape[0], y2),
+                max(0, x1) : min(card_image.shape[1], x2),
+            ]
+    else:
+        face_crop = crop_result
+        # Extract bbox from meta (this is in the rotated image coordinates)
+        if meta and "bbox" in meta:
+            bbox_list = meta["bbox"]
+            bbox = (int(bbox_list[0]), int(bbox_list[1]), int(bbox_list[2]), int(bbox_list[3]))
+
+    # Extract embedding from the face crop using InsightFace
+    embedding = None
+    if face_crop is not None and face_crop.size > 0:
+        try:
+            app = get_insightface_app()
+            insight_face = get_best_face(app, face_crop)
+            if insight_face is not None:
+                embedding = normalize_embedding(insight_face.embedding)
+        except Exception as e:
+            print(f"[extract_card_face] Failed to extract embedding: {e}")
+
+    return face_crop, bbox, embedding

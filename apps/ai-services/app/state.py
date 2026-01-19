@@ -1,13 +1,21 @@
 from __future__ import annotations
 
 import base64
+import os
 import time
 from collections import deque
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Optional, Tuple
 
 import cv2
 import numpy as np
+
+# Debug: save images to disk for inspection
+DEBUG_SAVE_IMAGES = os.getenv("DEBUG_SAVE_IMAGES", "1") == "1"
+# Default to apps/ai-services/debug_output/ within the repo
+_DEFAULT_DEBUG_DIR = Path(__file__).resolve().parents[1] / "debug_output"
+DEBUG_OUTPUT_DIR = Path(os.getenv("DEBUG_OUTPUT_DIR", str(_DEFAULT_DEBUG_DIR)))
 
 from app.tools.face_validation import (
     FACE_MATCH_THRESHOLD,
@@ -23,6 +31,20 @@ from app.tools.face_validation import (
     resize_frame,
 )
 from app.tools.id_detector import FrameDetection, MIN_AREA_RATIO
+
+
+def _debug_save_image(name: str, image: Optional[np.ndarray]) -> None:
+    """Save image to debug directory for inspection."""
+    if not DEBUG_SAVE_IMAGES or image is None or image.size == 0:
+        return
+    try:
+        DEBUG_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+        timestamp = int(time.time() * 1000)
+        path = DEBUG_OUTPUT_DIR / f"{name}_{timestamp}.jpg"
+        cv2.imwrite(str(path), image)
+        print(f"[DEBUG] Saved {name} to {path}")
+    except Exception as e:
+        print(f"[DEBUG] Failed to save {name}: {e}")
 
 
 @dataclass
@@ -85,6 +107,9 @@ class VerificationState:
         bbox = None
         area_ratio = 0.0
 
+        # Normalized face bbox for frontend overlay (0-1 range)
+        normalized_face_bbox: Optional[Tuple[float, float, float, float]] = None
+
         if faces:
             best_face = max(faces, key=lambda f: (f["score"], f["area_ratio"]))
             confidence = float(best_face["score"])
@@ -92,6 +117,14 @@ class VerificationState:
             x1, y1, x2, y2 = best_face["bbox"]
             bbox = (int(round(x1)), int(round(y1)), int(round(x2)), int(round(y2)))
             center = ((x1 + x2) / 2.0, (y1 + y2) / 2.0)
+
+            # Compute normalized face bbox for frontend overlay
+            normalized_face_bbox = (
+                float(x1) / float(width),
+                float(y1) / float(height),
+                float(x2) / float(width),
+                float(y2) / float(height),
+            )
 
             if self.face_validation_start is None:
                 self.face_validation_start = now
@@ -108,7 +141,7 @@ class VerificationState:
                     face_similarity=None,
                     face_detected=face_detected,
                     matched=False,
-                    face_bbox=None,
+                    face_bbox=normalized_face_bbox,
                     face_crop=None,
                 )
 
@@ -118,7 +151,9 @@ class VerificationState:
                 ref_face = get_best_face(app, self.card_face_crop)
                 if ref_face is not None:
                     self.ref_embedding = normalize_embedding(ref_face.embedding)
+                    print(f"[DEBUG] Extracted ref embedding from card face crop")
 
+            # Track face stillness for match confirmation
             if self.face_last_center is None:
                 self.face_last_center = center
                 self.face_still_start = now
@@ -138,7 +173,8 @@ class VerificationState:
             self.face_hits.append(still_enough)
             stable = sum(self.face_hits) >= self.face_min_hits
 
-            if stable and self.ref_embedding is not None:
+            # Compute similarity on every frame (for real-time display)
+            if self.ref_embedding is not None:
                 crop = crop_face_from_bbox(frame, np.array([x1, y1, x2, y2], dtype=np.float32), 0.15)
                 if crop is None or crop.size == 0:
                     crop = frame[max(0, int(y1)) : min(height, int(y2)), max(0, int(x1)) : min(width, int(x2))]
@@ -147,9 +183,11 @@ class VerificationState:
                 if face is not None:
                     emb = normalize_embedding(face.embedding)
                     similarity = cosine_similarity(emb, self.ref_embedding)
-                    matched = similarity >= FACE_MATCH_THRESHOLD
-                    if matched:
+                    # Only confirm match when face has been stable for required duration
+                    if stable and similarity >= FACE_MATCH_THRESHOLD:
+                        matched = True
                         self.state = "LOCKED"
+                        print(f"[DEBUG] Face matched! Similarity: {similarity:.3f}")
         else:
             self.face_hits.clear()
             self.face_last_center = None
@@ -168,7 +206,7 @@ class VerificationState:
             face_similarity=similarity,
             face_detected=face_detected,
             matched=matched,
-            face_bbox=None,
+            face_bbox=normalized_face_bbox,
             face_crop=None,
         )
 
@@ -213,11 +251,21 @@ class VerificationState:
                     card_crop = self._crop_frame(frame, bbox)
                     crop = self._encode_image(card_crop)
                     self.card_crop = card_crop
+
+                    # Debug: save card crop to disk
+                    _debug_save_image("card_crop", card_crop)
+
                     face_crop, face_bbox, ref_embedding = extract_card_face(card_crop)
                     self.card_face_crop = face_crop
                     self.card_face_bbox = face_bbox
+
+                    # Debug: save face crop to disk
+                    _debug_save_image("face_crop", face_crop)
                     if ref_embedding is not None:
                         self.ref_embedding = ref_embedding
+                        print(f"[DEBUG] Card face embedding extracted successfully")
+                    else:
+                        print(f"[DEBUG] No embedding from card face extraction")
                     self.ref_embedding_attempted = False
 
                     normalized_face_bbox = None

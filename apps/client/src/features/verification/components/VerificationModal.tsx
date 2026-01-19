@@ -107,6 +107,7 @@ interface WebSocketPayload {
   face_crop?: string;
   face_bbox?: [number, number, number, number];
   face_similarity?: number;
+  confidence?: number;
   face_detected?: boolean;
   matched?: boolean;
 }
@@ -161,6 +162,16 @@ export default function VerificationModal({
   const [faceMatchedText, setFaceMatchedText] = useState<string>('');
   const [faceStageActive, setFaceStageActive] = useState<boolean>(false);
   const [facePreviewRotation, setFacePreviewRotation] = useState<number>(0);
+  // Live face detection state for overlay during FACE_VALIDATION
+  const [liveFaceBbox, setLiveFaceBbox] = useState<
+    [number, number, number, number] | null
+  >(null);
+  const [liveFaceConfidence, setLiveFaceConfidence] = useState<number>(0);
+  const [liveFaceSimilarity, setLiveFaceSimilarity] = useState<number | null>(
+    null
+  );
+  // Track if card was locked but no face was found on the ID
+  const [noFaceOnCard, setNoFaceOnCard] = useState<boolean>(false);
 
   useEffect(() => {
     faceStageRef.current = faceStageActive;
@@ -174,6 +185,8 @@ export default function VerificationModal({
     if (status === 'FACE_VALIDATION') {
       if (faceMatched) {
         setStatusText(faceMatchedText || 'Face detected');
+      } else if (noFaceOnCard) {
+        setStatusText('No face on ID - retake photo');
       } else if (faceDetected) {
         setStatusText('Hold still');
       } else {
@@ -190,7 +203,7 @@ export default function VerificationModal({
     } else {
       setStatusText('Show card');
     }
-  }, [faceDetected, faceMatched, faceMatchedText, status, tooSmall]);
+  }, [faceDetected, faceMatched, faceMatchedText, noFaceOnCard, status, tooSmall]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -263,6 +276,10 @@ export default function VerificationModal({
     setFaceFrame(null);
     setFaceStageActive(false);
     setFacePreviewRotation(0);
+    setLiveFaceBbox(null);
+    setLiveFaceConfidence(0);
+    setLiveFaceSimilarity(null);
+    setNoFaceOnCard(false);
     sendInFlightRef.current = false;
     lockHandledRef.current = false;
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
@@ -395,6 +412,15 @@ export default function VerificationModal({
         setFaceDetected(Boolean(payload.face_detected));
       }
 
+      // Update live face detection state during FACE_VALIDATION
+      if (payload.state === 'FACE_VALIDATION') {
+        setLiveFaceBbox(payload.face_bbox || null);
+        setLiveFaceConfidence(payload.confidence || 0);
+        setLiveFaceSimilarity(
+          payload.face_similarity !== undefined ? payload.face_similarity : null
+        );
+      }
+
       if (payload.matched !== undefined) {
         setFaceMatched(Boolean(payload.matched));
         if (payload.matched) {
@@ -416,6 +442,8 @@ export default function VerificationModal({
         setCardCrop(payload.crop || null);
         setCardFaceCrop(payload.face_crop || null);
         setCardFaceBbox(payload.face_bbox || null);
+        // Check if no face was detected on the card
+        setNoFaceOnCard(!payload.face_crop);
 
         const video = videoRef.current;
         const canvas = captureCanvasRef.current;
@@ -438,19 +466,11 @@ export default function VerificationModal({
         stopCaptureLoop();
         stopCamera();
         sendInFlightRef.current = false;
-
-        const cropImage = payload.crop;
-        setTimeout(() => {
-          setIsZoomAnimating(false);
-          setShowFinalImage(true);
-          if (cropImage) {
-            setImagePreview(cropImage);
-          }
-        }, ZOOM_ANIMATION_DURATION);
-
         setUploadPreview(null);
 
+        // After pop animation, immediately proceed to face validation
         setTimeout(() => {
+          setIsZoomAnimating(false);
           setShowFinalImage(false);
           setImagePreview(null);
           setFrozenFrame(null);
@@ -462,7 +482,7 @@ export default function VerificationModal({
           startCaptureLoop();
           setStatus('FACE_VALIDATION');
           setFaceMatchedText('');
-        }, ZOOM_ANIMATION_DURATION + FACE_HIGHLIGHT_DURATION);
+        }, ZOOM_ANIMATION_DURATION);
       }
     };
 
@@ -762,6 +782,49 @@ export default function VerificationModal({
                   />
                 )}
 
+              {/* Live face detection overlay during FACE_VALIDATION */}
+              {status === 'FACE_VALIDATION' &&
+                faceStageActive &&
+                liveFaceBbox &&
+                !freezeFrame && (
+                  <Box
+                    position="absolute"
+                    left={`${liveFaceBbox[0] * 100}%`}
+                    top={`${liveFaceBbox[1] * 100}%`}
+                    width={`${(liveFaceBbox[2] - liveFaceBbox[0]) * 100}%`}
+                    height={`${(liveFaceBbox[3] - liveFaceBbox[1]) * 100}%`}
+                    border="2px solid"
+                    borderColor={
+                      liveFaceSimilarity !== null && liveFaceSimilarity >= 0.4
+                        ? 'green.400'
+                        : faceDetected
+                          ? 'yellow.300'
+                          : 'orange.300'
+                    }
+                    borderRadius="6px"
+                    pointerEvents="none"
+                  >
+                    {/* Debug info: confidence and similarity scores */}
+                    <Box
+                      position="absolute"
+                      top="-28px"
+                      left="0"
+                      bg="rgba(0,0,0,0.75)"
+                      color="white"
+                      px={2}
+                      py={1}
+                      fontSize="xs"
+                      fontFamily="mono"
+                      borderRadius="4px"
+                      whiteSpace="nowrap"
+                    >
+                      Conf: {liveFaceConfidence.toFixed(2)}
+                      {liveFaceSimilarity !== null &&
+                        ` | Sim: ${liveFaceSimilarity.toFixed(3)}`}
+                    </Box>
+                  </Box>
+                )}
+
               {/* Zoom animation overlay when card is locked */}
               {isZoomAnimating && lockedOverlayStyle && (
                 <Box
@@ -918,9 +981,9 @@ export default function VerificationModal({
                       py={6}
                       textAlign="center"
                       fontSize="sm"
-                      color="gray.500"
+                      color={noFaceOnCard ? 'red.500' : 'gray.500'}
                     >
-                      Face preview
+                      {noFaceOnCard ? 'No face detected on ID' : 'Face preview'}
                     </Box>
                   )}
                 </Box>
@@ -949,7 +1012,7 @@ export default function VerificationModal({
                     isLoading={submitting}
                     onClick={handleSubmit}
                   >
-                    Submit for verification
+                    Complete validation
                   </Button>
                 )}
 
@@ -1005,7 +1068,7 @@ export default function VerificationModal({
                   isLoading={submitting}
                   onClick={handleSubmit}
                 >
-                  Submit for verification
+                  Complete validation
                 </Button>
               )}
 
