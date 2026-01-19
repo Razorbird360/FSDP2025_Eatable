@@ -184,6 +184,7 @@ export default function VerificationModal({
   const [faceValidationFailed, setFaceValidationFailed] = useState<boolean>(false);
   const [showFaceOverlay, setShowFaceOverlay] = useState<boolean>(true);
   const [initDots, setInitDots] = useState<number>(0);
+  const [showIdPreview, setShowIdPreview] = useState<boolean>(false);
   // Live face detection state for overlay during FACE_VALIDATION
   const [liveFaceBbox, setLiveFaceBbox] = useState<
     [number, number, number, number] | null
@@ -211,8 +212,8 @@ export default function VerificationModal({
 
     setShowFaceIntro(true);
     setFadeFaceIntro(false);
-    const fadeTimer = setTimeout(() => setFadeFaceIntro(true), 4000);
-    const hideTimer = setTimeout(() => setShowFaceIntro(false), 4800);
+    const fadeTimer = setTimeout(() => setFadeFaceIntro(true), 1500);
+    const hideTimer = setTimeout(() => setShowFaceIntro(false), 2000);
 
     return () => {
       clearTimeout(fadeTimer);
@@ -726,6 +727,12 @@ export default function VerificationModal({
     ? "Align your face in the frame so we can match it to your ID."
     : "Capture a clear photo of your ID. We&apos;ll validate it on our secure server before proceeding.";
 
+  useEffect(() => {
+    if (!showFaceLayout) {
+      setShowIdPreview(false);
+    }
+  }, [showFaceLayout]);
+
   const liveFaceOval = useMemo(() => {
     if (!liveFaceBbox) return null;
     const [x1, y1, x2, y2] = liveFaceBbox;
@@ -830,6 +837,8 @@ export default function VerificationModal({
           md: showFaceLayout ? '720px' : '520px',
         }}
         maxW={showFaceLayout ? '720px' : '520px'}
+        maxH={{ base: '92vh', md: 'unset' }}
+        overflowY={{ base: 'auto', md: 'visible' }}
         onClick={(e) => e.stopPropagation()}
         boxShadow="0 24px 45px rgba(0,0,0,0.25)"
       >
@@ -939,9 +948,9 @@ export default function VerificationModal({
                   }
                 >
                   <UserRound
-                    strokeWidth={0.5}
+                    strokeWidth={0.35}
                     color="white"
-                    style={{ width: '100%', height: '100%', transform: 'scale(1.2)' }}
+                    style={{ width: '100%', height: '100%', transform: 'scale(1.7)' }}
                   />
                 </Box>
               )}
@@ -1098,13 +1107,14 @@ export default function VerificationModal({
             </Box>
 
             {showFaceLayout && (
-              <VStack spacing={3} align="stretch">
+              <VStack spacing={3} align="stretch" display={{ base: 'none', md: 'flex' }}>
                 <Box
                   rounded="xl"
                   overflow="hidden"
                   border="1px solid"
                   borderColor="gray.200"
                   bg="gray.50"
+                  display={{ base: 'none', md: 'block' }}
                 >
                   <Box
                     px={4}
@@ -1193,6 +1203,87 @@ export default function VerificationModal({
                 </Button>
 
                 <Box
+                  display={{ base: 'none', md: 'flex' }}
+                  alignItems="center"
+                  justifyContent="center"
+                  gap={8}
+                  border="1px solid"
+                  borderColor={
+                    showFaceOverlay ? '#21421B' : 'rgba(33, 66, 27, 0.2)'
+                  }
+                  rounded="full"
+                  px={5}
+                  h="40px"
+                  width="100%"
+                  bg={showFaceOverlay ? '#21421B' : '#F8FDF3'}
+                  cursor="pointer"
+                  transition="background-color 160ms ease, border-color 160ms ease"
+                  onClick={() => setShowFaceOverlay((prev) => !prev)}
+                >
+                  <Text
+                    fontSize="sm"
+                    color={showFaceOverlay ? 'white' : '#21421B'}
+                    fontWeight="medium"
+                    transition="color 160ms ease"
+                  >
+                    Face overlay
+                  </Text>
+                  <Text
+                    fontSize="sm"
+                    fontWeight="semibold"
+                    color={showFaceOverlay ? '#E5F3D9' : '#4A6351'}
+                    transition="color 160ms ease"
+                  >
+                    {showFaceOverlay ? 'On' : 'Off'}
+                  </Text>
+                </Box>
+              </VStack>
+            )}
+
+            {showFaceLayout && (
+              <VStack
+                spacing={3}
+                align="stretch"
+                display={{ base: 'flex', md: 'none' }}
+              >
+                {faceMatched && (
+                  <Button
+                    rounded="full"
+                    bg="#21421B"
+                    color="white"
+                    _hover={{ bg: '#1A3517' }}
+                    _active={{ bg: '#142812' }}
+                    isDisabled={!faceMatched}
+                    isLoading={submitting}
+                    onClick={handleSubmit}
+                  >
+                    Complete validation
+                  </Button>
+                )}
+
+                {faceValidationFailed && (
+                  <Button
+                    rounded="full"
+                    bg="#21421B"
+                    color="white"
+                    _hover={{ bg: '#1A3517' }}
+                    _active={{ bg: '#142812' }}
+                    onClick={handleRetryFaceValidation}
+                  >
+                    Retry validation
+                  </Button>
+                )}
+
+                <Button
+                  rounded="full"
+                  variant="ghost"
+                  color="gray.600"
+                  onClick={onClose}
+                >
+                  Cancel
+                </Button>
+
+                <Box
                   display="flex"
                   alignItems="center"
                   justifyContent="center"
@@ -1227,6 +1318,77 @@ export default function VerificationModal({
                     {showFaceOverlay ? 'On' : 'Off'}
                   </Text>
                 </Box>
+
+                <Button
+                  rounded="full"
+                  variant="outline"
+                  borderColor="#21421B"
+                  borderWidth="1px"
+                  color="#21421B"
+                  onClick={() => setShowIdPreview((prev) => !prev)}
+                >
+                  {showIdPreview ? 'Hide ID preview' : 'Show ID preview'}
+                </Button>
+
+                {showIdPreview && (
+                  <Box
+                    rounded="xl"
+                    overflow="hidden"
+                    border="1px solid"
+                    borderColor="gray.200"
+                    bg="gray.50"
+                  >
+                    <Box
+                      px={4}
+                      py={3}
+                      borderBottom="1px solid"
+                      borderColor="gray.200"
+                      bg="white"
+                      fontSize="xs"
+                      fontWeight="semibold"
+                      color="gray.600"
+                      textTransform="uppercase"
+                      letterSpacing="0.08em"
+                    >
+                      ID Face Preview
+                    </Box>
+
+                    {facePreviewImage ? (
+                      <Box
+                        display="flex"
+                        alignItems="center"
+                        justifyContent="center"
+                        bg="gray.900"
+                      >
+                        <img
+                          src={facePreviewImage}
+                          alt="ID face preview"
+                          onLoad={handleFacePreviewLoad}
+                          className="h-full w-full"
+                          style={{
+                            aspectRatio: '1 / 1.2',
+                            objectFit: 'contain',
+                            transform: facePreviewRotation
+                              ? 'rotate(90deg)'
+                              : 'none',
+                          }}
+                        />
+                      </Box>
+                    ) : (
+                      <Box
+                        px={4}
+                        py={6}
+                        textAlign="center"
+                        fontSize="sm"
+                        color={noFaceOnCard ? 'red.500' : 'gray.500'}
+                      >
+                        {noFaceOnCard
+                          ? 'No face detected on ID'
+                          : 'Face preview'}
+                      </Box>
+                    )}
+                  </Box>
+                )}
               </VStack>
             )}
           </Box>

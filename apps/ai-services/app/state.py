@@ -76,7 +76,7 @@ class VerificationState:
         pad_ratio: float = 0.12,
         face_window_size: int = 6,
         face_min_hits: int = 1,
-        face_stillness_sec: float = 3.0,
+        face_stillness_sec: float = 2.0,
         face_grace_sec: float = 3.0,
         face_stillness_pixels: float = 12.0,
     ) -> None:
@@ -189,7 +189,7 @@ class VerificationState:
                             )
                         best_similarity = self.face_validation_best_similarity
 
-                if now - self.face_validation_window_start >= 1.0:
+                if now - self.face_validation_window_start >= 1.5:
                     best_similarity = self.face_validation_best_similarity
                     if best_similarity is not None:
                         validation_done = True
