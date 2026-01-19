@@ -433,6 +433,7 @@ def get_best_face(app: FaceAnalysis, image: np.ndarray):
 
 def extract_card_face(
     card_image: np.ndarray,
+    extract_embedding: bool = True,
 ) -> tuple[Optional[np.ndarray], Optional[tuple[int, int, int, int]], Optional[np.ndarray]]:
     """Extract face from card image with rotation correction.
 
@@ -441,7 +442,7 @@ def extract_card_face(
 
     Returns:
         tuple of (face_crop, bbox, embedding) where embedding is the normalized
-        face embedding from InsightFace, or None if extraction failed.
+        face embedding from InsightFace (if extract_embedding=True), or None if extraction failed.
     """
     if card_image is None or card_image.size == 0:
         return None, None, None
@@ -450,7 +451,7 @@ def extract_card_face(
     face_crop = None
     bbox = None
 
-    # Use extract_upright_face for rotation correction (like validation_pipeline.py)
+    # Use extract_upright_face for rotation correction
     crop_result, meta, error = extract_upright_face(card_image, face_model)
     if error or crop_result is None:
         # Fallback: try direct detection without rotation
@@ -477,7 +478,7 @@ def extract_card_face(
 
     # Extract embedding from the face crop using InsightFace
     embedding = None
-    if face_crop is not None and face_crop.size > 0:
+    if extract_embedding and face_crop is not None and face_crop.size > 0:
         try:
             app = get_insightface_app()
             insight_face = get_best_face(app, face_crop)

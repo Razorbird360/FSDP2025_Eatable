@@ -255,7 +255,9 @@ class VerificationState:
                     # Debug: save card crop to disk
                     _debug_save_image("card_crop", card_crop)
 
-                    face_crop, face_bbox, ref_embedding = extract_card_face(card_crop)
+                    face_crop, face_bbox, ref_embedding = extract_card_face(
+                        card_crop, extract_embedding=False
+                    )
                     self.card_face_crop = face_crop
                     self.card_face_bbox = face_bbox
 
@@ -264,8 +266,10 @@ class VerificationState:
                     if ref_embedding is not None:
                         self.ref_embedding = ref_embedding
                         print(f"[DEBUG] Card face embedding extracted successfully")
+                    elif face_crop is not None:
+                        print(f"[DEBUG] Card face crop extracted (embedding deferred)")
                     else:
-                        print(f"[DEBUG] No embedding from card face extraction")
+                        print(f"[DEBUG] No face crop from card extraction")
                     self.ref_embedding_attempted = False
 
                     normalized_face_bbox = None

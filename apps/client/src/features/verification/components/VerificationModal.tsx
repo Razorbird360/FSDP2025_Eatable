@@ -8,6 +8,7 @@ import {
 } from 'react';
 import { Box, Button, HStack, Text, VStack } from '@chakra-ui/react';
 import { keyframes } from '@emotion/react';
+import { UserRound } from 'lucide-react';
 import { toaster } from '../../../components/ui/toaster';
 
 const TARGET_RATIO = 1.75;
@@ -67,6 +68,15 @@ const facePulse = keyframes`
   100% {
     transform: scale(1.12);
     box-shadow: 0 0 26px rgba(255, 193, 7, 0.65);
+  }
+`;
+
+const fadeOut = keyframes`
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
   }
 `;
 
@@ -133,6 +143,8 @@ export default function VerificationModal({
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploadPreview, setUploadPreview] = useState<string | null>(null);
   const [videoReady, setVideoReady] = useState<boolean>(false);
+  const [wsReady, setWsReady] = useState<boolean>(false);
+  const [hasReceivedPayload, setHasReceivedPayload] = useState<boolean>(false);
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [status, setStatus] = useState<DetectionStatus>('SEARCHING');
   const [statusText, setStatusText] = useState<string>('Show card');
@@ -162,6 +174,8 @@ export default function VerificationModal({
   const [faceMatchedText, setFaceMatchedText] = useState<string>('');
   const [faceStageActive, setFaceStageActive] = useState<boolean>(false);
   const [facePreviewRotation, setFacePreviewRotation] = useState<number>(0);
+  const [showFaceIntro, setShowFaceIntro] = useState<boolean>(false);
+  const [fadeFaceIntro, setFadeFaceIntro] = useState<boolean>(false);
   // Live face detection state for overlay during FACE_VALIDATION
   const [liveFaceBbox, setLiveFaceBbox] = useState<
     [number, number, number, number] | null
@@ -180,6 +194,24 @@ export default function VerificationModal({
   useEffect(() => {
     freezeFrameRef.current = freezeFrame;
   }, [freezeFrame]);
+
+  useEffect(() => {
+    if (!isOpen || !faceStageActive) {
+      setShowFaceIntro(false);
+      setFadeFaceIntro(false);
+      return undefined;
+    }
+
+    setShowFaceIntro(true);
+    setFadeFaceIntro(false);
+    const fadeTimer = setTimeout(() => setFadeFaceIntro(true), 4000);
+    const hideTimer = setTimeout(() => setShowFaceIntro(false), 4800);
+
+    return () => {
+      clearTimeout(fadeTimer);
+      clearTimeout(hideTimer);
+    };
+  }, [faceStageActive, isOpen]);
 
   useEffect(() => {
     if (status === 'FACE_VALIDATION') {
@@ -289,6 +321,9 @@ export default function VerificationModal({
 
   const startCamera = useCallback(async (mode: 'card' | 'face' = 'card') => {
     try {
+      if (mediaStreamRef.current) {
+        return;
+      }
       const isFace = mode === 'face';
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
@@ -387,13 +422,22 @@ export default function VerificationModal({
 
   useEffect(() => {
     if (!isOpen) return undefined;
+    setWsReady(false);
+    setHasReceivedPayload(false);
     const ws = new WebSocket(WS_URL);
     ws.binaryType = 'arraybuffer';
     wsRef.current = ws;
 
-    ws.onopen = () => {};
-    ws.onclose = () => {};
-    ws.onerror = () => {};
+    ws.onopen = () => {
+      setWsReady(true);
+    };
+    ws.onclose = () => {
+      setWsReady(false);
+      setHasReceivedPayload(false);
+    };
+    ws.onerror = () => {
+      setWsReady(false);
+    };
     ws.onmessage = (event: MessageEvent) => {
       sendInFlightRef.current = false;
       let payload: WebSocketPayload;
@@ -402,6 +446,7 @@ export default function VerificationModal({
       } catch {
         return;
       }
+      setHasReceivedPayload(true);
 
       setStatus(payload.state || 'SEARCHING');
       setBbox(payload.bbox || null);
@@ -490,30 +535,34 @@ export default function VerificationModal({
       ws.close();
       wsRef.current = null;
       sendInFlightRef.current = false;
+      setWsReady(false);
+      setHasReceivedPayload(false);
     };
   }, [isOpen, startCamera, startCaptureLoop, stopCaptureLoop, stopCamera]);
 
   useEffect(() => {
-    if (!isOpen) return undefined;
+    if (!isOpen || !wsReady) return undefined;
     startCamera('card');
 
     return () => {
       stopCaptureLoop();
       stopCamera();
     };
-  }, [isOpen, startCamera, stopCamera, stopCaptureLoop]);
+  }, [isOpen, startCamera, stopCamera, stopCaptureLoop, wsReady]);
 
   useEffect(() => {
     if (isOpen) return;
     setImagePreview(null);
     setUploadPreview(null);
     uploadFrameRef.current = null;
+    setWsReady(false);
+    setHasReceivedPayload(false);
     resetDetectionState();
   }, [isOpen, resetDetectionState]);
 
   useEffect(() => {
     if (!isOpen) return;
-    if (imagePreview || freezeFrame) {
+    if (!wsReady || imagePreview || freezeFrame) {
       stopCaptureLoop();
       return;
     }
@@ -527,6 +576,7 @@ export default function VerificationModal({
     startCaptureLoop,
     stopCaptureLoop,
     videoReady,
+    wsReady,
   ]);
 
   const handleFileSelect = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -612,6 +662,11 @@ export default function VerificationModal({
   const previewImage = imagePreview || uploadPreview;
   const showFaceLayout = faceStageActive || freezeFrame;
   const facePreviewImage = cardFaceCrop || cardCrop;
+  const isInitializing =
+    !cameraError &&
+    !previewImage &&
+    !freezeFrame &&
+    (!wsReady || !videoReady || !hasReceivedPayload);
 
   const overlayStyle = useMemo((): OverlayStyle | null => {
     if (!bbox || !frameMeta || !containerSize.width || !containerSize.height) {
@@ -763,9 +818,45 @@ export default function VerificationModal({
                 />
               )}
 
+              {isInitializing && (
+                <Box
+                  position="absolute"
+                  inset="0"
+                  bg="gray.900"
+                  display="flex"
+                  alignItems="center"
+                  justifyContent="center"
+                  textAlign="center"
+                  px={6}
+                >
+                  <Text color="white" fontSize="sm" fontWeight="semibold">
+                    Initializing camera &amp; websocket connection...
+                  </Text>
+                </Box>
+              )}
+
+              {showFaceIntro && faceStageActive && (
+                <Box
+                  position="absolute"
+                  inset="0"
+                  bg="rgba(0,0,0,0.5)"
+                  display="flex"
+                  alignItems="center"
+                  justifyContent="center"
+                  pointerEvents="none"
+                  zIndex={3}
+                  animation={
+                    fadeFaceIntro ? `${fadeOut} 800ms ease-out forwards` : undefined
+                  }
+                >
+                  <UserRound size={144} strokeWidth={1} color="white" />
+                </Box>
+              )}
+
               {overlayStyle &&
                 status !== 'FACE_VALIDATION' &&
                 !imagePreview &&
+                !isInitializing &&
                 !isZoomAnimating && (
                   <Box
                     position="absolute"
@@ -786,6 +877,7 @@ export default function VerificationModal({
               {status === 'FACE_VALIDATION' &&
                 faceStageActive &&
                 liveFaceBbox &&
+                !isInitializing &&
                 !freezeFrame && (
                   <Box
                     position="absolute"
@@ -896,7 +988,7 @@ export default function VerificationModal({
                   </Button>
                 )}
 
-              {!imagePreview && (
+              {!imagePreview && !isInitializing && (
                 <Box
                   position="absolute"
                   bottom="3"
@@ -987,19 +1079,6 @@ export default function VerificationModal({
                     </Box>
                   )}
                 </Box>
-
-                <Button
-                  rounded="full"
-                  variant="outline"
-                  borderColor="#21421B"
-                  borderWidth="1px"
-                  color="#21421B"
-                  onClick={() =>
-                    document.getElementById('verification-file-input')?.click()
-                  }
-                >
-                  Upload ID
-                </Button>
 
                 {faceMatched && (
                   <Button
