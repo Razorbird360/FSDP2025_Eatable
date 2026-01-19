@@ -364,12 +364,21 @@ export const hawkerDashboardService = {
         category: true,
         prepTimeMins: true,
         imageUrl: true,
+        mediaUploads: {
+          where: { validationStatus: 'approved' },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: { imageUrl: true },
+        },
       },
       orderBy: {
         [orderByField]: orderByDir,
       },
     });
 
-    return menuItems;
+    return menuItems.map(({ mediaUploads, ...item }) => ({
+      ...item,
+      imageUrl: item.imageUrl || mediaUploads?.[0]?.imageUrl || null,
+    }));
   },
 };

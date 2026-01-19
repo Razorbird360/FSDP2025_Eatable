@@ -782,7 +782,7 @@ const HawkerDashboardPage = () => {
               <div className="flex-1 bg-white rounded-xl md:rounded-2xl border border-gray-100 shadow-sm overflow-hidden animate-[slideInFromRight_0.3s_ease-out]">
 
                 {/* Table Header */}
-                <div className="hidden md:grid grid-cols-[2fr_1fr_1fr_1fr_40px] gap-4 px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+                <div className="hidden md:grid grid-cols-[2fr_0.8fr_1.2fr_1fr_40px] gap-4 px-6 py-4 border-b border-gray-100 bg-gray-50/50">
                   {(['name', 'price', 'category', 'prepTime'] as const).map((field) => {
                     const labels: Record<SortField, string> = {
                       name: 'Dish Name',
@@ -801,7 +801,7 @@ const HawkerDashboardPage = () => {
                       <button
                         key={field}
                         onClick={handleClick}
-                        className={`flex items-center gap-1 text-sm font-medium text-gray-600 hover:text-gray-900 ${field === 'prepTime' ? 'justify-center' : ''}`}
+                        className={`flex items-center gap-1 text-sm font-medium text-gray-600 hover:text-gray-900 ${field === 'prepTime' || field === 'category' ? 'justify-center' : ''}`}
                       >
                         {labels[field]}
                         {dir === 'none' && <ChevronsUpDown className="w-4 h-4 text-gray-400" />}
@@ -823,11 +823,11 @@ const HawkerDashboardPage = () => {
                     sortDishes(dishes, sortConfig).map((dish) => (
                       <div
                         key={dish.id}
-                        className="grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr_1fr_40px] gap-2 md:gap-4 px-4 md:px-6 py-4 hover:bg-gray-50/50 transition-colors"
+                        className="grid grid-cols-1 md:grid-cols-[2fr_0.8fr_1.2fr_1fr_40px] gap-2 md:gap-4 px-4 md:px-6 py-4 hover:bg-gray-50/50 transition-colors"
                       >
                         {/* Mobile: Image centered with text beside it */}
                         <div className="flex items-center gap-4 md:gap-3">
-                          <div className="w-16 h-16 md:w-12 md:h-12 rounded-xl md:rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                          <div className="w-16 h-16 md:w-16 md:h-16 rounded-xl md:rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
                             {dish.imageUrl ? (
                               <img
                                 src={dish.imageUrl}
@@ -859,7 +859,7 @@ const HawkerDashboardPage = () => {
                         <div className="hidden md:flex items-center text-sm text-gray-700">
                           ${(dish.priceCents / 100).toFixed(2)}
                         </div>
-                        <div className="hidden md:flex items-center text-sm text-gray-700">
+                        <div className="hidden md:flex items-center justify-center text-sm text-gray-700">
                           {dish.category || 'Uncategorized'}
                         </div>
                         <div className="hidden md:flex items-center justify-center text-sm text-gray-700">
@@ -879,7 +879,7 @@ const HawkerDashboardPage = () => {
               </div>
 
               {/* Mobile Add Dish Button - Outside white box */}
-              <button className="md:hidden w-full flex items-center justify-center gap-2 bg-[#21421B] text-white px-4 py-3.5 rounded-xl text-sm font-medium mt-4 animate-[fadeSlideRight_0.3s_ease-out]">
+              <button className="md:hidden w-full flex items-center justify-center gap-2 bg-[#21421B] text-white px-4 py-3.5 rounded-xl text-sm font-medium mt-3 animate-[fadeSlideRight_0.3s_ease-out]">
                 <Plus className="w-4 h-4" />
                 <span>Add Dish</span>
               </button>
