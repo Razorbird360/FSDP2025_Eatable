@@ -1,12 +1,21 @@
-import { useCallback, useEffect, useMemo, useRef, useState, ChangeEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  ChangeEvent,
+} from 'react';
 import { Box, Button, HStack, Text, VStack } from '@chakra-ui/react';
 import { keyframes } from '@emotion/react';
 import { toaster } from '../../../components/ui/toaster';
 
 const TARGET_RATIO = 1.75;
+const FACE_RATIO = 2 / 3;
 const FRAME_INTERVAL = 180;
 const WS_URL = import.meta.env.VITE_AI_WS_URL || 'ws://localhost:8000/id/ws';
 const ZOOM_ANIMATION_DURATION = 800; // ms
+const FACE_HIGHLIGHT_DURATION = 1000; // ms
 
 // Keyframe animation for the card zoom effect
 const zoomPulse = keyframes`
@@ -46,6 +55,21 @@ const fadeInScale = keyframes`
   }
 `;
 
+const facePulse = keyframes`
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 rgba(255, 193, 7, 0.0);
+  }
+  60% {
+    transform: scale(1.08);
+    box-shadow: 0 0 18px rgba(255, 193, 7, 0.5);
+  }
+  100% {
+    transform: scale(1.12);
+    box-shadow: 0 0 26px rgba(255, 193, 7, 0.65);
+  }
+`;
+
 // Type definitions
 interface VerificationModalProps {
   isOpen: boolean;
@@ -72,7 +96,7 @@ interface OverlayStyle {
 
 type BoundingBox = [number, number, number, number];
 
-type DetectionStatus = 'SEARCHING' | 'LOCKING' | 'LOCKED';
+type DetectionStatus = 'SEARCHING' | 'LOCKING' | 'LOCKED' | 'FACE_VALIDATION';
 
 interface WebSocketPayload {
   state?: DetectionStatus;
@@ -80,9 +104,18 @@ interface WebSocketPayload {
   frame?: FrameMeta;
   too_small?: boolean;
   crop?: string;
+  face_crop?: string;
+  face_bbox?: [number, number, number, number];
+  face_similarity?: number;
+  face_detected?: boolean;
+  matched?: boolean;
 }
 
-export default function VerificationModal({ isOpen, onClose, onSuccess: _onSuccess }: VerificationModalProps) {
+export default function VerificationModal({
+  isOpen,
+  onClose,
+  onSuccess: _onSuccess,
+}: VerificationModalProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const captureCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -91,33 +124,65 @@ export default function VerificationModal({ isOpen, onClose, onSuccess: _onSucce
   const frameTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const sendInFlightRef = useRef<boolean>(false);
   const uploadFrameRef = useRef<File | null>(null);
-  const statusRef = useRef<DetectionStatus>('SEARCHING');
+  const faceStageRef = useRef<boolean>(false);
+  const freezeFrameRef = useRef<boolean>(false);
+  const lockHandledRef = useRef<boolean>(false);
 
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploadPreview, setUploadPreview] = useState<string | null>(null);
   const [videoReady, setVideoReady] = useState<boolean>(false);
-  const [cardDetected, setCardDetected] = useState<boolean>(false);
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [status, setStatus] = useState<DetectionStatus>('SEARCHING');
   const [statusText, setStatusText] = useState<string>('Show card');
   const [bbox, setBbox] = useState<BoundingBox | null>(null);
   const [frameMeta, setFrameMeta] = useState<FrameMeta | null>(null);
   const [tooSmall, setTooSmall] = useState<boolean>(false);
-  const [containerSize, setContainerSize] = useState<ContainerSize>({ width: 0, height: 0 });
+  const [containerSize, setContainerSize] = useState<ContainerSize>({
+    width: 0,
+    height: 0,
+  });
   const [isZoomAnimating, setIsZoomAnimating] = useState<boolean>(false);
   const [showFinalImage, setShowFinalImage] = useState<boolean>(false);
   const [lockedBbox, setLockedBbox] = useState<BoundingBox | null>(null);
-  const [lockedFrameMeta, setLockedFrameMeta] = useState<FrameMeta | null>(null);
+  const [lockedFrameMeta, setLockedFrameMeta] = useState<FrameMeta | null>(
+    null
+  );
   const [frozenFrame, setFrozenFrame] = useState<string | null>(null);
+  const [cardCrop, setCardCrop] = useState<string | null>(null);
+  const [cardFaceCrop, setCardFaceCrop] = useState<string | null>(null);
+  const [cardFaceBbox, setCardFaceBbox] = useState<
+    [number, number, number, number] | null
+  >(null);
+  const [faceDetected, setFaceDetected] = useState<boolean>(false);
+  const [faceMatched, setFaceMatched] = useState<boolean>(false);
+  const [freezeFrame, setFreezeFrame] = useState<boolean>(false);
+  const [faceFrame, setFaceFrame] = useState<string | null>(null);
+  const [faceMatchedText, setFaceMatchedText] = useState<string>('');
+  const [faceStageActive, setFaceStageActive] = useState<boolean>(false);
+  const [facePreviewRotation, setFacePreviewRotation] = useState<number>(0);
 
   useEffect(() => {
-    statusRef.current = status;
-  }, [status]);
+    faceStageRef.current = faceStageActive;
+  }, [faceStageActive]);
 
   useEffect(() => {
+    freezeFrameRef.current = freezeFrame;
+  }, [freezeFrame]);
+
+  useEffect(() => {
+    if (status === 'FACE_VALIDATION') {
+      if (faceMatched) {
+        setStatusText(faceMatchedText || 'Face detected');
+      } else if (faceDetected) {
+        setStatusText('Hold still');
+      } else {
+        setStatusText('Show face');
+      }
+      return;
+    }
     if (status === 'LOCKED') {
-      setStatusText('Captured');
+      setStatusText('Card detected');
     } else if (status === 'LOCKING') {
       setStatusText('Hold still');
     } else if (tooSmall) {
@@ -125,7 +190,7 @@ export default function VerificationModal({ isOpen, onClose, onSuccess: _onSucce
     } else {
       setStatusText('Show card');
     }
-  }, [status, tooSmall]);
+  }, [faceDetected, faceMatched, faceMatchedText, status, tooSmall]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -180,7 +245,6 @@ export default function VerificationModal({ isOpen, onClose, onSuccess: _onSucce
 
   const resetDetectionState = useCallback(() => {
     setStatus('SEARCHING');
-    setCardDetected(false);
     setBbox(null);
     setFrameMeta(null);
     setTooSmall(false);
@@ -189,19 +253,31 @@ export default function VerificationModal({ isOpen, onClose, onSuccess: _onSucce
     setLockedBbox(null);
     setLockedFrameMeta(null);
     setFrozenFrame(null);
+    setCardCrop(null);
+    setCardFaceCrop(null);
+    setCardFaceBbox(null);
+    setFaceDetected(false);
+    setFaceMatched(false);
+    setFaceMatchedText('');
+    setFreezeFrame(false);
+    setFaceFrame(null);
+    setFaceStageActive(false);
+    setFacePreviewRotation(0);
     sendInFlightRef.current = false;
+    lockHandledRef.current = false;
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       wsRef.current.send('reset');
     }
   }, []);
 
-  const startCamera = useCallback(async () => {
+  const startCamera = useCallback(async (mode: 'card' | 'face' = 'card') => {
     try {
+      const isFace = mode === 'face';
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
-          facingMode: { ideal: 'environment' },
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
+          facingMode: { ideal: isFace ? 'user' : 'environment' },
+          width: { ideal: isFace ? 720 : 1280 },
+          height: { ideal: isFace ? 1080 : 720 },
         },
       });
       setCameraError(null);
@@ -216,10 +292,14 @@ export default function VerificationModal({ isOpen, onClose, onSuccess: _onSucce
   }, []);
 
   const sendFrameBlob = useCallback(async (blob: Blob | File) => {
-    if (!blob || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+    if (
+      !blob ||
+      !wsRef.current ||
+      wsRef.current.readyState !== WebSocket.OPEN
+    ) {
       return;
     }
-    if (sendInFlightRef.current || statusRef.current === 'LOCKED') {
+    if (sendInFlightRef.current) {
       return;
     }
     sendInFlightRef.current = true;
@@ -232,7 +312,11 @@ export default function VerificationModal({ isOpen, onClose, onSuccess: _onSucce
   }, []);
 
   const captureFrame = useCallback(() => {
-    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN || statusRef.current === 'LOCKED') {
+    if (
+      !wsRef.current ||
+      wsRef.current.readyState !== WebSocket.OPEN ||
+      freezeFrameRef.current
+    ) {
       return;
     }
 
@@ -261,11 +345,21 @@ export default function VerificationModal({ isOpen, onClose, onSuccess: _onSucce
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     ctx.drawImage(video, 0, 0, width, height);
-    canvas.toBlob((blob) => {
-      if (blob) {
-        sendFrameBlob(blob);
-      }
-    }, 'image/jpeg', 0.75);
+
+    if (faceStageRef.current) {
+      const frameDataUrl = canvas.toDataURL('image/jpeg', 0.9);
+      setFaceFrame(frameDataUrl);
+    }
+
+    canvas.toBlob(
+      (blob) => {
+        if (blob) {
+          sendFrameBlob(blob);
+        }
+      },
+      'image/jpeg',
+      0.75
+    );
   }, [sendFrameBlob, videoReady]);
 
   const startCaptureLoop = useCallback(() => {
@@ -297,13 +391,32 @@ export default function VerificationModal({ isOpen, onClose, onSuccess: _onSucce
       setFrameMeta(payload.frame || null);
       setTooSmall(Boolean(payload.too_small));
 
-      if (payload.state === 'LOCKED') {
-        setCardDetected(true);
-        // Store the locked bbox and frame meta for the zoom animation
+      if (payload.face_detected !== undefined) {
+        setFaceDetected(Boolean(payload.face_detected));
+      }
+
+      if (payload.matched !== undefined) {
+        setFaceMatched(Boolean(payload.matched));
+        if (payload.matched) {
+          setFreezeFrame(true);
+          setFaceStageActive(false);
+          setFaceMatchedText('Face detected');
+          stopCaptureLoop();
+          stopCamera();
+          sendInFlightRef.current = false;
+        } else {
+          setFreezeFrame(false);
+        }
+      }
+
+      if (payload.state === 'LOCKED' && !lockHandledRef.current) {
+        lockHandledRef.current = true;
         setLockedBbox(payload.bbox || null);
         setLockedFrameMeta(payload.frame || null);
-        
-        // Capture the current video frame as frozen image for the animation
+        setCardCrop(payload.crop || null);
+        setCardFaceCrop(payload.face_crop || null);
+        setCardFaceBbox(payload.face_bbox || null);
+
         const video = videoRef.current;
         const canvas = captureCanvasRef.current;
         if (video && canvas && video.readyState >= 2) {
@@ -320,14 +433,12 @@ export default function VerificationModal({ isOpen, onClose, onSuccess: _onSucce
             }
           }
         }
-        
-        // Start the zoom animation
+
         setIsZoomAnimating(true);
-        
-        // Stop the capture loop but keep camera running for a moment
         stopCaptureLoop();
-        
-        // After the zoom animation completes, show the final image and stop camera
+        stopCamera();
+        sendInFlightRef.current = false;
+
         const cropImage = payload.crop;
         setTimeout(() => {
           setIsZoomAnimating(false);
@@ -335,11 +446,23 @@ export default function VerificationModal({ isOpen, onClose, onSuccess: _onSucce
           if (cropImage) {
             setImagePreview(cropImage);
           }
-          // Now stop the camera after animation is done
-          stopCamera();
         }, ZOOM_ANIMATION_DURATION);
-        
+
         setUploadPreview(null);
+
+        setTimeout(() => {
+          setShowFinalImage(false);
+          setImagePreview(null);
+          setFrozenFrame(null);
+          setFaceStageActive(true);
+          setFreezeFrame(false);
+          sendInFlightRef.current = false;
+          lockHandledRef.current = false;
+          startCamera('face');
+          startCaptureLoop();
+          setStatus('FACE_VALIDATION');
+          setFaceMatchedText('');
+        }, ZOOM_ANIMATION_DURATION + FACE_HIGHLIGHT_DURATION);
       }
     };
 
@@ -348,11 +471,11 @@ export default function VerificationModal({ isOpen, onClose, onSuccess: _onSucce
       wsRef.current = null;
       sendInFlightRef.current = false;
     };
-  }, [isOpen, stopCamera, stopCaptureLoop]);
+  }, [isOpen, startCamera, startCaptureLoop, stopCaptureLoop, stopCamera]);
 
   useEffect(() => {
     if (!isOpen) return undefined;
-    startCamera();
+    startCamera('card');
 
     return () => {
       stopCaptureLoop();
@@ -370,25 +493,40 @@ export default function VerificationModal({ isOpen, onClose, onSuccess: _onSucce
 
   useEffect(() => {
     if (!isOpen) return;
-    if (imagePreview) {
+    if (imagePreview || freezeFrame) {
       stopCaptureLoop();
       return;
     }
     if (videoReady || uploadFrameRef.current) {
       startCaptureLoop();
     }
-  }, [imagePreview, isOpen, startCaptureLoop, stopCaptureLoop, videoReady]);
+  }, [
+    freezeFrame,
+    imagePreview,
+    isOpen,
+    startCaptureLoop,
+    stopCaptureLoop,
+    videoReady,
+  ]);
 
   const handleFileSelect = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!file) return;
     if (!file.type.startsWith('image/')) {
-      toaster.create({ title: 'Invalid file', description: 'Please choose an image', type: 'error' });
+      toaster.create({
+        title: 'Invalid file',
+        description: 'Please choose an image',
+        type: 'error',
+      });
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      toaster.create({ title: 'File too large', description: 'Max size 5MB', type: 'error' });
+      toaster.create({
+        title: 'File too large',
+        description: 'Max size 5MB',
+        type: 'error',
+      });
       return;
     }
 
@@ -406,36 +544,64 @@ export default function VerificationModal({ isOpen, onClose, onSuccess: _onSucce
     setUploadPreview(null);
     uploadFrameRef.current = null;
     resetDetectionState();
-    startCamera();
-  }, [resetDetectionState, startCamera]);
+    stopCaptureLoop();
+    startCamera('card');
+  }, [resetDetectionState, startCamera, stopCaptureLoop]);
+
+  const handleFacePreviewLoad = useCallback(
+    (event: React.SyntheticEvent<HTMLImageElement>) => {
+      const img = event.currentTarget;
+      if (!img.naturalWidth || !img.naturalHeight) return;
+      setFacePreviewRotation(img.naturalWidth > img.naturalHeight ? 90 : 0);
+    },
+    []
+  );
 
   const handleSubmit = async () => {
-    if (!imagePreview || !cardDetected) {
-      toaster.create({ title: 'Verification', description: 'Capture a valid ID first', type: 'info' });
+    if (!faceMatched) {
+      toaster.create({
+        title: 'Verification',
+        description: 'Please complete face validation first',
+        type: 'info',
+      });
       return;
     }
+
     setSubmitting(true);
     try {
       if (typeof _onSuccess === 'function') {
         await _onSuccess();
       }
-      toaster.create({ title: 'Submitted', description: 'Verification sent successfully.', type: 'success' });
+      toaster.create({
+        title: 'Submitted',
+        description: 'Verification sent successfully.',
+        type: 'success',
+      });
     } catch (error) {
       console.error(error);
-      toaster.create({ title: 'Submit failed', description: 'Please try again.', type: 'error' });
+      toaster.create({
+        title: 'Submit failed',
+        description: 'Please try again.',
+        type: 'error',
+      });
     } finally {
       setSubmitting(false);
     }
   };
 
   const previewImage = imagePreview || uploadPreview;
+  const showFaceLayout = faceStageActive || freezeFrame;
+  const facePreviewImage = cardFaceCrop || cardCrop;
 
   const overlayStyle = useMemo((): OverlayStyle | null => {
     if (!bbox || !frameMeta || !containerSize.width || !containerSize.height) {
       return null;
     }
     const [x1, y1, x2, y2] = bbox;
-    const scale = Math.max(containerSize.width / frameMeta.width, containerSize.height / frameMeta.height);
+    const scale = Math.max(
+      containerSize.width / frameMeta.width,
+      containerSize.height / frameMeta.height
+    );
     const displayWidth = frameMeta.width * scale;
     const displayHeight = frameMeta.height * scale;
     const offsetX = (containerSize.width - displayWidth) / 2;
@@ -451,11 +617,19 @@ export default function VerificationModal({ isOpen, onClose, onSuccess: _onSucce
 
   // Compute the overlay style for the locked/animating bounding box
   const lockedOverlayStyle = useMemo((): OverlayStyle | null => {
-    if (!lockedBbox || !lockedFrameMeta || !containerSize.width || !containerSize.height) {
+    if (
+      !lockedBbox ||
+      !lockedFrameMeta ||
+      !containerSize.width ||
+      !containerSize.height
+    ) {
       return null;
     }
     const [x1, y1, x2, y2] = lockedBbox;
-    const scale = Math.max(containerSize.width / lockedFrameMeta.width, containerSize.height / lockedFrameMeta.height);
+    const scale = Math.max(
+      containerSize.width / lockedFrameMeta.width,
+      containerSize.height / lockedFrameMeta.height
+    );
     const displayWidth = lockedFrameMeta.width * scale;
     const displayHeight = lockedFrameMeta.height * scale;
     const offsetX = (containerSize.width - displayWidth) / 2;
@@ -487,8 +661,12 @@ export default function VerificationModal({ isOpen, onClose, onSuccess: _onSucce
         bg="white"
         rounded="2xl"
         p={{ base: 6, md: 8 }}
-        width={{ base: '100%', sm: '450px', md: '520px' }}
-        maxW="520px"
+        width={{
+          base: '100%',
+          sm: showFaceLayout ? '520px' : '450px',
+          md: showFaceLayout ? '720px' : '520px',
+        }}
+        maxW={showFaceLayout ? '720px' : '520px'}
         onClick={(e) => e.stopPropagation()}
         boxShadow="0 24px 45px rgba(0,0,0,0.25)"
       >
@@ -497,158 +675,350 @@ export default function VerificationModal({ isOpen, onClose, onSuccess: _onSucce
             Verify Your Identity
           </Text>
           <Text fontSize="sm" color="gray.600">
-            Capture a clear photo of your ID. We&apos;ll validate it on our secure server before proceeding.
+            Capture a clear photo of your ID. We&apos;ll validate it on our
+            secure server before proceeding.
           </Text>
 
           <Box
-            ref={containerRef}
-            position="relative"
-            rounded="xl"
-            overflow="hidden"
-            bg="gray.900"
-            width="100%"
-            style={{ aspectRatio: TARGET_RATIO }}
+            display="grid"
+            gridTemplateColumns={{
+              base: '1fr',
+              md: showFaceLayout ? '1.2fr 0.8fr' : '1fr',
+            }}
+            gap={{ base: 4, md: 5 }}
+            alignItems="start"
           >
-            {/* Base layer: frozen frame during animation, video, or upload preview */}
-            {frozenFrame && isZoomAnimating ? (
-              <img src={frozenFrame} alt="Frozen frame" className="h-full w-full object-cover" />
-            ) : uploadPreview && !showFinalImage ? (
-              <img src={uploadPreview} alt="Upload preview" className="h-full w-full object-cover" />
-            ) : (
-              <video ref={videoRef} autoPlay playsInline muted className="h-full w-full object-cover" />
-            )}
+            <Box
+              ref={containerRef}
+              position="relative"
+              rounded="xl"
+              overflow="hidden"
+              bg="gray.900"
+              width="100%"
+              style={{
+                aspectRatio:
+                  faceStageActive || freezeFrame ? FACE_RATIO : TARGET_RATIO,
+              }}
+            >
+              {/* Base layer: frozen frame during animation, video, or upload preview */}
+              {frozenFrame && isZoomAnimating ? (
+                <img
+                  src={frozenFrame}
+                  alt="Frozen frame"
+                  className="h-full w-full object-cover"
+                />
+              ) : showFinalImage && cardCrop ? (
+                <img
+                  src={cardCrop}
+                  alt="Card preview"
+                  className="h-full w-full object-cover"
+                />
+              ) : freezeFrame && faceFrame ? (
+                <img
+                  src={faceFrame}
+                  alt="Face frame"
+                  className="h-full w-full object-cover"
+                />
+              ) : faceStageActive ? (
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="h-full w-full object-cover"
+                />
+              ) : uploadPreview && !showFinalImage ? (
+                <img
+                  src={uploadPreview}
+                  alt="Upload preview"
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="h-full w-full object-cover"
+                />
+              )}
 
-            {overlayStyle && !imagePreview && !isZoomAnimating && (
-              <Box
-                position="absolute"
-                left={`${overlayStyle.left}px`}
-                top={`${overlayStyle.top}px`}
-                width={`${overlayStyle.width}px`}
-                height={`${overlayStyle.height}px`}
-                border="2px solid"
-                borderColor={status === 'LOCKING' ? 'yellow.300' : 'green.300'}
-                borderRadius="6px"
-                pointerEvents="none"
-              />
-            )}
+              {overlayStyle &&
+                status !== 'FACE_VALIDATION' &&
+                !imagePreview &&
+                !isZoomAnimating && (
+                  <Box
+                    position="absolute"
+                    left={`${overlayStyle.left}px`}
+                    top={`${overlayStyle.top}px`}
+                    width={`${overlayStyle.width}px`}
+                    height={`${overlayStyle.height}px`}
+                    border="2px solid"
+                    borderColor={
+                      status === 'LOCKING' ? 'yellow.300' : 'green.300'
+                    }
+                    borderRadius="6px"
+                    pointerEvents="none"
+                  />
+                )}
 
-            {/* Zoom animation overlay when card is locked */}
-            {isZoomAnimating && lockedOverlayStyle && (
-              <Box
-                position="absolute"
-                left={`${lockedOverlayStyle.left}px`}
-                top={`${lockedOverlayStyle.top}px`}
-                width={`${lockedOverlayStyle.width}px`}
-                height={`${lockedOverlayStyle.height}px`}
-                border="2px solid"
-                borderColor="green.400"
-                borderRadius="6px"
-                pointerEvents="none"
-                transformOrigin="center center"
-                animation={`${zoomPulse} ${ZOOM_ANIMATION_DURATION}ms ease-out forwards`}
-              />
-            )}
+              {/* Zoom animation overlay when card is locked */}
+              {isZoomAnimating && lockedOverlayStyle && (
+                <Box
+                  position="absolute"
+                  left={`${lockedOverlayStyle.left}px`}
+                  top={`${lockedOverlayStyle.top}px`}
+                  width={`${lockedOverlayStyle.width}px`}
+                  height={`${lockedOverlayStyle.height}px`}
+                  border="2px solid"
+                  borderColor="green.400"
+                  borderRadius="6px"
+                  pointerEvents="none"
+                  transformOrigin="center center"
+                  animation={`${zoomPulse} ${ZOOM_ANIMATION_DURATION}ms ease-out forwards`}
+                />
+              )}
 
-            {previewImage && showFinalImage && (
-              <Box
-                position="absolute"
-                inset="0"
-                animation={`${fadeInScale} 400ms ease-out forwards`}
-              >
-                <img src={previewImage} alt="ID preview" className="h-full w-full object-cover" />
-              </Box>
-            )}
+              {previewImage && showFinalImage && !faceStageActive && (
+                <Box
+                  position="absolute"
+                  inset="0"
+                  animation={`${fadeInScale} 400ms ease-out forwards`}
+                >
+                  <img
+                    src={previewImage}
+                    alt="ID preview"
+                    className="h-full w-full object-cover"
+                  />
+                </Box>
+              )}
 
-            {previewImage && showFinalImage && (
-              <Button
-                size="sm"
-                rounded="full"
-                position="absolute"
-                top="3"
-                right="3"
-                px={4}
-                bg="#ffffff"
-                color="#21421B"
-                fontWeight="semibold"
-                _hover={{ bg: '#F6FBF2' }}
-                onClick={handleRetake}
-              >
-                Retake
-              </Button>
-            )}
+              {showFinalImage && cardFaceCrop && cardFaceBbox && (
+                <Box
+                  position="absolute"
+                  left={`${cardFaceBbox[0] * 100}%`}
+                  top={`${cardFaceBbox[1] * 100}%`}
+                  width={`${Math.max(cardFaceBbox[2] - cardFaceBbox[0], 0) * 100}%`}
+                  height={`${Math.max(cardFaceBbox[3] - cardFaceBbox[1], 0) * 100}%`}
+                  pointerEvents="none"
+                  transformOrigin="center center"
+                  animation={`${facePulse} ${FACE_HIGHLIGHT_DURATION}ms ease-out forwards`}
+                >
+                  <img
+                    src={cardFaceCrop}
+                    alt="Face highlight"
+                    className="h-full w-full object-cover"
+                  />
+                </Box>
+              )}
 
-            {!imagePreview && !isZoomAnimating && (
-              <Box
-                position="absolute"
-                bottom="3"
-                left="50%"
-                transform="translateX(-50%)"
-                px={4}
-                py={1.5}
-                bg="rgba(0,0,0,0.6)"
-                color="white"
-                rounded="full"
-                fontSize="xs"
-                letterSpacing="0.08em"
-                textTransform="uppercase"
-                whiteSpace="nowrap"
-              >
-                {statusText}
-              </Box>
-            )}
+              {previewImage &&
+                showFinalImage &&
+                !faceStageActive &&
+                !faceMatched && (
+                  <Button
+                    size="sm"
+                    rounded="full"
+                    position="absolute"
+                    top="3"
+                    right="3"
+                    px={4}
+                    bg="#ffffff"
+                    color="#21421B"
+                    fontWeight="semibold"
+                    _hover={{ bg: '#F6FBF2' }}
+                    onClick={handleRetake}
+                  >
+                    Retake
+                  </Button>
+                )}
 
-            {cameraError && !previewImage && (
-              <Text position="absolute" bottom="3" left="50%" transform="translateX(-50%)" color="white" fontSize="xs">
-                {cameraError}
-              </Text>
+              {!imagePreview && (
+                <Box
+                  position="absolute"
+                  bottom="3"
+                  left="50%"
+                  transform="translateX(-50%)"
+                  px={4}
+                  py={1.5}
+                  bg="rgba(0,0,0,0.6)"
+                  color="white"
+                  rounded="full"
+                  fontSize="xs"
+                  letterSpacing="0.08em"
+                  textTransform="uppercase"
+                  whiteSpace="nowrap"
+                >
+                  {freezeFrame ? 'Face detected' : statusText}
+                </Box>
+              )}
+
+              {cameraError && !previewImage && (
+                <Text
+                  position="absolute"
+                  bottom="3"
+                  left="50%"
+                  transform="translateX(-50%)"
+                  color="white"
+                  fontSize="xs"
+                >
+                  {cameraError}
+                </Text>
+              )}
+            </Box>
+
+            {showFaceLayout && (
+              <VStack spacing={3} align="stretch">
+                <Box
+                  rounded="xl"
+                  overflow="hidden"
+                  border="1px solid"
+                  borderColor="gray.200"
+                  bg="gray.50"
+                >
+                  <Box
+                    px={4}
+                    py={3}
+                    borderBottom="1px solid"
+                    borderColor="gray.200"
+                    bg="white"
+                    fontSize="xs"
+                    fontWeight="semibold"
+                    color="gray.600"
+                    textTransform="uppercase"
+                    letterSpacing="0.08em"
+                  >
+                    ID Face Preview
+                  </Box>
+
+                  {facePreviewImage ? (
+                    <Box
+                      display="flex"
+                      alignItems="center"
+                      justifyContent="center"
+                      bg="gray.900"
+                    >
+                      <img
+                        src={facePreviewImage}
+                        alt="ID face preview"
+                        onLoad={handleFacePreviewLoad}
+                        className="h-full w-full"
+                        style={{
+                          aspectRatio: '1 / 1.2',
+                          objectFit: 'contain',
+                          transform: facePreviewRotation
+                            ? 'rotate(90deg)'
+                            : 'none',
+                        }}
+                      />
+                    </Box>
+                  ) : (
+                    <Box
+                      px={4}
+                      py={6}
+                      textAlign="center"
+                      fontSize="sm"
+                      color="gray.500"
+                    >
+                      Face preview
+                    </Box>
+                  )}
+                </Box>
+
+                <Button
+                  rounded="full"
+                  variant="outline"
+                  borderColor="#21421B"
+                  borderWidth="1px"
+                  color="#21421B"
+                  onClick={() =>
+                    document.getElementById('verification-file-input')?.click()
+                  }
+                >
+                  Upload ID
+                </Button>
+
+                {faceMatched && (
+                  <Button
+                    rounded="full"
+                    bg="#21421B"
+                    color="white"
+                    _hover={{ bg: '#1A3517' }}
+                    _active={{ bg: '#142812' }}
+                    isDisabled={!faceMatched}
+                    isLoading={submitting}
+                    onClick={handleSubmit}
+                  >
+                    Submit for verification
+                  </Button>
+                )}
+
+                <Button
+                  rounded="full"
+                  variant="ghost"
+                  color="gray.600"
+                  onClick={onClose}
+                >
+                  Cancel
+                </Button>
+              </VStack>
             )}
           </Box>
 
           <canvas ref={captureCanvasRef} style={{ display: 'none' }} />
 
-          <input type="file" accept="image/*" id="verification-file-input" style={{ display: 'none' }} onChange={handleFileSelect} />
+          <input
+            type="file"
+            accept="image/*"
+            id="verification-file-input"
+            style={{ display: 'none' }}
+            onChange={handleFileSelect}
+          />
 
-          <VStack spacing={3} align="stretch">
-            <HStack spacing={3} flexWrap="wrap">
+          {!showFaceLayout && (
+            <VStack spacing={3} align="stretch">
+              <HStack spacing={3} flexWrap="wrap">
+                <Button
+                  flex={1}
+                  minW="130px"
+                  rounded="full"
+                  variant="outline"
+                  borderColor="#21421B"
+                  borderWidth="1px"
+                  color="#21421B"
+                  onClick={() =>
+                    document.getElementById('verification-file-input')?.click()
+                  }
+                >
+                  Upload ID
+                </Button>
+              </HStack>
+
+              {faceMatched && (
+                <Button
+                  rounded="full"
+                  bg="#21421B"
+                  color="white"
+                  _hover={{ bg: '#1A3517' }}
+                  _active={{ bg: '#142812' }}
+                  isDisabled={!faceMatched}
+                  isLoading={submitting}
+                  onClick={handleSubmit}
+                >
+                  Submit for verification
+                </Button>
+              )}
+
               <Button
-                flex={1}
-                minW="130px"
                 rounded="full"
-                variant="outline"
-                borderColor="#21421B"
-                borderWidth="1px"
-                color="#21421B"
-                onClick={() => document.getElementById('verification-file-input')?.click()}
+                variant="ghost"
+                color="gray.600"
+                onClick={onClose}
               >
-                Upload ID
+                Cancel
               </Button>
-            </HStack>
-
-            {cardDetected && (
-              <Text fontSize="sm" color="green.600" textAlign="center">
-                Card detected.
-              </Text>
-            )}
-
-            {imagePreview && (
-              <Button
-                rounded="full"
-                bg="#21421B"
-                color="white"
-                _hover={{ bg: '#1A3517' }}
-                _active={{ bg: '#142812' }}
-                isDisabled={!cardDetected}
-                isLoading={submitting}
-                onClick={handleSubmit}
-              >
-                Submit for verification
-              </Button>
-            )}
-
-            <Button rounded="full" variant="ghost" color="gray.600" onClick={onClose}>
-              Cancel
-            </Button>
-          </VStack>
+            </VStack>
+          )}
         </VStack>
       </Box>
     </Box>

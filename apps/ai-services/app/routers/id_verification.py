@@ -43,12 +43,19 @@ async def id_verification_ws(websocket: WebSocket):
             if not frame_bytes:
                 continue
 
-            if state.state == "LOCKED" and state.locked_payload:
+            frame = cv2.imdecode(np.frombuffer(frame_bytes, np.uint8), cv2.IMREAD_COLOR)
+            if frame is None:
+                continue
+
+            if state.state == "LOCKED" and state.locked_payload and state.locked_payload.matched:
                 await websocket.send_text(json.dumps(_payload_to_dict(state.locked_payload)))
                 continue
 
-            frame = cv2.imdecode(np.frombuffer(frame_bytes, np.uint8), cv2.IMREAD_COLOR)
-            if frame is None:
+            if state.state == "LOCKED" and state.locked_payload:
+                payload = state.update_face(frame)
+                if payload.matched:
+                    state.locked_payload = payload
+                await websocket.send_text(json.dumps(_payload_to_dict(payload)))
                 continue
 
             detection, resized_frame = process_frame(frame)
@@ -71,7 +78,15 @@ def _payload_to_dict(payload):
             "height": payload.frame_height,
         },
         "too_small": payload.too_small,
+        "face_detected": payload.face_detected,
+        "matched": payload.matched,
     }
     if payload.crop:
         response["crop"] = payload.crop
+    if payload.face_crop:
+        response["face_crop"] = payload.face_crop
+    if payload.face_bbox:
+        response["face_bbox"] = payload.face_bbox
+    if payload.face_similarity is not None:
+        response["face_similarity"] = payload.face_similarity
     return response

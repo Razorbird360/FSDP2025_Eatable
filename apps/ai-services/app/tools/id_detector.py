@@ -34,26 +34,28 @@ def _resolve_model_path() -> Path:
         return Path(env_path).expanduser().resolve()
 
     base_dir = Path(__file__).resolve().parents[2]  # apps/ai-services
-    local_path = base_dir / "yolov8_small.pt"
-    if local_path.exists():
-        return local_path
+    candidates = [
+        base_dir / "models" / "card.pt",
+        base_dir / "card.pt",
+        base_dir / "yolov8_small.pt",
+        base_dir.parent.parent / "models" / "card.pt",
+        base_dir.parent.parent / "card.pt",
+    ]
+    for path in candidates:
+        if path.exists():
+            return path
 
-    repo_root = base_dir.parent.parent
-    root_path = repo_root / "yolov8_small.pt"
-    if root_path.exists():
-        return root_path
-
-    return local_path
+    return candidates[0]
 
 
 def _resolve_device() -> str:
     env_device = os.getenv("AI_DEVICE")
     if env_device:
         return env_device
-    if torch.backends.mps.is_available():
-        return "mps"
     if torch.cuda.is_available():
         return "cuda"
+    if torch.backends.mps.is_available():
+        return "mps"
     return "cpu"
 
 
