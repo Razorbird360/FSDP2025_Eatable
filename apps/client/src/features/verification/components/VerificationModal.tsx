@@ -701,8 +701,8 @@ export default function VerificationModal({
         await _onSuccess();
       }
       toaster.create({
-        title: 'Submitted',
-        description: 'Verification sent successfully.',
+        title: 'Verified',
+        description: 'Verification successful.',
         type: 'success',
       });
     } catch (error) {
