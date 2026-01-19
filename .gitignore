@@ -55,8 +55,6 @@ env/
 ENV/
 .venv
 
-# Debug output
-debug_output/
 
 # AI Models (large files)
 apps/ai-service/models/*.h5

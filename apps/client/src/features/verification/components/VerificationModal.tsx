@@ -10,6 +10,7 @@ import { Box, Button, HStack, Text, VStack } from '@chakra-ui/react';
 import { keyframes } from '@emotion/react';
 import { UserRound } from 'lucide-react';
 import { toaster } from '../../../components/ui/toaster';
+import api from '@lib/api';
 
 const TARGET_RATIO = 1.75;
 const FACE_RATIO = 2 / 3;
@@ -695,6 +696,7 @@ export default function VerificationModal({
 
     setSubmitting(true);
     try {
+      await api.post('/verification/submit');
       if (typeof _onSuccess === 'function') {
         await _onSuccess();
       }
@@ -950,7 +952,7 @@ export default function VerificationModal({
                   <UserRound
                     strokeWidth={0.35}
                     color="white"
-                    style={{ width: '100%', height: '100%', transform: 'scale(1.7)' }}
+                    style={{ width: '100%', height: '100%', transform: 'scale(1.4)' }}
                   />
                 </Box>
               )}

@@ -1,21 +1,13 @@
 from __future__ import annotations
 
 import base64
-import os
 import time
 from collections import deque
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Optional, Tuple
 
 import cv2
 import numpy as np
-
-# Debug: save images to disk for inspection
-DEBUG_SAVE_IMAGES = os.getenv("DEBUG_SAVE_IMAGES", "1") == "1"
-# Default to apps/ai-services/debug_output/ within the repo
-_DEFAULT_DEBUG_DIR = Path(__file__).resolve().parents[1] / "debug_output"
-DEBUG_OUTPUT_DIR = Path(os.getenv("DEBUG_OUTPUT_DIR", str(_DEFAULT_DEBUG_DIR)))
 
 from app.tools.face_validation import (
     FACE_MATCH_THRESHOLD,
@@ -31,20 +23,6 @@ from app.tools.face_validation import (
     resize_frame,
 )
 from app.tools.id_detector import FrameDetection, MIN_AREA_RATIO
-
-
-def _debug_save_image(name: str, image: Optional[np.ndarray]) -> None:
-    """Save image to debug directory for inspection."""
-    if not DEBUG_SAVE_IMAGES or image is None or image.size == 0:
-        return
-    try:
-        DEBUG_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-        timestamp = int(time.time() * 1000)
-        path = DEBUG_OUTPUT_DIR / f"{name}_{timestamp}.jpg"
-        cv2.imwrite(str(path), image)
-        print(f"[DEBUG] Saved {name} to {path}")
-    except Exception as e:
-        print(f"[DEBUG] Failed to save {name}: {e}")
 
 
 @dataclass
@@ -287,9 +265,6 @@ class VerificationState:
                     crop = self._encode_image(card_crop)
                     self.card_crop = card_crop
 
-                    # Debug: save card crop to disk
-                    _debug_save_image("card_crop", card_crop)
-
                     face_crop, face_bbox, ref_embedding = extract_card_face(
                         card_crop, extract_embedding=False
                     )
@@ -297,8 +272,6 @@ class VerificationState:
                     self.card_face_bbox = face_bbox
                     self.ref_embedding = ref_embedding
 
-                    # Debug: save face crop to disk
-                    _debug_save_image("face_crop", face_crop)
                     if ref_embedding is not None:
                         print(f"[DEBUG] Card face embedding extracted successfully")
                     elif face_crop is not None:
