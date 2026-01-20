@@ -43,6 +43,54 @@ function mapCartRow(row) {
   };
 }
 
+function resolveStallInfo(menuItem, fallback = {}) {
+  return {
+    id:
+      menuItem?.stallId ||
+      menuItem?.stall_id ||
+      menuItem?.stall?.id ||
+      fallback.stallId ||
+      null,
+    name:
+      menuItem?.stallName ||
+      menuItem?.stall_name ||
+      menuItem?.stall?.name ||
+      fallback.stallName ||
+      null,
+  };
+}
+
+function resolveExistingStall(item) {
+  if (!item) {
+    return { id: null, name: null };
+  }
+
+  return {
+    id: item.stallId || item.stall_id || null,
+    name: item.stallName || item.stall_name || null,
+  };
+}
+
+function isSameStall(incoming, existing) {
+  if (!existing) return true;
+
+  const incomingId = incoming?.id;
+  const existingId = existing?.id;
+  if (incomingId && existingId) {
+    return incomingId === existingId;
+  }
+
+  const incomingName = incoming?.name;
+  const existingName = existing?.name;
+  return Boolean(
+    !incomingId &&
+      !existingId &&
+      incomingName &&
+      existingName &&
+      incomingName === existingName
+  );
+}
+
 export function CartProvider({ children }) {
   const [items, setItems] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -78,41 +126,14 @@ export function CartProvider({ children }) {
       try {
         console.log(menuItem);
         // --- figure out stall of incoming item ---
-        const incomingStallId =
-          menuItem.stallId ||
-          menuItem.stall_id ||
-          menuItem.stall?.id ||
-          null;
-
-        const incomingStallName =
-          menuItem.stallName ||
-          menuItem.stall_name ||
-          menuItem.stall?.name ||
-          null;
+        const incomingStall = resolveStallInfo(menuItem);
 
         const existingFirst = items[0];
 
         console.log(existingFirst);
         if (existingFirst) {
-          const existingStallId =
-            existingFirst.stallId ||
-            existingFirst.stall_id ||
-            null;
-
-          const existingStallName =
-            existingFirst.stallName ||
-            existingFirst.stall_name ||
-            null;
-
-          const sameStall =
-            (incomingStallId &&
-              existingStallId &&
-              incomingStallId === existingStallId) ||
-            (!incomingStallId &&
-              !existingStallId &&
-              incomingStallName &&
-              existingStallName &&
-              incomingStallName === existingStallName);
+          const existingStall = resolveExistingStall(existingFirst);
+          const sameStall = isSameStall(incomingStall, existingStall);
 
           // 🔹 If different stall, ask for confirmation & clear cart if proceed
           if (!sameStall) {
@@ -170,6 +191,67 @@ export function CartProvider({ children }) {
           "Unknown error";
 
         console.error("Failed to add to cart:", msg, serverData, err);
+        return { success: false, error: err };
+      }
+    },
+    [items]
+  );
+
+  const addItemsToCart = useCallback(
+    async (entries = []) => {
+      const list = Array.isArray(entries) ? entries.filter(Boolean) : [];
+      if (list.length === 0) {
+        return { success: false, error: new Error("No items to add") };
+      }
+
+      if (items.length > 0) {
+        const ok = window.confirm("Reordering will clear your cart");
+
+        if (!ok) {
+          return { success: false, cancelled: true };
+        }
+
+        try {
+          await api.delete("/cart/clear");
+          setItems([]);
+        } catch (err) {
+          console.error("Failed to clear cart before reordering:", err);
+          return { success: false, error: err };
+        }
+      }
+
+      try {
+        for (const entry of list) {
+          const menuItem = entry.menuItem || entry.item || entry;
+          const menuItemId = menuItem?.id;
+          if (!menuItemId) {
+            console.warn("Skipping cart item without menu item id:", entry);
+            continue;
+          }
+
+          const rawQty = Number(entry.qty ?? entry.quantity ?? 1);
+          const qty = Number.isFinite(rawQty) && rawQty > 0 ? rawQty : 1;
+          const notes = entry.notes ?? entry.request ?? "";
+
+          const payload = {
+            itemId: menuItemId,
+            qty,
+            request: notes,
+          };
+
+          await api.post("/cart/add", payload);
+        }
+
+        const getRes = await api.get("/cart/get");
+        const rows = Array.isArray(getRes.data)
+          ? getRes.data
+          : getRes.data.items ?? [];
+
+        setItems(rows.map(mapCartRow));
+
+        return { success: true };
+      } catch (err) {
+        console.error("Failed to add items to cart:", err);
         return { success: false, error: err };
       }
     },
@@ -256,6 +338,7 @@ export function CartProvider({ children }) {
   const value = {
     items, // each item has cartId + menu item id
     addToCart,
+    addItemsToCart,
     updateQty,   // (cartId, newQty)
     removeItem,  // (cartId)
     clearCart,
