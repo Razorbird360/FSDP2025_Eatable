@@ -171,10 +171,26 @@ model Order {
   orderCode          String?             @map("order_code") @db.Char(4)
   totalCents         Int                 @default(0) @map("total_cents")
   netsTxnId          String?             @map("nets_txn_id")
+
+  // countdown clock time (already)
   estimatedReadyTime DateTime?           @map("estimated_ready_time") @db.Timestamptz(6)
+
+  //  add these
+  acceptedAt         DateTime?           @map("accepted_at") @db.Timestamptz(6)
+  estimatedMinutes   Int?                @map("estimated_minutes")
+  readyAt            DateTime?           @map("ready_at") @db.Timestamptz(6)
+  collectedAt        DateTime?           @map("collected_at") @db.Timestamptz(6)
+
+  //  QR security (recommended)
+  pickupTokenHash    String?             @map("pickup_token_hash")
+  pickupTokenUsedAt  DateTime?           @map("pickup_token_used_at") @db.Timestamptz(6)
+  pickupToken String?                    @map("pickup_token")
+
+
   completedAt        DateTime?           @map("completed_at") @db.Timestamptz(6)
   createdAt          DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt          DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+
   discounts_charges  discounts_charges[]
   orderItems         OrderItem[]
   stall              Stall               @relation(fields: [stallId], references: [id], onDelete: Cascade)
@@ -184,12 +200,15 @@ model Order {
   @@map("orders")
 }
 
+
 model OrderItem {
   id         String   @id @default(uuid()) @db.Uuid
   orderId    String   @map("order_id") @db.Uuid
   menuItemId String   @map("menu_item_id") @db.Uuid
   quantity   Int      @default(1)
   unitCents  Int      @map("unit_cents")
+  isPrepared Boolean  @default(false) @map("is_prepared")
+
   createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
   request    String?  @default("")
@@ -198,6 +217,7 @@ model OrderItem {
 
   @@map("order_items")
 }
+
 
 model UserFavorite {
   id         String    @id @default(uuid()) @db.Uuid

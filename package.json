@@ -27,5 +27,9 @@
   "engines": {
     "node": ">=18.0.0",
     "pnpm": ">=8.0.0"
+  },
+  "dependencies": {
+    "html5-qrcode": "^2.3.8",
+    "qrcode.react": "^4.2.0"
   }
 }
