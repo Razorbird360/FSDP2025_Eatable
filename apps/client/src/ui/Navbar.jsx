@@ -12,13 +12,17 @@ import {
   Telescope,
   Utensils,
   X,
+  Heart,
 } from 'lucide-react';
 import Tooltip from './Tooltip';
 import { useCart } from '../features/orders/components/CartContext';
 import { useAuth } from '../features/auth/useAuth';
 
 const logoFull = new URL('../assets/logo/logo_full.png', import.meta.url).href;
-const profilePlaceholder = new URL('../assets/HomePage/profile_placeholder.jpg', import.meta.url).href;
+const profilePlaceholder = new URL(
+  '../assets/HomePage/profile_placeholder.jpg',
+  import.meta.url
+).href;
 
 const navIcons = [
   { label: 'Home', Icon: House, href: '/home' },
@@ -43,12 +47,15 @@ function IconPill({ Icon, label, href, isActive }) {
     <Tooltip label={label}>
       <Link to={href} aria-label={label}>
         <span
-          className={`flex h-11 w-11 items-center justify-center rounded-xl border transition-colors ${isActive
-            ? 'border-[#21421B] bg-[#21421B]'
-            : 'border-[#E7EEE7] bg-white hover:bg-[#F8FDF3]'
-            }`}
+          className={`flex h-11 w-11 items-center justify-center rounded-xl border transition-colors ${
+            isActive
+              ? 'border-[#21421B] bg-[#21421B]'
+              : 'border-[#E7EEE7] bg-white hover:bg-[#F8FDF3]'
+          }`}
         >
-          <Icon className={`h-5 w-5 ${isActive ? 'text-white' : 'text-[#4A554B]'}`} />
+          <Icon
+            className={`h-5 w-5 ${isActive ? 'text-white' : 'text-[#4A554B]'}`}
+          />
         </span>
       </Link>
     </Tooltip>
@@ -67,7 +74,8 @@ function IconAction({ Icon, label, secondaryLabel, badge, onClick, to }) {
     </>
   );
 
-  const className = "relative flex h-11 w-11 items-center justify-center rounded-xl text-[#4A554B] transition-colors hover:bg-[#F8FDF3]";
+  const className =
+    'relative flex h-11 w-11 items-center justify-center rounded-xl text-[#4A554B] transition-colors hover:bg-[#F8FDF3]';
 
   if (to) {
     return (
@@ -122,14 +130,17 @@ export default function Navbar() {
     setIsMobileSearchOpen(false);
   };
 
-  const mobileMenuNavItems = status === 'authenticated' ? mobileNavItems : navIcons;
+  const mobileMenuNavItems =
+    status === 'authenticated' ? mobileNavItems : navIcons;
 
-  // close profile dropdown when clicking outside
   useEffect(() => {
     if (!isProfileMenuOpen) return;
 
     const handleClickOutside = (event) => {
-      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target)) {
+      if (
+        profileMenuRef.current &&
+        !profileMenuRef.current.contains(event.target)
+      ) {
         setIsProfileMenuOpen(false);
       }
     };
@@ -143,9 +154,16 @@ export default function Navbar() {
       {/* desktop */}
       <div className="hidden w-full md:flex">
         <div className="flex w-full items-center gap-6 px-[4vw] py-3">
-          <nav className="flex shrink-0 items-center gap-2.5" aria-label="Primary navigation">
+          <nav
+            className="flex shrink-0 items-center gap-2.5"
+            aria-label="Primary navigation"
+          >
             {navIcons.map((icon) => (
-              <IconPill key={icon.label} {...icon} isActive={isActive(icon.href)} />
+              <IconPill
+                key={icon.label}
+                {...icon}
+                isActive={isActive(icon.href)}
+              />
             ))}
           </nav>
 
@@ -187,12 +205,17 @@ export default function Navbar() {
             </Box>
           </div>
 
-          <div className="flex shrink-0 items-center gap-3">
+          <div className="flex shrink-0 items-center gap-4">
             {status === 'authenticated' && (
-              <>
-
-                <IconAction Icon={ShoppingCart} label="Cart" badge={count} onClick={openCart} />
-              </>
+              <div className="flex items-center gap-0">
+                <IconAction Icon={Heart} label="Favourites" to="/favourites" />
+                <IconAction
+                  Icon={ShoppingCart}
+                  label="Cart"
+                  badge={count}
+                  onClick={openCart}
+                />
+              </div>
             )}
 
             {status === 'authenticated' ? (
@@ -248,10 +271,19 @@ export default function Navbar() {
       {/* mobile top bar */}
       <div className="flex items-center justify-between pl-4 pr-6 py-4 md:hidden">
         <img src={logoFull} alt="Eatable" className="h-10 w-auto pl-2" />
-        <div className="flex items-center gap-3">
+        <div className="flex items-center">
           {status === 'authenticated' && (
-            <IconAction Icon={ShoppingCart} label="Cart" badge={count} onClick={openCart} />
+            <div className="flex items-center">
+              <div className="flex items-center gap-0">
+                <div className="-mr-2">
+                  <IconAction Icon={Heart} label="Favourites" to="/favourites" />
+                </div>
+                <IconAction Icon={ShoppingCart} label="Cart" badge={count} onClick={openCart} />
+              </div>
+              <div className="w-0" />
+            </div>
           )}
+
           <button
             type="button"
             aria-label="Open navigation menu"
@@ -268,8 +300,11 @@ export default function Navbar() {
       <div
         aria-hidden={!isMobileMenuOpen}
         inert={!isMobileMenuOpen ? '' : undefined}
-        className={`fixed inset-0 z-50 transition-opacity duration-300 md:hidden ${isMobileMenuOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
-          }`}
+        className={`fixed inset-0 z-50 transition-opacity duration-300 md:hidden ${
+          isMobileMenuOpen
+            ? 'pointer-events-auto opacity-100'
+            : 'pointer-events-none opacity-0'
+        }`}
       >
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
           <span
@@ -290,7 +325,9 @@ export default function Navbar() {
                   index === mobileMenuLayers.length - 1
                     ? '105%'
                     : `${92 - index * 6}%`,
-                transform: isMobileMenuOpen ? 'translateX(0)' : 'translateX(100%)',
+                transform: isMobileMenuOpen
+                  ? 'translateX(0)'
+                  : 'translateX(100%)',
                 transitionDelay: isMobileMenuOpen
                   ? `${mobileMenuLayerDelays[index] ?? 0}ms`
                   : '0ms',
@@ -299,10 +336,11 @@ export default function Navbar() {
           ))}
         </div>
         <div
-          className={`relative z-10 flex h-full flex-col bg-white px-6 py-6 transition-transform duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] ${isMobileMenuOpen
-            ? 'translate-x-0 shadow-[0_25px_80px_rgba(33,66,27,0.18)]'
-            : 'translate-x-full shadow-none'
-            }`}
+          className={`relative z-10 flex h-full flex-col bg-white px-6 py-6 transition-transform duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] ${
+            isMobileMenuOpen
+              ? 'translate-x-0 shadow-[0_25px_80px_rgba(33,66,27,0.18)]'
+              : 'translate-x-full shadow-none'
+          }`}
         >
           <div className="mb-4 flex items-center justify-between px-4">
             <button
@@ -310,8 +348,11 @@ export default function Navbar() {
               aria-label="Open search"
               aria-expanded={isMobileSearchOpen}
               onClick={() => setIsMobileSearchOpen(true)}
-              className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-[#F8FDF3] transition-all duration-200 ${isMobileSearchOpen ? 'pointer-events-none scale-95 opacity-0' : 'opacity-100'
-                }`}
+              className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-[#F8FDF3] transition-all duration-200 ${
+                isMobileSearchOpen
+                  ? 'pointer-events-none scale-95 opacity-0'
+                  : 'opacity-100'
+              }`}
             >
               <Search className="h-5 w-5 text-[#21421B]" />
             </button>
@@ -326,10 +367,11 @@ export default function Navbar() {
           </div>
 
           <div
-            className={`overflow-hidden transition-all duration-300 ${isMobileSearchOpen
-              ? 'max-h-32 translate-y-0 opacity-100'
-              : '-translate-y-2 max-h-0 pointer-events-none opacity-0'
-              }`}
+            className={`overflow-hidden transition-all duration-300 ${
+              isMobileSearchOpen
+                ? 'max-h-32 translate-y-0 opacity-100'
+                : '-translate-y-2 max-h-0 pointer-events-none opacity-0'
+            }`}
           >
             <Box className="relative w-full" position="relative">
               <Box
@@ -365,8 +407,11 @@ export default function Navbar() {
                 key={label}
                 to={href}
                 onClick={closeMobileMenu}
-                className={`flex items-center gap-4 rounded-2xl border px-4 py-3 text-[#1C201D] ${isActive(href) ? 'border-[#21421B] bg-[#F8FDF3]' : 'border-[#F1F1F1]'
-                  }`}
+                className={`flex items-center gap-4 rounded-2xl border px-4 py-3 text-[#1C201D] ${
+                  isActive(href)
+                    ? 'border-[#21421B] bg-[#F8FDF3]'
+                    : 'border-[#F1F1F1]'
+                }`}
               >
                 <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F8FDF3]">
                   {Icon ? (
@@ -389,7 +434,9 @@ export default function Navbar() {
                   <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#21421B] text-base font-semibold text-white">
                     {profileInitial}
                   </span>
-                  <p className="text-lg font-semibold text-[#1C201D]">{profileIdentifier}</p>
+                  <p className="text-lg font-semibold text-[#1C201D]">
+                    {profileIdentifier}
+                  </p>
                 </Link>
                 <button
                   type="button"
@@ -400,7 +447,15 @@ export default function Navbar() {
                   disabled={authLoading}
                   className="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-[#21421B] bg-[#21421B] px-4 py-3 text-white font-medium"
                 >
-                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg
+                    className="h-5 w-5"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
                     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
                     <polyline points="16 17 21 12 16 7" />
                     <line x1="21" y1="12" x2="9" y2="12" />
@@ -421,7 +476,9 @@ export default function Navbar() {
                 />
                 <div>
                   <p className="text-sm font-semibold">Log in or Sign up</p>
-                  <p className="text-xs text-[#6d7f68]">Access saved stalls & orders</p>
+                  <p className="text-xs text-[#6d7f68]">
+                    Access saved stalls & orders
+                  </p>
                 </div>
               </Link>
             )}

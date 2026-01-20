@@ -1,13 +1,18 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '@lib/api';
 import { formatPrice, formatDateTime } from '../utils/helpers';
 import OrderDetailsModal from '../features/orders/components/OrderDetailsModal';
+import { useCart } from '../features/orders/components/CartContext';
 
 const OrdersPage = () => {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [selectedOrder, setSelectedOrder] = useState(null);
+    const [reorderingId, setReorderingId] = useState(null);
+    const navigate = useNavigate();
+    const { addItemsToCart } = useCart();
 
     useEffect(() => {
         const fetchOrders = async () => {
@@ -25,6 +30,56 @@ const OrdersPage = () => {
 
         fetchOrders();
     }, []);
+
+    const handleReorder = async (order) => {
+        if (!order) return;
+
+        const orderItems = Array.isArray(order.orderItems) ? order.orderItems : [];
+        if (orderItems.length === 0) return;
+
+        const stallId = order.stall?.id || order.stallId || order.stall_id || null;
+        const stallName = order.stall?.name || order.stallName || order.stall_name || null;
+
+        const entries = orderItems
+            .map((item) => {
+                const menuItem = item.menuItem || item.menu_item || {};
+                const menuItemId =
+                    menuItem.id ||
+                    item.menuItemId ||
+                    item.menu_item_id ||
+                    item.menuItem_id ||
+                    item.menu_item?.id ||
+                    null;
+
+                if (!menuItemId) {
+                    return null;
+                }
+
+                return {
+                    menuItem: {
+                        ...menuItem,
+                        id: menuItemId,
+                        stallId,
+                        stallName,
+                    },
+                    qty: Number(item.quantity ?? item.qty ?? 1),
+                    notes: item.request ?? '',
+                };
+            })
+            .filter(Boolean);
+
+        if (entries.length === 0) return;
+
+        setReorderingId(order.id);
+        try {
+            const result = await addItemsToCart(entries);
+            if (result?.success && stallId) {
+                navigate(`/stalls/${stallId}`);
+            }
+        } finally {
+            setReorderingId(null);
+        }
+    };
 
     if (loading) {
         return (
@@ -61,12 +116,16 @@ const OrdersPage = () => {
                     </div>
                 ) : (
                     <div className="space-y-4">
-                        {orders.map((order) => (
-                            <div
-                                key={order.id}
-                                className="border border-gray-100 rounded-xl p-4 hover:shadow-md transition-shadow cursor-pointer bg-white"
-                                onClick={() => setSelectedOrder(order)}
-                            >
+                        {orders.map((order) => {
+                            const isReordering = reorderingId === order.id;
+                            const canReorder = (order.orderItems?.length ?? 0) > 0;
+
+                            return (
+                                <div
+                                    key={order.id}
+                                    className="border border-gray-100 rounded-xl p-4 hover:shadow-md transition-shadow cursor-pointer bg-white"
+                                    onClick={() => setSelectedOrder(order)}
+                                >
                                 <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4 pb-4 border-b border-gray-100">
                                     <div className="flex items-center gap-3">
                                         {order.stall?.image_url ? (
@@ -109,7 +168,17 @@ const OrdersPage = () => {
                                     ))}
                                 </div>
 
-                                <div className="mt-4 pt-3 border-t border-gray-100 flex justify-end">
+                                <div className="mt-4 pt-3 border-t border-gray-100 flex flex-wrap items-center justify-end gap-3">
+                                    <button
+                                        className="text-sm font-semibold rounded-lg border border-[#21421B] text-[#21421B] px-3 py-1.5 hover:bg-[#21421B] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleReorder(order);
+                                        }}
+                                        disabled={!canReorder || isReordering}
+                                    >
+                                        {isReordering ? 'Reordering...' : 'Reorder'}
+                                    </button>
                                     <button
                                         className="text-sm font-semibold text-[#1B3C18] hover:underline"
                                         onClick={(e) => {
@@ -121,7 +190,8 @@ const OrdersPage = () => {
                                     </button>
                                 </div>
                             </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
             </div>
