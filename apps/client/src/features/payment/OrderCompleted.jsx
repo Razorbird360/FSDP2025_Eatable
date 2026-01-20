@@ -1,40 +1,39 @@
-import { useNavigate, useParams } from "react-router-dom";
-import { useEffect, useState } from "react";
-import { ClockFading, MapPin } from 'lucide-react';
-import logo_full from "../../assets/logo/logo_full.png";
+import { useNavigate, useParams } from "react-router-dom"
+import { useEffect, useMemo, useState } from "react"
+import { ClockFading, MapPin } from "lucide-react"
+import logo_full from "../../assets/logo/logo_full.png"
+import qrImg from "../../assets/logo/QrPlaceholder.png"
+import api from "@lib/api"
 
 const fallbackFoodImg =
-  "https://app.yakun.com/media/catalog/product/cache/f77d76b011e98ab379caeb79cadeeecd/f/r/french-toast-with-kaya.jpg";
-
-import qrImg from "../../assets/logo/QrPlaceholder.png";
-import api from "@lib/api";
+  "https://app.yakun.com/media/catalog/product/cache/f77d76b011e98ab379caeb79cadeeecd/f/r/french-toast-with-kaya.jpg"
 
 function mapOrderItem(raw) {
-  const mi = raw.menuItem || {};
-
-  const qty = Number(raw.quantity ?? 1);
+  const mi = raw.menuItem || {}
+  const qty = Number(raw.quantity ?? 1)
 
   const menuPriceCents =
     typeof mi.priceCents === "number"
       ? mi.priceCents
       : typeof mi.price_cents === "number"
         ? mi.price_cents
-        : null;
+        : null
+
   const rawUnitCents =
     typeof raw.unitCents === "number"
       ? raw.unitCents
       : typeof raw.unit_cents === "number"
         ? raw.unit_cents
-        : null;
-  const unitPriceCents =
-    Number.isFinite(menuPriceCents)
-      ? menuPriceCents
-      : Number.isFinite(rawUnitCents) && qty > 0
-        ? Math.round(rawUnitCents / qty)
-        : 0;
-  const lineTotalCents = unitPriceCents * qty;
+        : null
 
-  const topUpload = Array.isArray(mi.mediaUploads) ? mi.mediaUploads[0] : null;
+  const unitPriceCents = Number.isFinite(menuPriceCents)
+    ? menuPriceCents
+    : Number.isFinite(rawUnitCents) && qty > 0
+      ? Math.round(rawUnitCents / qty)
+      : 0
+
+  const lineTotalCents = unitPriceCents * qty
+  const topUpload = Array.isArray(mi.mediaUploads) ? mi.mediaUploads[0] : null
 
   return {
     id: raw.id,
@@ -49,78 +48,168 @@ function mapOrderItem(raw) {
       mi.imageUrl ||
       mi.image_url ||
       null,
-  };
+  }
 }
 
 function generateOrderCode(orderId) {
-  if (!orderId || orderId === "—") return "—";
-  const hash = orderId.replace(/-/g, "").slice(0, 8).toUpperCase();
-  return `EA-${hash}`;
+  if (!orderId || orderId === "—") return "—"
+  const hash = String(orderId).replace(/-/g, "").slice(0, 8).toUpperCase()
+  return `EA-${hash}`
 }
 
-export default function OrderCompletedModal({ onClose, orderId: propsOrderId }) {
-  const navigate = useNavigate();
-  const { orderid: urlOrderId } = useParams();
+export default function OrderCompletedModal({
+  onClose,
+  orderId: propsOrderId,
+  activeOrderIds: propsActiveOrderIds, // ✅ NEW: allow bubble to pass multiple order ids
+}) {
+  const navigate = useNavigate()
+  const { orderid: urlOrderId } = useParams()
 
-  const orderId = propsOrderId || urlOrderId;
+  // If opened via route (/ordercompleted/:orderid), use url param.
+  // If opened as modal, use propsOrderId.
+  const orderId = propsOrderId || urlOrderId
 
-  const [stall, setStall] = useState(null);
-  const [items, setItems] = useState([]);
-  const [loadingOrder, setLoadingOrder] = useState(true);
-  const [orderError, setOrderError] = useState(null);
-  const [orderMeta, setOrderMeta] = useState(null);
-  const [orderInfo, setOrderInfo] = useState(null);
+  // ✅ MULTI-ORDER SUPPORT:
+  // If bubble passes activeOrderIds, we use them.
+  // Otherwise, fall back to single order id mode.
+  const initialActiveIds = useMemo(() => {
+    if (Array.isArray(propsActiveOrderIds) && propsActiveOrderIds.length > 0) {
+      return propsActiveOrderIds
+    }
+    return orderId ? [orderId] : []
+  }, [propsActiveOrderIds, orderId])
 
+  const [activeOrderIds, setActiveOrderIds] = useState(initialActiveIds)
+  const [activeIndex, setActiveIndex] = useState(0)
+
+  const [stall, setStall] = useState(null)
+  const [items, setItems] = useState([])
+  const [loadingOrder, setLoadingOrder] = useState(true)
+  const [orderError, setOrderError] = useState(null)
+  const [orderMeta, setOrderMeta] = useState(null)
+  const [orderInfo, setOrderInfo] = useState(null)
+
+  const hasMany = activeOrderIds.length > 1
+
+  // Keep index valid if ids change
   useEffect(() => {
-    async function fetchOrder() {
-      if (!orderId) return;
+    setActiveIndex((i) => {
+      if (activeOrderIds.length === 0) return 0
+      return Math.min(Math.max(0, i), activeOrderIds.length - 1)
+    })
+  }, [activeOrderIds.length])
+
+  const currentOrderId = useMemo(() => {
+    if (activeOrderIds.length > 0) return activeOrderIds[activeIndex]
+    return orderId
+  }, [activeOrderIds, activeIndex, orderId])
+
+  // Cleanup (keeps background usable if modal unmounts)
+  useEffect(() => {
+    return () => {
+      document.body.style.overflow = "unset"
+      document.body.style.pointerEvents = "auto"
+      document.documentElement.style.overflow = "unset"
+    }
+  }, [])
+
+  // If opened without active ids (route / direct open), fetch active ids so tabs work
+  useEffect(() => {
+    let mounted = true
+
+    async function ensureActiveIds() {
+      // If we already have >1 ids from bubble, no need to fetch.
+      if (Array.isArray(propsActiveOrderIds) && propsActiveOrderIds.length > 0) return
+
+      // If we have the single id, keep as single-tab mode unless you want to auto-load others.
+      // If you DO want to auto-load others even in single id mode, uncomment the fetch block below.
+      // For now, only fetch if orderId is missing (rare).
+      if (orderId) return
+
       try {
-        setLoadingOrder(true);
-        setOrderError(null);
+        const res = await api.get("/orders/my")
+        const data = res.data
+        const orders = Array.isArray(data)
+          ? data
+          : Array.isArray(data?.orders)
+            ? data.orders
+            : []
 
-        const res = await api.get(`/orders/getOrder/${orderId}`);
-        const data = res.data;
+        const active = orders.filter((o) => {
+          const pay = String(o.status || "").toUpperCase()
+          const os = String(o.orderStatus || "").toLowerCase()
+          return (pay === "PAID" || pay === "COMPLETED") && (os === "preparing" || os === "ready")
+        })
 
-        console.log("Raw order data received:", data);
+        const ids = active.map((o) => o.id)
 
-        // data = [stallWrapper, itemsArr, infoObj]
-        const stallWrapper = Array.isArray(data) ? data[0] : null;
-        const stallObj = stallWrapper?.stall ?? null;
-        const itemsArr =
-          Array.isArray(data) && Array.isArray(data[1]) ? data[1] : [];
-        const infoObj = Array.isArray(data) ? data[2] : null;
-
-        console.log("Fetched order details:", { stallObj, itemsArr, infoObj });
-
-        setStall(stallObj);
-        setItems(itemsArr.map(mapOrderItem));
-        setOrderMeta(stallWrapper || null);
-        setOrderInfo(infoObj || null);
-      } catch (err) {
-        console.error(err);
-        setOrderError("Failed to load order details.");
-      } finally {
-        setLoadingOrder(false);
+        if (!mounted) return
+        setActiveOrderIds(ids)
+        setActiveIndex(0)
+      } catch {
+        if (!mounted) return
+        setActiveOrderIds([])
+        setActiveIndex(0)
       }
     }
 
-    fetchOrder();
-  }, [orderId]);
+    ensureActiveIds()
+    return () => {
+      mounted = false
+    }
+  }, [orderId, propsActiveOrderIds])
+
+  // Fetch order details for the selected order id
+  useEffect(() => {
+    let mounted = true
+
+    async function fetchOrder() {
+      if (!currentOrderId) return
+      try {
+        setLoadingOrder(true)
+        setOrderError(null)
+
+        const res = await api.get(`/orders/getOrder/${currentOrderId}`)
+        const data = res.data
+
+        const stallWrapper = Array.isArray(data) ? data[0] : null
+        const stallObj = stallWrapper?.stall ?? null
+        const itemsArr = Array.isArray(data) && Array.isArray(data[1]) ? data[1] : []
+        const infoObj = Array.isArray(data) ? data[2] : null
+
+        if (!mounted) return
+        setStall(stallObj)
+        setItems(itemsArr.map(mapOrderItem))
+        setOrderMeta(stallWrapper || null)
+        setOrderInfo(infoObj || null)
+      } catch (err) {
+        console.error(err)
+        if (!mounted) return
+        setOrderError("Failed to load order details.")
+      } finally {
+        if (mounted) setLoadingOrder(false)
+      }
+    }
+
+    fetchOrder()
+    return () => {
+      mounted = false
+    }
+  }, [currentOrderId])
 
   const stallName =
-    stall?.name || (items.length ? "Your selected stall" : "No stall found");
+    stall?.name || (items.length ? "Your selected stall" : "No stall found")
 
-  /** ORDER PLACED / CREATED TIME (from backend) */
   const placedAtRaw =
     orderInfo?.createdAt ||
     orderInfo?.created_at ||
     orderMeta?.placedAt ||
     orderMeta?.createdAt ||
-    orderMeta?.created_at;
+    orderMeta?.created_at
 
-  let placedAtText = "—";
+  let placedAtText = "—"
   if (placedAtRaw) {
-    const d = new Date(placedAtRaw);
+    const d = new Date(placedAtRaw)
     if (!isNaN(d.getTime())) {
       placedAtText = d.toLocaleString("en-SG", {
         year: "numeric",
@@ -129,56 +218,66 @@ export default function OrderCompletedModal({ onClose, orderId: propsOrderId }) 
         hour: "2-digit",
         minute: "2-digit",
         hour12: false,
-      });
+      })
     }
   }
 
-  const estimatedRaw =
-    orderInfo?.estimatedReadyTime || orderInfo?.estimated_ready_time;
-  let estimatedPickupText = "Awaiting stall confirmation";
-
+  const estimatedRaw = orderInfo?.estimatedReadyTime || orderInfo?.estimated_ready_time
+  let estimatedPickupText = "Awaiting stall confirmation"
   if (estimatedRaw) {
-    const d = new Date(estimatedRaw);
+    const d = new Date(estimatedRaw)
     if (!isNaN(d.getTime())) {
       const timeStr = d.toLocaleTimeString("en-SG", {
         hour: "2-digit",
         minute: "2-digit",
         hour12: false,
-      });
-      estimatedPickupText = `Around ${timeStr}`;
+      })
+      estimatedPickupText = `Around ${timeStr}`
     }
   }
 
-  const subtotal = items.reduce((sum, item) => sum + item.lineTotal, 0);
-  const voucherApplied = 0.0;
+  const subtotal = items.reduce((sum, item) => sum + item.lineTotal, 0)
+  const voucherApplied = 0.0
 
   const serviceFee =
-    orderInfo?.discounts_charges?.find((dc) => dc.type === "fee")?.amountCents /
-    100 || 0;
+    ((orderInfo?.discounts_charges?.find((dc) => dc.type === "fee")?.amountCents ?? 0) / 100)
 
   const total =
     orderInfo?.totalCents != null
       ? orderInfo.totalCents / 100
-      : subtotal + serviceFee - voucherApplied;
+      : subtotal + serviceFee - voucherApplied
 
-  const orderNumberRaw = orderId || orderInfo?.id || "—";
-  const displayOrderCode = generateOrderCode(orderNumberRaw);
+  const displayOrderCode = generateOrderCode(currentOrderId || "—")
 
-  const rawStatus = orderInfo?.status || "—";
+  // IMPORTANT: displayStatus is payment status ("PAID"), not workflow ("preparing/ready").
+  // Keeping your existing behavior.
+  const rawStatus = orderInfo?.status || "—"
   const displayStatus =
     typeof rawStatus === "string"
       ? rawStatus.charAt(0).toUpperCase() + rawStatus.slice(1).toLowerCase()
-      : rawStatus;
+      : rawStatus
+
+  const pay = String(orderInfo?.status || "").toUpperCase()
+  const os = String(orderInfo?.orderStatus || "").toLowerCase()
+  const isPaid = pay === "PAID" || pay === "COMPLETED"
+  const isQrVisible = isPaid && (os === "preparing" || os === "ready")
+  const isCollected = isPaid && os === "collected"
 
   const handleClose = () => {
-    navigate("/home");
-    if (onClose) onClose();
-  };
+    if (onClose) onClose()
+
+    // If opened as standalone route, go home; if opened as modal, just close.
+    if (urlOrderId) {
+      navigate("/home", { replace: true })
+    }
+  }
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-      onClick={handleClose}
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) handleClose()
+      }}
     >
       <div
         className="relative bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-y-auto"
@@ -186,14 +285,37 @@ export default function OrderCompletedModal({ onClose, orderId: propsOrderId }) 
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 sticky top-0 bg-white z-10">
-          <h1 className="text-2xl font-semibold text-gray-900">
-            Your Order Has Been Confirmed
-          </h1>
-          <img
-            className="h-10 object-contain"
-            src={logo_full}
-            alt="Eatable Logo"
-          />
+          <div className="flex items-center gap-4">
+            <h1 className="text-2xl font-semibold text-gray-900">
+              Your Order Has Been Confirmed
+            </h1>
+
+            {hasMany && (
+              <div className="inline-flex rounded-2xl border border-gray-200 bg-white p-1">
+                {activeOrderIds.map((id, idx) => {
+                  const active = idx === activeIndex
+                  return (
+                    <button
+                      key={String(id)}
+                      type="button"
+                      onClick={() => setActiveIndex(idx)}
+                      className={[
+                        "min-w-[44px] px-4 py-2 rounded-xl text-sm font-semibold transition",
+                        active
+                          ? "bg-[#21421B] text-white"
+                          : "text-gray-600 hover:bg-gray-50",
+                      ].join(" ")}
+                      aria-label={`Switch to order ${idx + 1}`}
+                    >
+                      {idx + 1}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
+          <img className="h-10 object-contain" src={logo_full} alt="Eatable Logo" />
         </div>
 
         {/* Loading/Error States */}
@@ -212,7 +334,6 @@ export default function OrderCompletedModal({ onClose, orderId: propsOrderId }) 
         <div className="flex flex-col lg:flex-row gap-4 p-4">
           {/* Left Column - Order Info */}
           <div className="flex-1 space-y-3">
-            {/* Order Meta Info */}
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <span className="text-gray-700 font-medium">Order Code:</span>
@@ -220,16 +341,17 @@ export default function OrderCompletedModal({ onClose, orderId: propsOrderId }) 
                   {displayOrderCode}
                 </span>
               </div>
+
               <div className="flex items-center gap-2">
                 <span className="text-gray-700 font-medium">Status:</span>
                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-green-100 text-green-800">
                   {displayStatus}
                 </span>
               </div>
+
               <p className="text-sm text-gray-500">Placed on: {placedAtText}</p>
             </div>
 
-            {/* Stall Info */}
             <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl">
               <MapPin className="w-5 h-5 mt-0.5 text-[#21421B]" aria-hidden="true" />
               <div>
@@ -242,7 +364,6 @@ export default function OrderCompletedModal({ onClose, orderId: propsOrderId }) 
               </div>
             </div>
 
-            {/* Estimated Pickup Time */}
             <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl">
               <ClockFading className="w-5 h-5 mt-0.5 text-[#21421B]" aria-hidden="true" />
               <div>
@@ -253,31 +374,45 @@ export default function OrderCompletedModal({ onClose, orderId: propsOrderId }) 
               </div>
             </div>
 
-            {/* QR Code Section */}
+            {/* Pick Up QR */}
             <div className="flex flex-col items-center justify-center pt-4 pb-2 px-2 bg-gray-50 rounded-xl">
-              <h3 className="text-base font-semibold text-gray-900 mb-2">
-                Pick Up QR
-              </h3>
-              <img
-                src={qrImg}
-                alt="Pick up QR"
-                className="w-48 h-48 md:w-56 md:h-56 object-contain"
-              />
+              <h3 className="text-base font-semibold text-gray-900 mb-2">Pick Up QR</h3>
+
+              {isQrVisible ? (
+                <img
+                  src={qrImg}
+                  alt="Pick up QR"
+                  className="w-48 h-48 md:w-56 md:h-56 object-contain"
+                />
+              ) : isCollected ? (
+                <div className="w-48 h-48 md:w-56 md:h-56 rounded-lg bg-green-100 flex items-center justify-center px-4 text-center">
+                  <p className="text-green-800 text-sm font-medium">
+                    This order has been collected.
+                  </p>
+                </div>
+              ) : (
+                <div className="w-48 h-48 md:w-56 md:h-56 rounded-lg bg-gray-200 flex items-center justify-center px-4 text-center">
+                  <p className="text-gray-600 text-sm">
+                    QR will be available when stall owner accepts the order.
+                  </p>
+                </div>
+              )}
             </div>
 
-            {/* Return Button */}
             <button
               className="w-full py-2.5 bg-lime-800 hover:bg-lime-900 text-white font-medium rounded-xl transition-colors shadow-sm"
-              onClick={handleClose}
+              onClick={(e) => {
+                e.stopPropagation()
+                handleClose()
+              }}
             >
-              Return to Homepage
+              {urlOrderId ? "Return to Homepage" : "Close"}
             </button>
           </div>
 
           {/* Right Column - Order Details Card */}
           <div className="flex-1 lg:max-w-md">
             <div className="bg-white rounded-xl border border-gray-200 shadow-lg overflow-hidden h-full flex flex-col">
-              {/* Card Header */}
               <div className="px-6 py-4 text-center border-b border-gray-200">
                 <h3 className="text-xl font-semibold text-gray-900">
                   Order Details
@@ -285,7 +420,6 @@ export default function OrderCompletedModal({ onClose, orderId: propsOrderId }) 
                 <p className="text-gray-600 mt-1">{stallName}</p>
               </div>
 
-              {/* Items List */}
               <div className="flex-1 px-6 py-4 overflow-y-auto max-h-64">
                 {items.length === 0 ? (
                   <p className="text-gray-500 text-center py-4">
@@ -320,7 +454,6 @@ export default function OrderCompletedModal({ onClose, orderId: propsOrderId }) 
                 )}
               </div>
 
-              {/* Totals Section */}
               <div className="border-t border-gray-200">
                 <div className="px-6 py-3 space-y-2 text-sm">
                   <div className="flex justify-between text-gray-600">
@@ -344,7 +477,8 @@ export default function OrderCompletedModal({ onClose, orderId: propsOrderId }) 
             </div>
           </div>
         </div>
+        {/* End Two Column */}
       </div>
     </div>
-  );
+  )
 }

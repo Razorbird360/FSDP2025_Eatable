@@ -178,6 +178,7 @@ export const orderService = {
                 stallId,
                 totalCents: totalCents + SERVICE_FEES_CENTS,
                 status: "pending",
+                orderStatus: "awaiting",
                 netsTxnId: process.env.TEST_TXN_ID || null,
             });
 
@@ -361,5 +362,41 @@ export const orderService = {
             },
         });
     },
+
+    async acceptOrder(orderId) {
+  return prisma.order.update({
+    where: { id: orderId },
+    data: { orderStatus: "preparing" },
+  });
+},
+
+async markOrderReady(orderId, estimatedReadyTime) {
+  return prisma.order.update({
+    where: { id: orderId },
+    data: {
+      orderStatus: "ready",
+      ...(estimatedReadyTime
+        ? { estimatedReadyTime: new Date(estimatedReadyTime) }
+        : {}),
+    },
+  });
+},
+
+async markOrderCollected(orderId) {
+  console.log("[service.markOrderCollected] updating:", orderId);
+  const updated = await prisma.order.update({
+    where: { id: orderId },
+    data: { orderStatus: "collected", status: "COMPLETED", completedAt: new Date() },
+  });
+  console.log("[service.markOrderCollected] result:", {
+    id: updated?.id,
+    status: updated?.status,
+    orderStatus: updated?.orderStatus,
+  });
+  return updated;
+},
+
+
+
 
 };

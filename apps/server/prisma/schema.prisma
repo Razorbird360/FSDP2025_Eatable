@@ -167,6 +167,7 @@ model Order {
   userId             String              @map("user_id") @db.Uuid
   stallId            String              @map("stall_id") @db.Uuid
   status             String              @default("pending")
+  orderStatus        String              @default("awaiting") @map("order_status")
   orderCode          String?             @map("order_code") @db.Char(4)
   totalCents         Int                 @default(0) @map("total_cents")
   netsTxnId          String?             @map("nets_txn_id")

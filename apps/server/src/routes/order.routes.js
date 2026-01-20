@@ -13,6 +13,9 @@ router.get('/getOrder/:orderId', authMiddleware, orderController.getOrderById);
 
 router.get('/my', authMiddleware, orderController.getMyOrders);
 
+router.post('/:orderId/accept', authMiddleware, orderController.acceptOrder);
+router.post('/:orderId/ready', authMiddleware, orderController.markOrderReady);
+router.post('/:orderId/collected', authMiddleware, orderController.markOrderCollected);
 
 
 export default router;
