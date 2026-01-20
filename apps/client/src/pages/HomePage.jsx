@@ -10,7 +10,7 @@ import api from "@lib/api";
 import { toaster } from "../components/ui/toaster";
 import { useAuth } from "../features/auth/useAuth";
 import VerificationModal from "../features/verification/components/VerificationModal";
-import OrderCompletedModal from "../features/payment/OrderCompleted"
+
 
 
 const CUISINE_TYPES = ["malay", "indian", "western", "chinese", "desserts", "local"];
@@ -55,9 +55,6 @@ function HomePage() {
   const [featuredDishes, setFeaturedDishes] = useState({});
   const isProfileLoading = status === 'loading';
 
-  // Modal State Added Here
-  const [openOrderModal, setOpenOrderModal] = useState(false)
-  const [modalOrderId, setModalOrderId] = useState(null)
 
   useEffect(() => {
     if (location.state?.photoUploaded) {
@@ -582,13 +579,6 @@ function HomePage() {
         />
       </section>
 
-      {/* Render the modal outside of <section> */}
-      {openOrderModal && (
-        <OrderCompletedModal
-          orderId={modalOrderId}
-          onClose={() => setOpenOrderModal(false)}
-        />
-      )}
     </>
   );
 }
