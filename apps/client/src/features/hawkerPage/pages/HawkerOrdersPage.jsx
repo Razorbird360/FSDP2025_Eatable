@@ -296,9 +296,11 @@ function OrderRow({ order, rightBadge, onClick }) {
           </div>
         </div>
       </div>
-<div className="flex-shrink-0 sm:pr-2 sm:self-stretch flex items-center justify-center">
+<div className="flex-shrink-0 sm:pr-2 sm:self-stretch flex items-center justify-center sm:justify-end w-full sm:w-auto">
   {rightBadge}
 </div>
+
+
     </div>
   );
 }
@@ -648,7 +650,8 @@ export default function HawkerOrdersPage() {
                       order={o}
                       rightBadge={
                         <div className="w-full sm:w-auto">
-                          <div className="flex flex-col items-end sm:items-center gap-2 sm:gap-1">
+                          <div className="flex flex-col items-center sm:items-center gap-2 sm:gap-1">
+
                             <Badge text={badge} />
                             <div className="text-xs text-gray-500 text-right sm:text-center">
                               {fmtDateTime(getOrderDate(o))}
@@ -698,37 +701,12 @@ export default function HawkerOrdersPage() {
                       key={String(o.id)}
                       order={o}
 rightBadge={
-  <div className="w-full sm:w-auto">
-    {/* ✅ Mobile: centered stack */}
-    <div className="flex flex-col items-center justify-center gap-2 sm:hidden">
-      <ActionBadge text={isReadyRow ? "Ready" : "Preparing"} />
+  <div className="w-full sm:w-auto flex justify-end">
+    {/* ✅ SAME width as Awaiting */}
+    <div className="w-full sm:w-auto sm:min-w-[120px] flex flex-col items-center justify-center gap-1">
+      <Badge text={isReadyRow ? "Ready" : "Preparing"} />
 
-      <div className="text-xs text-gray-500 text-center">
-        {isReadyRow ? (
-          <button
-            type="button"
-            className="text-gray-500 hover:text-gray-700 underline underline-offset-2"
-            onClick={(e) => {
-              e.stopPropagation();
-              setScanOrderId(o.id);
-              setScanOpen(true);
-            }}
-          >
-            Scan QR
-          </button>
-        ) : (
-          fmtCountdown(remain)
-        )}
-      </div>
-    </div>
-
-    {/* ✅ Laptop/Desktop: your old fixed layout */}
-    <div className="hidden sm:block relative min-w-[180px] h-[72px]">
-      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-        <Badge text={isReadyRow ? "Ready" : "Preparing"} />
-      </div>
-
-      <div className="absolute left-0 right-0 bottom-0 text-xs text-gray-500 text-center">
+      <div className="text-xs text-gray-500 text-center w-full">
         {isReadyRow ? (
           <button
             type="button"
@@ -748,6 +726,7 @@ rightBadge={
     </div>
   </div>
 }
+
 
 
                       onClick={() => openChecklist(o)}
