@@ -294,39 +294,50 @@ export const orderService = {
     },
 
     async getOrderItems(orderId) {
-        const stall = await prisma.order.findUnique({
-            where: { id: orderId },
-            select: { stall: true }
-        });
-        const items = await prisma.orderItem.findMany({
-            where: { orderId },
+  // 1) get stall (wrap it as { stall: ... } because frontend expects data[0].stall)
+  const orderWithStall = await prisma.order.findUnique({
+    where: { id: orderId },
+    select: {
+      stall: true,
+    },
+  });
+
+  // If order not found
+  if (!orderWithStall) return null;
+
+  const stall = { stall: orderWithStall.stall };
+
+  // 2) get items
+  const items = await prisma.orderItem.findMany({
+    where: { orderId },
+    include: {
+      menuItem: {
+        include: {
+          mediaUploads: true,
+        },
+      },
+    },
+  });
+
+  // 3) get info (including voucher details)
+  const info = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: {
+      discounts_charges: {
+        include: {
+          userVoucher: {
             include: {
-                menuItem: {
-                    include: {
-                        mediaUploads: true,
-                    },
-                }
-            },
-        });
-    const info = await prisma.order.findUnique({
-      where: { id: orderId },
-      include: {
-        discounts_charges: {
-          include: {
-            userVoucher: {
-              include: {
-                voucher: true,
-              },
+              voucher: true,
             },
           },
         },
       },
-    });
-
-
-        const result = [stall, items, info];
-        return result;
     },
+  });
+
+  return [stall, items, info];
+},
+
 
     async getByUserId(userId) {
         return prisma.order.findMany({
@@ -334,7 +345,7 @@ export const orderService = {
             orderBy: { createdAt: 'desc' },
             include: {
                 stall: {
-                    select: { id: true, name: true, image_url: true },
+                      select: { id: true, name: true, image_url: true, location: true },
                 },
                 discounts_charges: {
                     include: {

@@ -1,6 +1,6 @@
-import { Router } from 'express';
-import { authMiddleware } from '../middleware/auth.middleware.js';
-import { hawkerDashboardController } from '../controllers/hawker-dashboard.controller.js';
+import { Router } from "express";
+import { authMiddleware } from "../middleware/auth.middleware.js";
+import { hawkerDashboardController } from "../controllers/hawker-dashboard.controller.js";
 import {
   getHawkerOrders,
   acceptOrder,
@@ -11,13 +11,21 @@ import {
 
 const router = Router();
 
-router.get('/dashboard', authMiddleware, hawkerDashboardController.getDashboard);
-router.get('/dashboard/activity', authMiddleware, hawkerDashboardController.getActivity);
+router.get("/dashboard", authMiddleware, hawkerDashboardController.getDashboard);
+router.get(
+  "/dashboard/activity",
+  authMiddleware,
+  hawkerDashboardController.getActivity
+);
 
 // hawker orders routes
 router.get("/orders", authMiddleware, getHawkerOrders);
 router.patch("/orders/:orderId/accept", authMiddleware, acceptOrder);
-router.patch("/orders/:orderId/items/:orderItemId/prepared",authMiddleware,setOrderItemPrepared);
+router.patch(
+  "/orders/:orderId/items/:orderItemId/prepared",
+  authMiddleware,
+  setOrderItemPrepared
+);
 router.patch("/orders/:orderId/ready", authMiddleware, markOrderReady);
 router.post("/orders/:orderId/collect", authMiddleware, collectOrderByToken);
 

@@ -1,9 +1,8 @@
 import { useNavigate, useParams } from "react-router-dom"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { ClockFading, MapPin } from "lucide-react"
-import { QRCodeCanvas } from "qrcode.react" // ✅ added
+import { QRCodeCanvas } from "qrcode.react"
 import logo_full from "../../assets/logo/logo_full.png"
-import qrImg from "../../assets/logo/QrPlaceholder.png"
 import api from "@lib/api"
 
 const fallbackFoodImg =
@@ -58,12 +57,10 @@ function generateOrderCode(orderId) {
   return `EA-${hash}`
 }
 
-// ✅ helper for time range display
 function addMinutes(date, mins) {
   return new Date(date.getTime() + mins * 60 * 1000)
 }
 
-// ✅ helper for HH:MM display
 function fmtTimeHM(date) {
   return date.toLocaleTimeString("en-SG", {
     hour: "2-digit",
@@ -98,6 +95,11 @@ export default function OrderCompletedModal({
   const [orderError, setOrderError] = useState(null)
   const [orderMeta, setOrderMeta] = useState(null)
   const [orderInfo, setOrderInfo] = useState(null)
+
+  // ✅ collected popup + polling
+  const [showCollectedPopup, setShowCollectedPopup] = useState(false)
+  const prevCollectedRef = useRef(false)
+  const pollingRef = useRef(null)
 
   const hasMany = activeOrderIds.length > 1
 
@@ -198,8 +200,7 @@ export default function OrderCompletedModal({
     }
   }, [currentOrderId])
 
-  const stallName =
-    stall?.name || (items.length ? "Your selected stall" : "No stall found")
+  const stallName = stall?.name || (items.length ? "Your selected stall" : "No stall found")
 
   const placedAtRaw =
     orderInfo?.createdAt ||
@@ -268,9 +269,7 @@ export default function OrderCompletedModal({
     (orderInfo?.discounts_charges?.find((dc) => dc.type === "fee")?.amountCents ?? 0) / 100
 
   const total =
-    orderInfo?.totalCents != null
-      ? orderInfo.totalCents / 100
-      : subtotal + serviceFee - voucherApplied
+    orderInfo?.totalCents != null ? orderInfo.totalCents / 100 : subtotal + serviceFee - voucherApplied
 
   const displayOrderCode = generateOrderCode(currentOrderId || "—")
 
@@ -280,9 +279,13 @@ export default function OrderCompletedModal({
   const isPaid = pay === "PAID" || pay === "COMPLETED"
   const isPreparing = isPaid && os === "preparing"
   const isReady = isPaid && os === "ready"
-  const isCollected = isPaid && os === "collected"
 
-  // ✅ added: pickupToken + QR value
+  // ✅ prefer collectedAt if backend sets it
+  const collectedAtRaw = orderInfo?.collectedAt || orderInfo?.collected_at || null
+  const isCollectedByTime = Boolean(collectedAtRaw)
+  const isCollected = isPaid && (os === "collected" || isCollectedByTime)
+
+  // ✅ pickupToken + QR value
   const pickupToken =
     orderInfo?.pickupToken ||
     orderInfo?.pickup_token ||
@@ -290,10 +293,64 @@ export default function OrderCompletedModal({
     orderMeta?.pickup_token ||
     null
 
-  const qrValue =
-    isReady && pickupToken
-      ? JSON.stringify({ orderId: String(currentOrderId), token: pickupToken })
-      : null
+  const canShowQr = isPaid && (os === "preparing" || os === "ready") && pickupToken
+
+  const qrValue = canShowQr
+    ? JSON.stringify({ orderId: String(currentOrderId), token: pickupToken })
+    : null
+
+  // ✅ show popup when it transitions to collected
+  useEffect(() => {
+    if (isCollected && !prevCollectedRef.current) {
+      prevCollectedRef.current = true
+      setShowCollectedPopup(true)
+      return
+    }
+    if (!isCollected) {
+      prevCollectedRef.current = false
+    }
+  }, [isCollected])
+
+  // ✅ poll status until collected
+  useEffect(() => {
+    if (!currentOrderId) return
+
+    if (isCollected) {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current)
+        pollingRef.current = null
+      }
+      return
+    }
+
+    if (pollingRef.current) return
+
+    pollingRef.current = setInterval(async () => {
+      try {
+        const res = await api.get(`/orders/getOrder/${currentOrderId}`)
+        const data = res.data
+
+        const stallWrapper = Array.isArray(data) ? data[0] : null
+        const stallObj = stallWrapper?.stall ?? null
+        const itemsArr = Array.isArray(data) && Array.isArray(data[1]) ? data[1] : []
+        const infoObj = Array.isArray(data) ? data[2] : null
+
+        setStall(stallObj)
+        setItems(itemsArr.map(mapOrderItem))
+        setOrderMeta(stallWrapper || null)
+        setOrderInfo(infoObj || null)
+      } catch {
+        // ignore polling errors
+      }
+    }, 3000)
+
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current)
+        pollingRef.current = null
+      }
+    }
+  }, [currentOrderId, isCollected])
 
   const handleClose = () => {
     if (onClose) onClose()
@@ -315,9 +372,7 @@ export default function OrderCompletedModal({
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 sticky top-0 bg-white z-10">
           <div className="flex items-center gap-4">
-            <h1 className="text-2xl font-semibold text-gray-900">
-              Your Order Has Been Confirmed
-            </h1>
+            <h1 className="text-2xl font-semibold text-gray-900">Your Order Has Been Confirmed</h1>
 
             {hasMany && (
               <div className="inline-flex rounded-2xl border border-gray-200 bg-white p-1">
@@ -400,9 +455,7 @@ export default function OrderCompletedModal({
                 <div className="text-gray-500 text-sm space-y-1">
                   {startTime && endTime ? (
                     <>
-                      <p className="text-gray-600">
-                        Estimated duration: {Number(estimateMins)} mins
-                      </p>
+                      <p className="text-gray-600">Estimated duration: {Number(estimateMins)} mins</p>
                       <p className="text-gray-600">
                         {fmtTimeHM(startTime)} - {fmtTimeHM(endTime)}
                       </p>
@@ -421,20 +474,18 @@ export default function OrderCompletedModal({
                 <QRCodeCanvas value={qrValue} size={224} />
               ) : isCollected ? (
                 <div className="w-48 h-48 md:w-56 md:h-56 rounded-lg bg-green-100 flex items-center justify-center px-4 text-center">
-                  <p className="text-green-800 text-sm font-medium">
-                    This order has been collected.
-                  </p>
+                  <p className="text-green-800 text-sm font-medium">This order has been collected.</p>
                 </div>
-              ) : isPreparing ? (
+              ) : isPaid && (os === "preparing" || os === "ready") ? (
                 <div className="w-48 h-48 md:w-56 md:h-56 rounded-lg bg-gray-200 flex items-center justify-center px-4 text-center">
                   <p className="text-gray-600 text-sm">
-                    QR will be available when your order is ready.
+                    QR is being generated. Please refresh in a moment.
                   </p>
                 </div>
               ) : (
                 <div className="w-48 h-48 md:w-56 md:h-56 rounded-lg bg-gray-200 flex items-center justify-center px-4 text-center">
                   <p className="text-gray-600 text-sm">
-                    QR will be available when stall owner accepts the order.
+                    QR will be available once the order is accepted.
                   </p>
                 </div>
               )}
@@ -508,6 +559,25 @@ export default function OrderCompletedModal({
             </div>
           </div>
         </div>
+
+        {showCollectedPopup && (
+          <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4">
+            <div className="w-full max-w-sm rounded-2xl bg-white shadow-2xl p-6">
+              <h2 className="text-lg font-semibold text-gray-900">
+                Order collected successfully
+              </h2>
+              <p className="text-sm text-gray-600 mt-2">You can continue.</p>
+
+              <button
+                type="button"
+                className="mt-5 w-full py-2.5 bg-lime-800 hover:bg-lime-900 text-white font-medium rounded-xl transition-colors shadow-sm"
+                onClick={() => setShowCollectedPopup(false)}
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

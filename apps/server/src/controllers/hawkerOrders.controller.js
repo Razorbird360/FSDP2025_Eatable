@@ -116,38 +116,33 @@ export async function getHawkerOrders(req, res) {
   try {
     const { stallIds } = await assertHawkerAndGetOwnedStallIds(req);
 
-    const orders = await prisma.order.findMany({
-      where: {
-        stallId: { in: stallIds },
-        status: { in: ["PAID", "COMPLETED"] },
-        orderStatus: { in: ["awaiting", "preparing", "ready"] },
-      },
-      orderBy: { createdAt: "desc" },
-      include: {
-        stall: { select: { id: true, name: true, location: true } },
-        orderItems: {
-          include: {
-            menuItem: {
-              select: {
-                id: true,
-                name: true,
-                prepTimeMins: true,
-                imageUrl: true,
-                priceCents: true,
-                mediaUploads: {
-                  where: { validationStatus: "approved" },
-                  orderBy: { createdAt: "desc" },
-                  take: 1,
-                  select: { imageUrl: true },
-                },
+    const view = String(req.query?.view || "").toLowerCase(); // "current" | "history" | ""
+
+    // Shared include (same shape for UI)
+    const include = {
+      stall: { select: { id: true, name: true, location: true } },
+      orderItems: {
+        include: {
+          menuItem: {
+            select: {
+              id: true,
+              name: true,
+              prepTimeMins: true,
+              imageUrl: true,
+              priceCents: true,
+              mediaUploads: {
+                where: { validationStatus: "approved" },
+                orderBy: { createdAt: "desc" },
+                take: 1,
+                select: { imageUrl: true },
               },
             },
           },
         },
       },
-    });
+    };
 
-    const mapped = orders.map((o) => {
+    const mapOrder = (o) => {
       const defaultEstimateMinutes = computeDefaultEstimateMinutes(o.orderItems);
 
       const subtotalCents = calcSubtotalCents(o.orderItems);
@@ -165,8 +160,10 @@ export async function getHawkerOrders(req, res) {
         acceptedAt: o.acceptedAt,
         estimatedMinutes: o.estimatedMinutes,
         estimatedReadyTime: o.estimatedReadyTime,
+        readyAt: o.readyAt,
+        collectedAt: o.collectedAt,
+        completedAt: o.completedAt,
 
-        // ✅ money fields for your modal breakdown
         subtotalCents,
         serviceFeeCents,
         voucherCents,
@@ -186,23 +183,91 @@ export async function getHawkerOrders(req, res) {
               name: it.menuItem?.name,
               prepTimeMins: it.menuItem?.prepTimeMins,
               priceCents: it.menuItem?.priceCents,
-
-              // ✅ use MenuItem.imageUrl if it exists, else use the MediaUpload imageUrl
               imageUrl: it.menuItem?.imageUrl ?? fallbackImage,
             },
           };
         }),
         defaultEstimateMinutes,
       };
-    });
+    };
 
-    // ✅ Keep READY orders visible under "pending" list too (if your UI renders only pending)
+    // CURRENT
+    const currentWhere = {
+      stallId: { in: stallIds },
+      status: { in: ["PAID"] },
+      orderStatus: { in: ["awaiting", "preparing", "ready"] },
+    };
+
+    // HISTORY (include your collected + any other end states you want)
+    // IMPORTANT: you set status="COMPLETED" when collected, so include it here.
+    const historyWhere = {
+      stallId: { in: stallIds },
+      status: { in: ["COMPLETED", "PAID"] }, // keep PAID too in case you mark cancelled without completing
+      orderStatus: { in: ["collected", "completed", "cancelled"] },
+    };
+
+    // If frontend asks specifically for one view, return just that list (still mapped)
+    if (view === "current") {
+      const orders = await prisma.order.findMany({
+        where: currentWhere,
+        orderBy: { createdAt: "desc" },
+        include,
+      });
+
+      const mapped = orders.map(mapOrder);
+
+      return res.json({
+        incoming: mapped.filter((o) => o.orderStatus === "awaiting"),
+        pending: mapped.filter(
+          (o) => o.orderStatus === "preparing" || o.orderStatus === "ready"
+        ),
+        ready: mapped.filter((o) => o.orderStatus === "ready"),
+        history: [],
+      });
+    }
+
+    if (view === "history") {
+      const orders = await prisma.order.findMany({
+        where: historyWhere,
+        // prefer showing most recent history first
+        orderBy: [{ collectedAt: "desc" }, { completedAt: "desc" }, { createdAt: "desc" }],
+        include,
+      });
+
+      const mapped = orders.map(mapOrder);
+
+      return res.json({
+        incoming: [],
+        pending: [],
+        ready: [],
+        history: mapped,
+      });
+    }
+
+    // Default: return both current + history together
+    const [currentOrders, historyOrders] = await Promise.all([
+      prisma.order.findMany({
+        where: currentWhere,
+        orderBy: { createdAt: "desc" },
+        include,
+      }),
+      prisma.order.findMany({
+        where: historyWhere,
+        orderBy: [{ collectedAt: "desc" }, { completedAt: "desc" }, { createdAt: "desc" }],
+        include,
+      }),
+    ]);
+
+    const mappedCurrent = currentOrders.map(mapOrder);
+    const mappedHistory = historyOrders.map(mapOrder);
+
     return res.json({
-      incoming: mapped.filter((o) => o.orderStatus === "awaiting"),
-      pending: mapped.filter(
+      incoming: mappedCurrent.filter((o) => o.orderStatus === "awaiting"),
+      pending: mappedCurrent.filter(
         (o) => o.orderStatus === "preparing" || o.orderStatus === "ready"
       ),
-      ready: mapped.filter((o) => o.orderStatus === "ready"),
+      ready: mappedCurrent.filter((o) => o.orderStatus === "ready"),
+      history: mappedHistory,
     });
   } catch (e) {
     return res
@@ -210,6 +275,7 @@ export async function getHawkerOrders(req, res) {
       .json({ error: e.message || "Failed to fetch orders" });
   }
 }
+
 
 export async function acceptOrder(req, res) {
   try {
@@ -219,9 +285,7 @@ export async function acceptOrder(req, res) {
     const order = await prisma.order.findUnique({
       where: { id: orderId },
       include: {
-        orderItems: {
-          include: { menuItem: { select: { prepTimeMins: true } } },
-        },
+        orderItems: { include: { menuItem: { select: { prepTimeMins: true } } } },
       },
     });
 
@@ -244,9 +308,10 @@ export async function acceptOrder(req, res) {
       Number.isFinite(requested) && requested > 0 ? requested : defaultMinutes;
 
     const now = new Date();
-    const estimatedReadyTime = new Date(
-      now.getTime() + estimatedMinutes * 60 * 1000
-    );
+    const estimatedReadyTime = new Date(now.getTime() + estimatedMinutes * 60 * 1000);
+
+    const token = crypto.randomBytes(16).toString("hex");
+    const tokenHash = sha256(token);
 
     const updated = await prisma.order.update({
       where: { id: orderId },
@@ -255,6 +320,11 @@ export async function acceptOrder(req, res) {
         acceptedAt: now,
         estimatedMinutes,
         estimatedReadyTime,
+
+        pickupToken: token,
+        pickupTokenHash: tokenHash,
+        pickupTokenUsedAt: null,
+
         orderItems: {
           updateMany: {
             where: { orderId },
@@ -264,13 +334,14 @@ export async function acceptOrder(req, res) {
       },
     });
 
-    return res.json(updated);
+    return res.json({ order: updated, pickupToken: token });
   } catch (e) {
     return res
       .status(e.status || 500)
       .json({ error: e.message || "Failed to accept order" });
   }
 }
+
 
 export async function setOrderItemPrepared(req, res) {
   try {
@@ -336,28 +407,17 @@ export async function markOrderReady(req, res) {
         .json({ error: "All items must be prepared before marking ready" });
     }
 
-    const token = crypto.randomBytes(16).toString("hex");
-    const tokenHash = sha256(token);
+const updated = await prisma.order.update({
+  where: { id: orderId },
+  data: {
+    orderStatus: "ready",
+    readyAt: new Date(),
+    // ✅ do NOT change token here; keep the one created on accept
+  },
+});
 
-    const updated = await prisma.order.update({
-      where: { id: orderId },
-      data: {
-        orderStatus: "ready",
-        readyAt: new Date(),
+return res.json({ order: updated });
 
-        // ✅ store RAW token so customer can re-fetch QR after refresh
-        pickupToken: token,
-
-        // ✅ keep hash verification too
-        pickupTokenHash: tokenHash,
-        pickupTokenUsedAt: null,
-      },
-    });
-
-    return res.json({
-      order: updated,
-      pickupToken: token,
-    });
   } catch (e) {
     return res
       .status(e.status || 500)

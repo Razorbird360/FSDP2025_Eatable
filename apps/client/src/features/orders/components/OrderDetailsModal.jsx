@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ClockFading, MapPin } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react"; // Added Import
 import logo_full from "../../../assets/logo/logo_full.png";
-import qrImg from "../../../assets/logo/QrPlaceholder.png";
+
 
 const fallbackFoodImg =
   "https://app.yakun.com/media/catalog/product/cache/f77d76b011e98ab379caeb79cadeeecd/f/r/french-toast-with-kaya.jpg";
@@ -73,20 +73,22 @@ export default function OrderDetailsModal({ order, onClose }) {
       })
     : "—";
 
-  const completedAtRaw =
-    order?.completedAt || order?.completed_at || order?.updatedAt;
-  const completedAtDate = completedAtRaw ? new Date(completedAtRaw) : null;
-  const collectedAtText =
-    completedAtDate && !isNaN(completedAtDate)
-      ? completedAtDate.toLocaleString("en-SG", {
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: false,
-        })
-      : "—";
+const collectedAtRaw =
+  order?.collectedAt || order?.collected_at || order?.completedAt || order?.completed_at;
+const collectedAtDate = collectedAtRaw ? new Date(collectedAtRaw) : null;
+
+const collectedAtText =
+  collectedAtDate && !isNaN(collectedAtDate)
+    ? collectedAtDate.toLocaleString("en-SG", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      })
+    : "—";
+
 
   // UPDATED LOGIC
   let estimatedPickupText = "Awaiting stall confirmation";
@@ -135,14 +137,15 @@ export default function OrderDetailsModal({ order, onClose }) {
   const isCollected = isPaid && os === "collected";
   const isPending = payment === "pending";
   const isReady = isPaid && os === "ready";
+const pickupToken = order?.pickupToken || order?.pickup_token || null;
 
   // Added Constants
-  const pickupToken = order?.pickupToken || order?.pickup_token || null;
+const canShowQr = isPaid && (os === "preparing" || os === "ready") && pickupToken;
 
-  const qrValue =
-    isReady && pickupToken
-      ? JSON.stringify({ orderId: String(orderId), token: pickupToken })
-      : null;
+const qrValue = canShowQr
+  ? JSON.stringify({ orderId: String(orderId), token: pickupToken })
+  : null;
+
 
   return createPortal(
     <div
@@ -261,7 +264,7 @@ export default function OrderDetailsModal({ order, onClose }) {
               ) : (
                 <div className="w-48 h-48 md:w-56 md:h-56 rounded-lg bg-gray-200 flex items-center justify-center px-4 text-center">
                   <p className="text-gray-600 text-sm">
-                    QR will be available when stall owner accepts the order.
+                    QR will be available once the order is accepted.
                   </p>
                 </div>
               )}

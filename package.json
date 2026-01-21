@@ -30,6 +30,7 @@
   },
   "dependencies": {
     "html5-qrcode": "^2.3.8",
+    "qr-scanner": "^1.4.2",
     "qrcode.react": "^4.2.0"
   }
 }
