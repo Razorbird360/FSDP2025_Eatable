@@ -16,7 +16,7 @@ function RootLayout() {
         </main>
 
         <CartSidebar />
-      <FloatingOrderBubble />
+        <FloatingOrderBubble />
         <Toaster />
       </div>
     </BudgetAlertProvider>

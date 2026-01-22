@@ -396,6 +396,8 @@ export default function SpendingsPage() {
               setBudgetDollars(nextBudgetDollars);
               setAlertAt(nextAlertAt);
               setNotifiedAlready(nextNotifiedAlready);
+              window.dispatchEvent(new Event("budget:changed"));
+
 
               setIsEditOpen(false);
             } catch (err) {

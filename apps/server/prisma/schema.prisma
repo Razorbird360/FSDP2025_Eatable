@@ -384,6 +384,9 @@ model UserMonthlyBudget {
   budgetCents     Int      @map("budget_cents")
   alertAtPercent  Int      @default(80) @map("alert_at_percent")
   alerted  Boolean  @default(false)
+  notifiedThresholdAlready Boolean @default(false)
+  notifiedLimitAlready     Boolean @default(false)
+
   notifiedAlready  Boolean  @default(false)
 
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)

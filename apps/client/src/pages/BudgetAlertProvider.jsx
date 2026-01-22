@@ -1,58 +1,48 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import api from "@lib/api";
 import { formatPrice } from "../utils/helpers";
 
-const MONTH_OPTIONS = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
-
 export default function BudgetAlertProvider({ children }) {
   const [budgetPopup, setBudgetPopup] = useState(null);
-  const [notifiedAlready, setNotifiedAlready] = useState(false);
 
   const busyRef = useRef(false);
   const timerRef = useRef(null);
+  const recheckTimeoutRef = useRef(null);
 
-  const now = useMemo(() => new Date(), []);
-  const yearNumber = now.getFullYear();
-  const monthNumber = now.getMonth() + 1;
-  const selectedMonthIndex = monthNumber - 1;
+  // ✅ Prevent duplicate popups if poll runs multiple times quickly
+  const showingRef = useRef(false);
 
   const poll = async () => {
     if (busyRef.current) return;
     busyRef.current = true;
 
     try {
+      // if popup already open, don't open another
+      if (showingRef.current) return;
+
+      const now = new Date();
+      const yearNumber = now.getFullYear();
+      const monthNumber = now.getMonth() + 1;
+      const selectedMonthIndex = monthNumber - 1;
+
       // 1) Fetch budget for current month
       const budgetRes = await api.get("/budget/monthly", {
         params: { year: yearNumber, month: monthNumber },
       });
 
       const b = budgetRes.data?.budget;
-
       if (!b) return;
 
       const budgetCapCents = Math.max(0, Number(b?.budgetCents || 0));
       const alertAt = Number(b?.alertAtPercent ?? 80);
-      const serverNotified = Boolean(b?.notifiedAlready ?? false);
 
-      setNotifiedAlready(serverNotified);
+      // ✅ NEW flags (2 alerts)
+      const notifiedThresholdAlready = Boolean(b?.notifiedThresholdAlready ?? false);
+      const notifiedLimitAlready = Boolean(b?.notifiedLimitAlready ?? false);
 
       if (!budgetCapCents) return;
-      if (serverNotified) return;
 
-      // 2) Fetch orders (same rule you used in SpendingsPage)
+      // 2) Fetch orders
       const ordersRes = await api.get("/orders/my");
       const orders = ordersRes.data?.orders || [];
 
@@ -80,44 +70,53 @@ export default function BudgetAlertProvider({ children }) {
 
       const reachedHardLimit = spentCents >= hardLimitCents;
       const reachedAlert =
-        alertAt < 100 && spentCents >= alertThresholdCents && spentCents < hardLimitCents;
+        alertAt < 100 &&
+        spentCents >= alertThresholdCents &&
+        spentCents < hardLimitCents;
 
-      const showPopup = async (type, title, message) => {
+      const showPopup = async (type, title, message, level) => {
+        if (showingRef.current) return;
+
+        showingRef.current = true;
         setBudgetPopup({ type, title, message });
 
         try {
           await api.post("/budget/monthly/notify", {
             year: yearNumber,
             month: monthNumber,
+            level, // "threshold" | "limit"
           });
-          setNotifiedAlready(true);
-        } catch (err) {
+        } catch {
           // ignore
         }
       };
 
-      if (reachedHardLimit) {
+      // ✅ Priority: 100% popup first
+      if (reachedHardLimit && !notifiedLimitAlready) {
         await showPopup(
           "limit",
           "Budget limit reached",
           `You have used 100% of your budget.\n${formatPrice(spentCents)} / ${formatPrice(
             budgetCapCents
-          )} spent`
+          )} spent`,
+          "limit"
         );
         return;
       }
 
-      if (reachedAlert) {
+      // ✅ Then threshold popup
+      if (reachedAlert && !notifiedThresholdAlready) {
         await showPopup(
           "warning",
           "Budget alert",
           `You have used ${Math.max(0, percent)}% of your budget.\n${formatPrice(
             spentCents
-          )} / ${formatPrice(budgetCapCents)} spent`
+          )} / ${formatPrice(budgetCapCents)} spent`,
+          "threshold"
         );
       }
-    } catch (err) {
-      // If not logged in (401), just do nothing.
+    } catch {
+      // ignore (eg 401)
     } finally {
       busyRef.current = false;
     }
@@ -133,9 +132,21 @@ export default function BudgetAlertProvider({ children }) {
     const onFocus = () => poll();
     window.addEventListener("focus", onFocus);
 
+    // Re-check shortly after events
+    const onRecheck = () => {
+      if (recheckTimeoutRef.current) clearTimeout(recheckTimeoutRef.current);
+      recheckTimeoutRef.current = setTimeout(() => poll(), 1200);
+    };
+
+    window.addEventListener("budget:changed", onRecheck);
+    window.addEventListener("payment:success", onRecheck);
+
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
+      if (recheckTimeoutRef.current) clearTimeout(recheckTimeoutRef.current);
       window.removeEventListener("focus", onFocus);
+      window.removeEventListener("budget:changed", onRecheck);
+      window.removeEventListener("payment:success", onRecheck);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -147,7 +158,10 @@ export default function BudgetAlertProvider({ children }) {
       {budgetPopup && (
         <BudgetAlertModal
           data={budgetPopup}
-          onClose={() => setBudgetPopup(null)}
+          onClose={() => {
+            showingRef.current = false;
+            setBudgetPopup(null);
+          }}
         />
       )}
     </>
@@ -172,13 +186,7 @@ function BudgetAlertModal({ data, onClose }) {
           {isLimit ? (
             <svg viewBox="0 0 48 48" className="h-16 w-16 text-[#21421B]" aria-hidden="true">
               <circle cx="24" cy="24" r="20" fill="none" stroke="currentColor" strokeWidth="3" />
-              <path
-                d="M16 16l16 16"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="3"
-                strokeLinecap="round"
-              />
+              <path d="M16 16l16 16" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
             </svg>
           ) : (
             <svg viewBox="0 0 48 48" className="h-16 w-16 text-[#21421B]" aria-hidden="true">
