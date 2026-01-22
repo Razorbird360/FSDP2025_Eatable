@@ -43,7 +43,7 @@ export default function SpendingsPage() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [budgetDollars, setBudgetDollars] = useState(250);
   const [alertAt, setAlertAt] = useState(50);
-  const [notifiedAlready, setNotifiedAlready] = useState(false);
+
   const [loadingBudget, setLoadingBudget] = useState(false);
   const [budgetError, setBudgetError] = useState(null);
 
@@ -95,12 +95,10 @@ export default function SpendingsPage() {
 
           setBudgetDollars(serverBudgetDollars);
           setAlertAt(serverAlertAt);
-          setNotifiedAlready(b.notifiedAlready ?? false);
         } else {
           // Default fallback
           setBudgetDollars(250);
           setAlertAt(50);
-          setNotifiedAlready(false);
         }
       } catch (err) {
         console.error('Failed to fetch budget:', err);
@@ -391,11 +389,9 @@ export default function SpendingsPage() {
                 (b?.budgetCents ?? budgetCents) / 100
               );
               const nextAlertAt = b?.alertAtPercent ?? alertAt;
-              const nextNotifiedAlready = b?.notifiedAlready ?? false;
 
               setBudgetDollars(nextBudgetDollars);
               setAlertAt(nextAlertAt);
-              setNotifiedAlready(nextNotifiedAlready);
               window.dispatchEvent(new Event("budget:changed"));
 
 

@@ -148,7 +148,6 @@ export default function BudgetAlertProvider({ children }) {
       window.removeEventListener("budget:changed", onRecheck);
       window.removeEventListener("payment:success", onRecheck);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
