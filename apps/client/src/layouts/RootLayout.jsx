@@ -2,6 +2,7 @@ import { Outlet } from "react-router-dom";
 import Navbar from "../ui/Navbar";
 import CartSidebar from "../features/orders/components/CartSidebar";
 import { Toaster } from "../components/ui/toaster";
+import FloatingOrderBubble from "../pages/FloatingOrderBubble";
 import BudgetAlertProvider from "../pages/BudgetAlertProvider";
 
 function RootLayout() {
@@ -15,6 +16,7 @@ function RootLayout() {
         </main>
 
         <CartSidebar />
+      <FloatingOrderBubble />
         <Toaster />
       </div>
     </BudgetAlertProvider>
