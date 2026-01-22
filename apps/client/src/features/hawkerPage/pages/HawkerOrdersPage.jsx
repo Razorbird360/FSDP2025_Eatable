@@ -114,18 +114,6 @@ function fmtDateTime(iso) {
   });
 }
 
-function fmtBadgeDateTime(iso) {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleString("en-SG", {
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
-}
 
 function safeItems(order) {
   return Array.isArray(order.items)
@@ -212,13 +200,7 @@ function Badge({ text }) {
     </span>
   );
 }
-function ActionBadge({ text }) {
-  return (
-    <span className="inline-flex items-center justify-center rounded-md px-2 py-1.5 text-[12px] font-semibold bg-[#21421B] text-white w-full sm:w-auto sm:min-w-[120px]">
-      {text}
-    </span>
-  );
-}
+
 
 
 
@@ -400,7 +382,6 @@ export default function HawkerOrdersPage() {
 
   const [incoming, setIncoming] = useState([]);
   const [pending, setPending] = useState([]);
-  const [ready, setReady] = useState([]);
   const [history, setHistory] = useState([]);
   const [historyMonth, setHistoryMonth] = useState("all");
 
@@ -454,7 +435,6 @@ export default function HawkerOrdersPage() {
 
       setIncoming(grouped.incoming || []);
       setPending(grouped.pending || []);
-      setReady(grouped.ready || []);
       setHistory(grouped.history || []);
     } catch {
       setErr("Failed to load orders.");

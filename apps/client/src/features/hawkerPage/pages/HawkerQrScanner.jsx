@@ -62,8 +62,8 @@ export default function QrScanModal({ open, orderId, onClose, onSuccess }) {
                 const parsed = JSON.parse(raw);
                 if (parsed?.token) token = String(parsed.token).trim();
                 if (parsed?.orderId) qrOrderId = String(parsed.orderId).trim();
-              } catch {
-                // raw token fallback
+              } catch (e) {
+                // raw token fallback (non-JSON QR)
               }
 
               if (!qrOrderId || !token) {
@@ -84,7 +84,9 @@ export default function QrScanModal({ open, orderId, onClose, onSuccess }) {
                 scannerRef.current = null;
                 s?.stop();
                 s?.destroy();
-              } catch {}
+              } catch (e) {
+                // ignore stop/destroy errors
+              }
 
               setErr(null);
 
@@ -107,7 +109,7 @@ export default function QrScanModal({ open, orderId, onClose, onSuccess }) {
 
         scannerRef.current = scanner;
         await scanner.start();
-      } catch {
+      } catch (e) {
         if (!cancelled) setErr("Camera permission denied or not available.");
       }
     }
@@ -125,10 +127,14 @@ export default function QrScanModal({ open, orderId, onClose, onSuccess }) {
       if (s) {
         try {
           s.stop();
-        } catch {}
+        } catch (e) {
+          // ignore
+        }
         try {
           s.destroy();
-        } catch {}
+        } catch (e) {
+          // ignore
+        }
       }
     };
   }, [open, orderId]);
