@@ -1,7 +1,8 @@
-import { Outlet } from 'react-router-dom';
-import Navbar from '../ui/Navbar';
-import CartSidebar from '../features/orders/components/CartSidebar';
-import { Toaster } from '../components/ui/toaster';
+import { Outlet } from "react-router-dom";
+import Navbar from "../ui/Navbar";
+import CartSidebar from "../features/orders/components/CartSidebar";
+import { Toaster } from "../components/ui/toaster";
+import FloatingOrderBubble from "../pages/FloatingOrderBubble";
 
 function RootLayout() {
   return (
@@ -13,6 +14,7 @@ function RootLayout() {
       </main>
 
       <CartSidebar />
+      <FloatingOrderBubble />
       <Toaster />
     </div>
   );
