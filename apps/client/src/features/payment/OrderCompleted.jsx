@@ -101,6 +101,9 @@ export default function OrderCompletedModal({
   const prevCollectedRef = useRef(false)
   const pollingRef = useRef(null)
 
+  // ✅ Prevent dispatching payment event multiple times per order
+  const paymentDispatchedForRef = useRef(new Set())
+
   const hasMany = activeOrderIds.length > 1
 
   useEffect(() => {
@@ -200,7 +203,8 @@ export default function OrderCompletedModal({
     }
   }, [currentOrderId])
 
-  const stallName = stall?.name || (items.length ? "Your selected stall" : "No stall found")
+  const stallName =
+    stall?.name || (items.length ? "Your selected stall" : "No stall found")
 
   const placedAtRaw =
     orderInfo?.createdAt ||
@@ -246,13 +250,15 @@ export default function OrderCompletedModal({
   const estimate = Number(estimateMins)
   const estimateValid = Number.isFinite(estimate) && estimate > 0
 
-  const readyAt = acceptedAtValid && estimateValid ? addMinutes(acceptedAt, estimate) : null
+  const readyAt =
+    acceptedAtValid && estimateValid ? addMinutes(acceptedAt, estimate) : null
   const pickupEnd = readyAt ? addMinutes(readyAt, BUFFER_MINS) : null
 
   const startTime = readyAt
   const endTime = pickupEnd
 
-  const estimatedRaw = orderInfo?.estimatedReadyTime || orderInfo?.estimated_ready_time
+  const estimatedRaw =
+    orderInfo?.estimatedReadyTime || orderInfo?.estimated_ready_time
   let estimatedPickupText = "Awaiting stall confirmation"
 
   if (acceptedAtValid && estimateValid) {
@@ -266,10 +272,13 @@ export default function OrderCompletedModal({
   const voucherApplied = 0.0
 
   const serviceFee =
-    (orderInfo?.discounts_charges?.find((dc) => dc.type === "fee")?.amountCents ?? 0) / 100
+    (orderInfo?.discounts_charges?.find((dc) => dc.type === "fee")?.amountCents ??
+      0) / 100
 
   const total =
-    orderInfo?.totalCents != null ? orderInfo.totalCents / 100 : subtotal + serviceFee - voucherApplied
+    orderInfo?.totalCents != null
+      ? orderInfo.totalCents / 100
+      : subtotal + serviceFee - voucherApplied
 
   const displayOrderCode = generateOrderCode(currentOrderId || "—")
 
@@ -279,6 +288,20 @@ export default function OrderCompletedModal({
   const isPaid = pay === "PAID" || pay === "COMPLETED"
   const isPreparing = isPaid && os === "preparing"
   const isReady = isPaid && os === "ready"
+
+  // ✅ Dispatch "payment:success" once per paid order so BudgetAlertProvider can re-check
+  useEffect(() => {
+    if (!currentOrderId) return
+    if (!isPaid) return
+
+    const set = paymentDispatchedForRef.current
+    const key = String(currentOrderId)
+
+    if (set.has(key)) return
+    set.add(key)
+
+    window.dispatchEvent(new Event("payment:success"))
+  }, [currentOrderId, isPaid])
 
   // ✅ prefer collectedAt if backend sets it
   const collectedAtRaw = orderInfo?.collectedAt || orderInfo?.collected_at || null
@@ -372,7 +395,9 @@ export default function OrderCompletedModal({
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 sticky top-0 bg-white z-10">
           <div className="flex items-center gap-4">
-            <h1 className="text-2xl font-semibold text-gray-900">Your Order Has Been Confirmed</h1>
+            <h1 className="text-2xl font-semibold text-gray-900">
+              Your Order Has Been Confirmed
+            </h1>
 
             {hasMany && (
               <div className="inline-flex rounded-2xl border border-gray-200 bg-white p-1">
@@ -385,7 +410,9 @@ export default function OrderCompletedModal({
                       onClick={() => setActiveIndex(idx)}
                       className={[
                         "min-w-[44px] px-4 py-2 rounded-xl text-sm font-semibold transition",
-                        active ? "bg-[#21421B] text-white" : "text-gray-600 hover:bg-gray-50",
+                        active
+                          ? "bg-[#21421B] text-white"
+                          : "text-gray-600 hover:bg-gray-50",
                       ].join(" ")}
                       aria-label={`Switch to order ${idx + 1}`}
                     >
@@ -455,7 +482,9 @@ export default function OrderCompletedModal({
                 <div className="text-gray-500 text-sm space-y-1">
                   {startTime && endTime ? (
                     <>
-                      <p className="text-gray-600">Estimated duration: {Number(estimateMins)} mins</p>
+                      <p className="text-gray-600">
+                        Estimated duration: {Number(estimateMins)} mins
+                      </p>
                       <p className="text-gray-600">
                         {fmtTimeHM(startTime)} - {fmtTimeHM(endTime)}
                       </p>
@@ -474,7 +503,9 @@ export default function OrderCompletedModal({
                 <QRCodeCanvas value={qrValue} size={224} />
               ) : isCollected ? (
                 <div className="w-48 h-48 md:w-56 md:h-56 rounded-lg bg-green-100 flex items-center justify-center px-4 text-center">
-                  <p className="text-green-800 text-sm font-medium">This order has been collected.</p>
+                  <p className="text-green-800 text-sm font-medium">
+                    This order has been collected.
+                  </p>
                 </div>
               ) : isPaid && (os === "preparing" || os === "ready") ? (
                 <div className="w-48 h-48 md:w-56 md:h-56 rounded-lg bg-gray-200 flex items-center justify-center px-4 text-center">
@@ -511,7 +542,9 @@ export default function OrderCompletedModal({
 
               <div className="flex-1 px-6 py-4 overflow-y-auto max-h-64">
                 {items.length === 0 ? (
-                  <p className="text-gray-500 text-center py-4">No items found for this order.</p>
+                  <p className="text-gray-500 text-center py-4">
+                    No items found for this order.
+                  </p>
                 ) : (
                   <div className="space-y-4">
                     {items.map((item) => (

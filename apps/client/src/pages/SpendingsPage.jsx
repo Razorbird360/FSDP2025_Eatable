@@ -43,12 +43,9 @@ export default function SpendingsPage() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [budgetDollars, setBudgetDollars] = useState(250);
   const [alertAt, setAlertAt] = useState(50);
-  const [notifiedAlready, setNotifiedAlready] = useState(false);
+
   const [loadingBudget, setLoadingBudget] = useState(false);
   const [budgetError, setBudgetError] = useState(null);
-
-  // --- Budget Alert Popup State ---
-  const [budgetPopup, setBudgetPopup] = useState(null);
 
   // --- Orders State ---
   const [orders, setOrders] = useState([]);
@@ -98,12 +95,10 @@ export default function SpendingsPage() {
 
           setBudgetDollars(serverBudgetDollars);
           setAlertAt(serverAlertAt);
-          setNotifiedAlready(b.notifiedAlready ?? false);
         } else {
           // Default fallback
           setBudgetDollars(250);
           setAlertAt(50);
-          setNotifiedAlready(false);
         }
       } catch (err) {
         console.error('Failed to fetch budget:', err);
@@ -166,63 +161,6 @@ export default function SpendingsPage() {
     const p = Math.round((spentCents / budgetCapCents) * 100);
     return Math.max(0, Math.min(100, p));
   }, [spentCents, budgetCapCents]);
-
-  // --- Budget Alert Logic ---
-  useEffect(() => {
-    if (mode !== 'month') return;
-    if (!budgetCapCents) return;
-    if (notifiedAlready) return;
-
-    const hardLimitCents = budgetCapCents;
-    const alertThresholdCents = Math.round(budgetCapCents * (alertAt / 100));
-
-    const reachedHardLimit = spentCents >= hardLimitCents;
-    const reachedAlert =
-      alertAt < 100 &&
-      spentCents >= alertThresholdCents &&
-      spentCents < hardLimitCents;
-
-    const showPopup = async (type, title, message) => {
-      setBudgetPopup({ type, title, message });
-      try {
-        await api.post('/budget/monthly/notify', {
-          year: yearNumber,
-          month: monthNumber,
-        });
-        setNotifiedAlready(true);
-      } catch (err) {
-        console.error('Failed to mark budget as notified:', err);
-      }
-    };
-
-    // 1) Hard limit popup (100%+)
-    if (reachedHardLimit) {
-      showPopup(
-        'limit',
-        'Budget limit reached',
-        `You have used 100% of your budget.\n${formatPrice(spentCents)} / ${formatPrice(budgetCapCents)} spent`
-      );
-      return;
-    }
-
-    // 2) Early warning popup (e.g. 80%)
-    if (reachedAlert) {
-      showPopup(
-        'warning',
-        'Budget alert',
-        `You have used ${percent}% of your budget.\n${formatPrice(spentCents)} / ${formatPrice(budgetCapCents)} spent`
-      );
-    }
-  }, [
-    mode,
-    spentCents,
-    budgetCapCents,
-    alertAt,
-    percent,
-    yearNumber,
-    monthNumber,
-    notifiedAlready,
-  ]);
 
   // --- QuickChart URL (Donut only) ---
   const chartUrl = useMemo(() => {
@@ -451,29 +389,17 @@ export default function SpendingsPage() {
                 (b?.budgetCents ?? budgetCents) / 100
               );
               const nextAlertAt = b?.alertAtPercent ?? alertAt;
-              const nextNotifiedAlready = b?.notifiedAlready ?? false;
 
               setBudgetDollars(nextBudgetDollars);
               setAlertAt(nextAlertAt);
-              setNotifiedAlready(nextNotifiedAlready);
+              window.dispatchEvent(new Event("budget:changed"));
+
 
               setIsEditOpen(false);
             } catch (err) {
               console.error(err);
               alert('Failed to update.');
             }
-          }}
-        />
-      )}
-
-      {/* Budget Alert Popup */}
-      {budgetPopup && (
-        <BudgetAlertModal
-          data={budgetPopup}
-          onClose={() => setBudgetPopup(null)}
-          onEdit={() => {
-            setBudgetPopup(null);
-            setIsEditOpen(true);
           }}
         />
       )}
@@ -489,118 +415,6 @@ export default function SpendingsPage() {
 }
 
 // --- Components ---
-
-function BudgetAlertModal({ data, onClose }) {
-  const isLimit = data?.type === 'limit';
-
-  return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 px-4">
-      <div
-        className="
-          relative w-full max-w-[580px]
-          rounded-[24px] bg-[#F6FBF2]
-          pt-14 pb-10 px-6
-          shadow-[0_20px_60px_rgba(0,0,0,0.25)]
-          overflow-hidden
-        "
-      >
-        <div className="relative mb-8 flex justify-center">
-          {isLimit ? (
-            <svg
-              viewBox="0 0 48 48"
-              className="h-16 w-16 text-[#21421B]"
-              aria-hidden="true"
-            >
-              <circle
-                cx="24"
-                cy="24"
-                r="20"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="3"
-              />
-              <path
-                d="M16 16l16 16"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="3"
-                strokeLinecap="round"
-              />
-            </svg>
-          ) : (
-            <svg
-              viewBox="0 0 48 48"
-              className="h-16 w-16 text-[#21421B]"
-              aria-hidden="true"
-            >
-              <circle
-                cx="24"
-                cy="24"
-                r="20"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="3"
-              />
-              <circle cx="18" cy="20" r="2" fill="currentColor" />
-              <circle cx="30" cy="20" r="2" fill="currentColor" />
-              <path
-                d="M16 29c2.5 3 5.5 4.5 8 4.5s5.5-1.5 8-4.5"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="3"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          )}
-        </div>
-
-        <h2 className="relative mb-3 text-center text-[22px] font-semibold text-black leading-snug">
-          {data?.title}
-        </h2>
-
-        <p className="relative mb-8 text-center text-sm text-slate-600 whitespace-pre-line leading-relaxed">
-          {data?.message}
-        </p>
-
-        <div className="relative flex justify-center gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="
-              rounded-full bg-[#21421B]
-              px-10 py-3
-              text-sm font-medium text-white
-              shadow-[0_8px_20px_rgba(33,66,27,0.35)]
-              hover:bg-[#1A3517]
-              transition
-            "
-          >
-            Continue
-          </button>
-        </div>
-
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute right-4 top-4 rounded-full p-2 hover:bg-black/5 transition"
-          aria-label="Close"
-        >
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <path d="M18 6 6 18M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
-    </div>
-  );
-}
 
 function SpendingPerMonthChart({ monthlyTotalsCents }) {
   const labels = [
@@ -890,8 +704,5 @@ function buildBudgetDonutUrl(spentCents, budgetCents) {
       },
     },
   };
-
-  return `https://quickchart.io/chart?width=350&height=350&v=${Date.now()}&c=${encodeURIComponent(
-    JSON.stringify(config)
-  )}`;
+  return `https://quickchart.io/chart?width=350&height=350&v=${Date.now()}&c=${encodeURIComponent(JSON.stringify(config))}`;
 }
