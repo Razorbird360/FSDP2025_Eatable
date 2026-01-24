@@ -41,6 +41,7 @@ const mobileNavItems = [
 const mobileMenuBaseColor = '#FFFFFF';
 const mobileMenuLayers = ['#F8FDF3', '#EFF8EE', '#FFFFFF'];
 const mobileMenuLayerDelays = [0, 30, 55];
+const emptySearchResults = { hawkerCentres: [], stalls: [], dishes: [] };
 
 function IconPill({ Icon, label, href, isActive }) {
   return (
@@ -106,7 +107,17 @@ export default function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isSearchLoading, setIsSearchLoading] = useState(false);
+  const [searchResults, setSearchResults] = useState(emptySearchResults);
+  const [searchError, setSearchError] = useState(null);
+  const [debouncedQuery, setDebouncedQuery] = useState('');
   const profileMenuRef = useRef(null);
+  const hasSearchResults =
+    searchResults.hawkerCentres.length > 0 ||
+    searchResults.stalls.length > 0 ||
+    searchResults.dishes.length > 0;
 
   const { count, openCart } = useCart();
   const { status, profile, logout, loading: authLoading } = useAuth();
@@ -134,6 +145,26 @@ export default function Navbar() {
     status === 'authenticated' ? mobileNavItems : navIcons;
 
   useEffect(() => {
+    const trimmedQuery = searchQuery.trim();
+
+    if (!trimmedQuery) {
+      setIsSearchLoading(false);
+      setDebouncedQuery('');
+      setSearchResults(emptySearchResults);
+      setSearchError(null);
+      return;
+    }
+
+    setIsSearchLoading(true);
+    const timeoutId = setTimeout(() => {
+      setDebouncedQuery(trimmedQuery);
+      setIsSearchLoading(false);
+    }, 800);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery]);
+
+  useEffect(() => {
     if (!isProfileMenuOpen) return;
 
     const handleClickOutside = (event) => {
@@ -148,6 +179,25 @@ export default function Navbar() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isProfileMenuOpen]);
+
+  const handleSearchFocus = () => {
+    setIsSearchOpen(true);
+  };
+
+  const handleSearchBlur = () => {
+    setIsSearchOpen(false);
+  };
+
+  const handleSearchChange = (event) => {
+    setSearchQuery(event.target.value);
+    setSearchError(null);
+  };
+
+  const handleSearchKeyDown = (event) => {
+    if (event.key !== 'Escape') return;
+    setIsSearchOpen(false);
+    event.currentTarget.blur();
+  };
 
   return (
     <header className="fixed inset-x-0 top-0 z-40 border-b border-[#E7EEE7] bg-white shadow-sm">
@@ -184,6 +234,12 @@ export default function Navbar() {
               </Box>
               <Input
                 placeholder="Search dishes, stalls, categories..."
+                value={searchQuery}
+                onChange={handleSearchChange}
+                onFocus={handleSearchFocus}
+                onBlur={handleSearchBlur}
+                onKeyDown={handleSearchKeyDown}
+                aria-busy={isSearchLoading}
                 borderRadius="xl"
                 border="1px solid"
                 borderColor="#E7EEE7"
@@ -202,6 +258,15 @@ export default function Navbar() {
                   Ctrl + K
                 </kbd>
               </Box>
+              {isSearchOpen && (
+                <Box
+                  className="absolute left-0 right-0 top-full mt-2 min-h-[64px] rounded-2xl border border-[#E7EEE7] bg-white shadow-[0_12px_30px_rgba(0,0,0,0.08)]"
+                  data-loading={isSearchLoading ? 'true' : undefined}
+                  data-error={searchError ? 'true' : undefined}
+                  data-query={debouncedQuery || undefined}
+                  data-has-results={hasSearchResults ? 'true' : undefined}
+                />
+              )}
             </Box>
           </div>
 
@@ -386,6 +451,12 @@ export default function Navbar() {
               </Box>
               <Input
                 placeholder="Search dishes, stalls, categories..."
+                value={searchQuery}
+                onChange={handleSearchChange}
+                onFocus={handleSearchFocus}
+                onBlur={handleSearchBlur}
+                onKeyDown={handleSearchKeyDown}
+                aria-busy={isSearchLoading}
                 borderRadius="2xl"
                 border="1px solid"
                 borderColor="#E7EEE7"
