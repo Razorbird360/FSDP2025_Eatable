@@ -291,7 +291,7 @@ export default function Navbar() {
     setIsSearchLoading(true);
     const timeoutId = setTimeout(() => {
       setDebouncedQuery(trimmedQuery);
-    }, 800);
+    }, 500);
 
     return () => clearTimeout(timeoutId);
   }, [searchQuery]);
