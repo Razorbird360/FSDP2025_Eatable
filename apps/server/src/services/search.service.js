@@ -38,7 +38,6 @@ async function search(query, limit = DEFAULT_LIMIT) {
         name: true,
         imageUrl: true,
         address: true,
-        postalCode: true,
       },
       take,
     }),
@@ -50,8 +49,6 @@ async function search(query, limit = DEFAULT_LIMIT) {
         id: true,
         name: true,
         image_url: true,
-        location: true,
-        cuisineType: true,
         hawkerCentre: {
           select: { name: true },
         },
@@ -67,6 +64,7 @@ async function search(query, limit = DEFAULT_LIMIT) {
         id: true,
         name: true,
         imageUrl: true,
+        priceCents: true,
         stall: {
           select: { name: true },
         },
@@ -80,7 +78,7 @@ async function search(query, limit = DEFAULT_LIMIT) {
       id: centre.id,
       name: centre.name,
       imageUrl: centre.imageUrl ?? null,
-      subtitle: centre.address ?? centre.postalCode ?? null,
+      subtitle: centre.address ?? null,
       entityType: 'hawkerCentre',
     })),
     trimmedQuery
@@ -91,7 +89,7 @@ async function search(query, limit = DEFAULT_LIMIT) {
       id: stall.id,
       name: stall.name,
       imageUrl: stall.image_url ?? null,
-      subtitle: stall.hawkerCentre?.name ?? stall.location ?? stall.cuisineType ?? null,
+      subtitle: stall.hawkerCentre?.name ?? null,
       entityType: 'stall',
     })),
     trimmedQuery
@@ -102,7 +100,9 @@ async function search(query, limit = DEFAULT_LIMIT) {
       id: dish.id,
       name: dish.name,
       imageUrl: dish.imageUrl ?? null,
-      subtitle: dish.stall?.name ?? null,
+      subtitle: dish.stall?.name
+        ? `${dish.stall.name} • $${(dish.priceCents / 100).toFixed(2)}`
+        : `$${(dish.priceCents / 100).toFixed(2)}`,
       entityType: 'dish',
     })),
     trimmedQuery

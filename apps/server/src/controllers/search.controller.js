@@ -1,6 +1,6 @@
 import searchService from '../services/search.service.js';
 
-const MIN_QUERY_LENGTH = 1;
+const MIN_QUERY_LENGTH = 2;
 
 function emptyResponse() {
   return { hawkerCentres: [], stalls: [], dishes: [] };
