@@ -129,7 +129,7 @@ function AppRoutes() {
           <Route
             path="/hawker/dashboard"
             element={
-              <RequireRole role="hawker">
+              <RequireRole role="hawker" verified={true}>
                 <HawkerDashboardPage />
               </RequireRole>
             }
