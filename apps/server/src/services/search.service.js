@@ -62,6 +62,7 @@ async function search(query, limit = DEFAULT_LIMIT) {
       },
       select: {
         id: true,
+        stallId: true,
         name: true,
         imageUrl: true,
         priceCents: true,
@@ -100,6 +101,7 @@ async function search(query, limit = DEFAULT_LIMIT) {
       id: dish.id,
       name: dish.name,
       imageUrl: dish.imageUrl ?? null,
+      stallId: dish.stallId,
       subtitle: dish.stall?.name
         ? `${dish.stall.name} • $${(dish.priceCents / 100).toFixed(2)}`
         : `$${(dish.priceCents / 100).toFixed(2)}`,
