@@ -193,7 +193,7 @@ function SearchDropdown({
       data-has-results={hasResults ? 'true' : undefined}
     >
       <div
-        className={`transition-opacity duration-150 ${
+        className={`transition-opacity duration-150 ${hasQuery ? 'pt-3' : ''} ${
           isLoading ? 'opacity-60' : 'opacity-100'
         }`}
       >
