@@ -8,6 +8,7 @@ import {
   useEffect,
 } from "react";
 import api from "@lib/api"; // adjust path if needed
+import { useAuth } from "../../auth/useAuth";
 
 const CartContext = createContext(null);
 
@@ -94,6 +95,7 @@ function isSameStall(incoming, existing) {
 export function CartProvider({ children }) {
   const [items, setItems] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
+  const { status } = useAuth();
 
   const openCart = () => setIsOpen(true);
   const closeCart = () => setIsOpen(false);
@@ -101,6 +103,11 @@ export function CartProvider({ children }) {
 
   // --- Load cart from backend on mount ---
   useEffect(() => {
+    if (status !== "authenticated") {
+      setItems([]);
+      return;
+    }
+
     let ignore = false;
 
     async function loadCart() {
@@ -119,7 +126,7 @@ export function CartProvider({ children }) {
     return () => {
       ignore = true;
     };
-  }, []);
+  }, [status]);
 
   const addToCart = useCallback(
     async (menuItem, qty = 1, notes = "") => {
