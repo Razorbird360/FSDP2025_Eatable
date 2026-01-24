@@ -69,6 +69,12 @@ async function search(query, limit = DEFAULT_LIMIT) {
         stall: {
           select: { name: true },
         },
+        mediaUploads: {
+          where: { validationStatus: 'approved' },
+          orderBy: { upvoteCount: 'desc' },
+          take: 1,
+          select: { imageUrl: true },
+        },
       },
       take,
     }),
@@ -100,7 +106,7 @@ async function search(query, limit = DEFAULT_LIMIT) {
     dishes.map((dish) => ({
       id: dish.id,
       name: dish.name,
-      imageUrl: dish.imageUrl ?? null,
+      imageUrl: dish.mediaUploads?.[0]?.imageUrl ?? dish.imageUrl ?? null,
       stallId: dish.stallId,
       subtitle: dish.stall?.name
         ? `${dish.stall.name} • $${(dish.priceCents / 100).toFixed(2)}`

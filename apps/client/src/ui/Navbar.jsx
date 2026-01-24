@@ -322,7 +322,6 @@ export default function Navbar() {
         setSearchError(null);
       } catch (error) {
         if (controller.signal.aborted) return;
-        console.error('Search failed:', error);
         setSearchError('Something went wrong');
         setSearchResults(emptySearchResults);
         setActiveResultIndex(-1);
