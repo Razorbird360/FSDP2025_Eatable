@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { useState, useRef, useEffect, useMemo } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Input, Box } from '@chakra-ui/react';
 import {
   ClipboardList,
@@ -124,7 +124,7 @@ function SearchThumbnail({ imageUrl }) {
   );
 }
 
-function SearchSection({ title, items, showDivider }) {
+function SearchSection({ title, items, showDivider, onSelect, onHighlight, activeIndex }) {
   if (!items.length) return null;
 
   return (
@@ -134,9 +134,18 @@ function SearchSection({ title, items, showDivider }) {
       </p>
       <div className="space-y-1 px-2 pb-2">
         {items.map((item) => (
-          <div
+          <button
             key={`${item.entityType}-${item.id}`}
-            className="flex items-center gap-3 rounded-xl px-2 py-2 transition-colors hover:bg-[#F8FDF3]"
+            type="button"
+            onMouseDown={(event) => {
+              event.preventDefault();
+              onSelect?.(item);
+            }}
+            onMouseEnter={() => onHighlight?.(item)}
+            className={`flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition-colors ${
+              activeIndex === item.flatIndex ? 'bg-[#F0F7ED]' : 'hover:bg-[#F8FDF3]'
+            }`}
+            aria-selected={activeIndex === item.flatIndex}
           >
             <SearchThumbnail imageUrl={item.imageUrl} />
             <div className="min-w-0">
@@ -149,7 +158,7 @@ function SearchSection({ title, items, showDivider }) {
                 </p>
               ) : null}
             </div>
-          </div>
+          </button>
         ))}
       </div>
     </div>
@@ -161,22 +170,15 @@ function SearchDropdown({
   isLoading,
   error,
   query,
-  results,
+  sections,
+  activeIndex,
+  onSelect,
+  onHighlight,
   className,
 }) {
   const hasQuery = query.length > 0;
-  const hasResults =
-    results.hawkerCentres.length > 0 ||
-    results.stalls.length > 0 ||
-    results.dishes.length > 0;
-
-  const sections = [
-    { title: 'Hawker Centres', items: results.hawkerCentres },
-    { title: 'Stalls', items: results.stalls },
-    { title: 'Dishes', items: results.dishes },
-  ];
-
   const visibleSections = sections.filter((section) => section.items.length > 0);
+  const hasResults = visibleSections.length > 0;
 
   return (
     <Box
@@ -212,6 +214,9 @@ function SearchDropdown({
                 title={section.title}
                 items={section.items}
                 showDivider={index > 0}
+                activeIndex={activeIndex}
+                onSelect={onSelect}
+                onHighlight={onHighlight}
               />
             ))
           : null}
@@ -222,6 +227,7 @@ function SearchDropdown({
 
 export default function Navbar() {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
@@ -231,8 +237,10 @@ export default function Navbar() {
   const [searchResults, setSearchResults] = useState(emptySearchResults);
   const [searchError, setSearchError] = useState(null);
   const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [activeResultIndex, setActiveResultIndex] = useState(-1);
   const profileMenuRef = useRef(null);
   const searchAbortRef = useRef(null);
+  const searchInputRef = useRef(null);
 
   const { count, openCart } = useCart();
   const { status, profile, logout, loading: authLoading } = useAuth();
@@ -271,6 +279,7 @@ export default function Navbar() {
       setDebouncedQuery('');
       setSearchResults(emptySearchResults);
       setSearchError(null);
+      setActiveResultIndex(-1);
       return;
     }
 
@@ -292,6 +301,7 @@ export default function Navbar() {
       setSearchResults(emptySearchResults);
       setSearchError(null);
       setIsSearchLoading(false);
+      setActiveResultIndex(-1);
       return;
     }
 
@@ -315,6 +325,7 @@ export default function Navbar() {
         console.error('Search failed:', error);
         setSearchError('Something went wrong');
         setSearchResults(emptySearchResults);
+        setActiveResultIndex(-1);
       } finally {
         if (!controller.signal.aborted) {
           setIsSearchLoading(false);
@@ -328,6 +339,43 @@ export default function Navbar() {
       controller.abort();
     };
   }, [debouncedQuery]);
+
+  const searchSections = useMemo(() => {
+    const sections = [
+      { title: 'Hawker Centres', items: searchResults.hawkerCentres },
+      { title: 'Stalls', items: searchResults.stalls },
+      { title: 'Dishes', items: searchResults.dishes },
+    ];
+
+    let index = 0;
+    const flatItems = [];
+    const enrichedSections = sections.map((section) => {
+      const enrichedItems = section.items.map((item) => {
+        const entry = { ...item, flatIndex: index };
+        flatItems.push(entry);
+        index += 1;
+        return entry;
+      });
+      return { ...section, items: enrichedItems };
+    });
+
+    return { sections: enrichedSections, flatItems };
+  }, [searchResults]);
+
+
+  useEffect(() => {
+    if (!debouncedQuery || searchSections.flatItems.length === 0) {
+      setActiveResultIndex(-1);
+      return;
+    }
+
+    setActiveResultIndex((prev) => {
+      if (prev >= 0 && prev < searchSections.flatItems.length) {
+        return prev;
+      }
+      return 0;
+    });
+  }, [debouncedQuery, searchSections.flatItems.length]);
 
   useEffect(() => {
     if (!isProfileMenuOpen) return;
@@ -345,6 +393,41 @@ export default function Navbar() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isProfileMenuOpen]);
 
+  useEffect(() => {
+    const handleShortcut = (event) => {
+      if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'k') {
+        return;
+      }
+      event.preventDefault();
+      setIsSearchOpen(true);
+      searchInputRef.current?.focus();
+    };
+
+    window.addEventListener('keydown', handleShortcut);
+    return () => window.removeEventListener('keydown', handleShortcut);
+  }, []);
+
+  const handleSearchSelect = (item) => {
+    if (!item) return;
+
+    if (item.entityType === 'hawkerCentre') {
+      navigate(`/hawker-centres/${item.id}`);
+    } else if (item.entityType === 'stall') {
+      navigate(`/stalls/${item.id}`);
+    } else if (item.entityType === 'dish') {
+      if (item.stallId) {
+        navigate(`/stalls/${item.stallId}`);
+      } else {
+        setSearchQuery(item.name);
+      }
+    }
+
+    setIsSearchOpen(false);
+    if (isMobileMenuOpen) {
+      closeMobileMenu();
+    }
+  };
+
   const handleSearchFocus = () => {
     setIsSearchOpen(true);
   };
@@ -359,9 +442,41 @@ export default function Navbar() {
   };
 
   const handleSearchKeyDown = (event) => {
-    if (event.key !== 'Escape') return;
-    setIsSearchOpen(false);
-    event.currentTarget.blur();
+    if (event.key === 'Escape') {
+      setIsSearchOpen(false);
+      event.currentTarget.blur();
+      return;
+    }
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      setIsSearchOpen(true);
+      if (searchSections.flatItems.length === 0) return;
+      setActiveResultIndex((prev) => {
+        if (prev < 0) return 0;
+        return (prev + 1) % searchSections.flatItems.length;
+      });
+      return;
+    }
+
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      setIsSearchOpen(true);
+      if (searchSections.flatItems.length === 0) return;
+      setActiveResultIndex((prev) => {
+        if (prev < 0) return searchSections.flatItems.length - 1;
+        return (prev - 1 + searchSections.flatItems.length) % searchSections.flatItems.length;
+      });
+      return;
+    }
+
+    if (event.key === 'Enter') {
+      if (activeResultIndex < 0) return;
+      const item = searchSections.flatItems[activeResultIndex];
+      if (!item) return;
+      event.preventDefault();
+      handleSearchSelect(item);
+    }
   };
 
   return (
@@ -417,6 +532,7 @@ export default function Navbar() {
                 paddingLeft="2.5rem"
                 paddingRight="4.5rem"
                 width="100%"
+                ref={searchInputRef}
               />
               <Box className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
                 <kbd className="inline-flex h-5 items-center justify-center rounded border border-[#E7EEE7] bg-[#F8FDF3] px-2 text-xs text-[#4A554B] leading-none">
@@ -428,7 +544,10 @@ export default function Navbar() {
                 isLoading={isSearchLoading}
                 error={searchError}
                 query={debouncedQuery}
-                results={searchResults}
+                sections={searchSections.sections}
+                activeIndex={activeResultIndex}
+                onSelect={handleSearchSelect}
+                onHighlight={(item) => setActiveResultIndex(item.flatIndex)}
               />
             </Box>
           </div>
