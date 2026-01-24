@@ -17,6 +17,7 @@ import {
 import Tooltip from './Tooltip';
 import { useCart } from '../features/orders/components/CartContext';
 import { useAuth } from '../features/auth/useAuth';
+import api from '../lib/api';
 
 const logoFull = new URL('../assets/logo/logo_full.png', import.meta.url).href;
 const profilePlaceholder = new URL(
@@ -114,6 +115,7 @@ export default function Navbar() {
   const [searchError, setSearchError] = useState(null);
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const profileMenuRef = useRef(null);
+  const searchAbortRef = useRef(null);
   const hasSearchResults =
     searchResults.hawkerCentres.length > 0 ||
     searchResults.stalls.length > 0 ||
@@ -148,6 +150,10 @@ export default function Navbar() {
     const trimmedQuery = searchQuery.trim();
 
     if (!trimmedQuery) {
+      if (searchAbortRef.current) {
+        searchAbortRef.current.abort();
+        searchAbortRef.current = null;
+      }
       setIsSearchLoading(false);
       setDebouncedQuery('');
       setSearchResults(emptySearchResults);
@@ -155,14 +161,60 @@ export default function Navbar() {
       return;
     }
 
+    if (searchAbortRef.current) {
+      searchAbortRef.current.abort();
+      searchAbortRef.current = null;
+    }
+
     setIsSearchLoading(true);
     const timeoutId = setTimeout(() => {
       setDebouncedQuery(trimmedQuery);
-      setIsSearchLoading(false);
     }, 800);
 
     return () => clearTimeout(timeoutId);
   }, [searchQuery]);
+
+  useEffect(() => {
+    if (!debouncedQuery || debouncedQuery.length < 1) {
+      setSearchResults(emptySearchResults);
+      setSearchError(null);
+      setIsSearchLoading(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    if (searchAbortRef.current) {
+      searchAbortRef.current.abort();
+    }
+    searchAbortRef.current = controller;
+
+    const fetchResults = async () => {
+      try {
+        setIsSearchLoading(true);
+        const response = await api.get('/search', {
+          params: { q: debouncedQuery },
+          signal: controller.signal,
+        });
+        setSearchResults(response?.data ?? emptySearchResults);
+        setSearchError(null);
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        console.error('Search failed:', error);
+        setSearchError('Something went wrong');
+        setSearchResults(emptySearchResults);
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsSearchLoading(false);
+        }
+      }
+    };
+
+    fetchResults();
+
+    return () => {
+      controller.abort();
+    };
+  }, [debouncedQuery]);
 
   useEffect(() => {
     if (!isProfileMenuOpen) return;
@@ -265,7 +317,13 @@ export default function Navbar() {
                   data-error={searchError ? 'true' : undefined}
                   data-query={debouncedQuery || undefined}
                   data-has-results={hasSearchResults ? 'true' : undefined}
-                />
+                >
+                  {searchError ? (
+                    <div className="px-4 py-3 text-sm text-[#8B3A3A]">
+                      Something went wrong
+                    </div>
+                  ) : null}
+                </Box>
               )}
             </Box>
           </div>
