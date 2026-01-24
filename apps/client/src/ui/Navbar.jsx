@@ -7,6 +7,7 @@ import {
   Info,
   Library,
   Menu,
+  Salad,
   Search,
   ShoppingCart,
   Telescope,
@@ -103,6 +104,122 @@ function IconAction({ Icon, label, secondaryLabel, badge, onClick, to }) {
   );
 }
 
+function SearchThumbnail({ imageUrl }) {
+  if (imageUrl) {
+    return (
+      <img
+        src={imageUrl}
+        alt=""
+        className="h-8 w-8 rounded-lg object-cover"
+        loading="lazy"
+        aria-hidden="true"
+      />
+    );
+  }
+
+  return (
+    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#21421B]">
+      <Salad className="h-4 w-4 text-white" aria-hidden="true" />
+    </span>
+  );
+}
+
+function SearchSection({ title, items, showDivider }) {
+  if (!items.length) return null;
+
+  return (
+    <div className={`${showDivider ? 'border-t border-[#EEF2EC] pt-3' : ''}`}>
+      <p className="px-4 pb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#6D7F68]">
+        {title}
+      </p>
+      <div className="space-y-1 px-2 pb-2">
+        {items.map((item) => (
+          <div
+            key={`${item.entityType}-${item.id}`}
+            className="flex items-center gap-3 rounded-xl px-2 py-2 transition-colors hover:bg-[#F8FDF3]"
+          >
+            <SearchThumbnail imageUrl={item.imageUrl} />
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-[#1C201D]">
+                {item.name}
+              </p>
+              {item.subtitle ? (
+                <p className="truncate text-xs text-[#6D7F68]">
+                  {item.subtitle}
+                </p>
+              ) : null}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SearchDropdown({
+  isOpen,
+  isLoading,
+  error,
+  query,
+  results,
+  className,
+}) {
+  const hasQuery = query.length > 0;
+  const hasResults =
+    results.hawkerCentres.length > 0 ||
+    results.stalls.length > 0 ||
+    results.dishes.length > 0;
+
+  const sections = [
+    { title: 'Hawker Centres', items: results.hawkerCentres },
+    { title: 'Stalls', items: results.stalls },
+    { title: 'Dishes', items: results.dishes },
+  ];
+
+  const visibleSections = sections.filter((section) => section.items.length > 0);
+
+  return (
+    <Box
+      className={`absolute left-0 right-0 top-full mt-2 rounded-2xl border border-[#E7EEE7] bg-white shadow-[0_12px_30px_rgba(0,0,0,0.08)] transition-all duration-200 origin-top ${
+        isOpen
+          ? 'pointer-events-auto translate-y-0 scale-100 opacity-100'
+          : 'pointer-events-none -translate-y-1 scale-[0.98] opacity-0'
+      } ${className ?? ''}`}
+      data-loading={isLoading ? 'true' : undefined}
+      data-error={error ? 'true' : undefined}
+      data-query={query || undefined}
+      data-has-results={hasResults ? 'true' : undefined}
+    >
+      <div
+        className={`transition-opacity duration-150 ${
+          isLoading ? 'opacity-60' : 'opacity-100'
+        }`}
+      >
+        {error ? (
+          <div className="px-4 py-3 text-sm text-[#8B3A3A]">
+            Something went wrong
+          </div>
+        ) : null}
+        {!error && hasQuery && !isLoading && !hasResults ? (
+          <div className="px-4 py-3 text-sm text-[#6D7F68]">
+            No results
+          </div>
+        ) : null}
+        {!error && hasQuery && hasResults
+          ? visibleSections.map((section, index) => (
+              <SearchSection
+                key={section.title}
+                title={section.title}
+                items={section.items}
+                showDivider={index > 0}
+              />
+            ))
+          : null}
+      </div>
+    </Box>
+  );
+}
+
 export default function Navbar() {
   const { pathname } = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -116,10 +233,6 @@ export default function Navbar() {
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const profileMenuRef = useRef(null);
   const searchAbortRef = useRef(null);
-  const hasSearchResults =
-    searchResults.hawkerCentres.length > 0 ||
-    searchResults.stalls.length > 0 ||
-    searchResults.dishes.length > 0;
 
   const { count, openCart } = useCart();
   const { status, profile, logout, loading: authLoading } = useAuth();
@@ -310,21 +423,13 @@ export default function Navbar() {
                   Ctrl + K
                 </kbd>
               </Box>
-              {isSearchOpen && (
-                <Box
-                  className="absolute left-0 right-0 top-full mt-2 min-h-[64px] rounded-2xl border border-[#E7EEE7] bg-white shadow-[0_12px_30px_rgba(0,0,0,0.08)]"
-                  data-loading={isSearchLoading ? 'true' : undefined}
-                  data-error={searchError ? 'true' : undefined}
-                  data-query={debouncedQuery || undefined}
-                  data-has-results={hasSearchResults ? 'true' : undefined}
-                >
-                  {searchError ? (
-                    <div className="px-4 py-3 text-sm text-[#8B3A3A]">
-                      Something went wrong
-                    </div>
-                  ) : null}
-                </Box>
-              )}
+              <SearchDropdown
+                isOpen={isSearchOpen}
+                isLoading={isSearchLoading}
+                error={searchError}
+                query={debouncedQuery}
+                results={searchResults}
+              />
             </Box>
           </div>
 
