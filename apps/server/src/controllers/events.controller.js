@@ -4,7 +4,11 @@ export const eventsController = {
   async ingestEvents(req, res, next) {
     try {
       const { events } = req.validatedBody;
-      const result = await eventsService.ingestEvents(events);
+      const actorId = req.user?.id;
+      const sanitizedEvents = actorId
+        ? events.map((event) => ({ ...event, userId: actorId }))
+        : events;
+      const result = await eventsService.ingestEvents(sanitizedEvents);
       return res.status(202).json({ accepted: result.inserted });
     } catch (error) {
       next(error);
