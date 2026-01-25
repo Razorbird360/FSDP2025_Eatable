@@ -7,7 +7,9 @@ const logoLight = new URL(
 ).href;
 
 export default function AgentChatButton() {
-  const { isOpen, toggleChat } = useAgentChat();
+  const { isOpen, isEnabled, toggleChat } = useAgentChat();
+
+  if (!isEnabled) return null;
 
   return (
     <button
@@ -19,9 +21,9 @@ export default function AgentChatButton() {
         fixed bottom-6 right-6 z-[60]
         flex h-14 w-14 items-center justify-center
         rounded-xl bg-[#21421B]
-        shadow-[0_8px_24px_rgba(33,66,27,0.18)]
+        shadow-[0_10px_30px_rgba(33,66,27,0.25)]
         transition-all duration-300 ease-out
-        hover:scale-105 hover:shadow-[0_12px_32px_rgba(33,66,27,0.24)]
+        hover:scale-105 hover:shadow-[0_14px_40px_rgba(33,66,27,0.32)]
       "
     >
       {/* Logo (visible when closed) */}

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useAgentChat } from '../features/agent/components/AgentChatContext';
 import {
   Award,
   Bell,
@@ -13,6 +14,7 @@ import {
   Lock,
   Mail,
   MessageCircle,
+  MessageSquareMore,
   Moon,
 } from 'lucide-react';
 
@@ -345,6 +347,7 @@ export const SettingsPage = () => {
     const [orderUpdates, setOrderUpdates] = useState(true);
     const [promotions, setPromotions] = useState(false);
     const [darkMode, setDarkMode] = useState(false);
+    const { isEnabled: aiAssistantEnabled, setEnabled: setAiAssistantEnabled } = useAgentChat();
 
     return (
         <div className="space-y-4">
@@ -368,6 +371,10 @@ export const SettingsPage = () => {
             {/* Preferences */}
             <div className="bg-white rounded-xl border border-gray-100 p-4 md:p-6 shadow-sm overflow-hidden">
                 <h2 className="text-lg font-bold text-gray-900 mb-3">Preferences</h2>
+
+                <SettingItem icon={MessageSquareMore} label="AI Assistant" description="Show At-Table chat helper">
+                    <SettingToggle enabled={aiAssistantEnabled} onChange={setAiAssistantEnabled} />
+                </SettingItem>
 
                 <SettingItem icon={Moon} label="Dark Mode" description="Switch to dark theme">
                     <SettingToggle enabled={darkMode} onChange={setDarkMode} />

@@ -1,4 +1,6 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+
+const CHAT_ENABLED_KEY = 'eatable:agentChatEnabled';
 
 // Types
 export interface Message {
@@ -9,10 +11,12 @@ export interface Message {
 
 interface AgentChatContextType {
   isOpen: boolean;
+  isEnabled: boolean;
   messages: Message[];
   openChat: () => void;
   closeChat: () => void;
   toggleChat: () => void;
+  setEnabled: (enabled: boolean) => void;
   addMessage: (message: Omit<Message, 'id'>) => void;
 }
 
@@ -52,11 +56,34 @@ interface AgentChatProviderProps {
 
 export function AgentChatProvider({ children }: AgentChatProviderProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isEnabled, setIsEnabled] = useState(() => {
+    try {
+      const stored = localStorage.getItem(CHAT_ENABLED_KEY);
+      return stored === null ? true : stored === 'true';
+    } catch {
+      return true;
+    }
+  });
   const [messages, setMessages] = useState<Message[]>(sampleMessages);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(CHAT_ENABLED_KEY, String(isEnabled));
+    } catch {
+      // ignore
+    }
+  }, [isEnabled]);
 
   const openChat = () => setIsOpen(true);
   const closeChat = () => setIsOpen(false);
   const toggleChat = () => setIsOpen((prev) => !prev);
+
+  const setEnabled = (enabled: boolean) => {
+    setIsEnabled(enabled);
+    if (!enabled) {
+      setIsOpen(false);
+    }
+  };
 
   const addMessage = (message: Omit<Message, 'id'>) => {
     const newMessage: Message = {
@@ -70,10 +97,12 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
     <AgentChatContext.Provider
       value={{
         isOpen,
+        isEnabled,
         messages,
         openChat,
         closeChat,
         toggleChat,
+        setEnabled,
         addMessage,
       }}
     >
