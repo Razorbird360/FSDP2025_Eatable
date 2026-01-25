@@ -8,6 +8,7 @@ import {
   Library,
   Menu,
   Salad,
+  Soup,
   Search,
   ShoppingCart,
   Telescope,
@@ -44,6 +45,45 @@ const mobileMenuBaseColor = '#FFFFFF';
 const mobileMenuLayers = ['#F8FDF3', '#EFF8EE', '#FFFFFF'];
 const mobileMenuLayerDelays = [0, 30, 55];
 const emptySearchResults = { hawkerCentres: [], stalls: [], dishes: [] };
+const SEARCH_CUISINES = [
+  'Chinese',
+  'Malay',
+  'Indian',
+  'Western',
+  'Desserts',
+  'Local',
+  'Drinks',
+  'Other',
+];
+
+function getMatchTier(name, query) {
+  const normalizedName = name.toLowerCase();
+  if (normalizedName === query) return 0;
+  if (normalizedName.startsWith(query)) return 1;
+  return 2;
+}
+
+function buildCuisineMatches(query) {
+  const normalizedQuery = query.trim().toLowerCase();
+  if (!normalizedQuery) return [];
+
+  return SEARCH_CUISINES
+    .filter((cuisine) => cuisine.toLowerCase().includes(normalizedQuery))
+    .map((cuisine) => ({
+      id: `cuisine-${cuisine.toLowerCase()}`,
+      name: cuisine,
+      imageUrl: null,
+      subtitle: 'Browse hawker centres',
+      entityType: 'cuisine',
+      thumbnailIcon: Soup,
+    }))
+    .sort((a, b) => {
+      const tierA = getMatchTier(a.name, normalizedQuery);
+      const tierB = getMatchTier(b.name, normalizedQuery);
+      if (tierA !== tierB) return tierA - tierB;
+      return a.name.localeCompare(b.name);
+    });
+}
 
 function IconPill({ Icon, label, href, isActive }) {
   return (
@@ -104,7 +144,7 @@ function IconAction({ Icon, label, secondaryLabel, badge, onClick, to }) {
   );
 }
 
-function SearchThumbnail({ imageUrl }) {
+function SearchThumbnail({ imageUrl, fallbackIcon: FallbackIcon = Salad }) {
   if (imageUrl) {
     return (
       <img
@@ -119,12 +159,19 @@ function SearchThumbnail({ imageUrl }) {
 
   return (
     <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#21421B]">
-      <Salad className="h-4 w-4 text-white" aria-hidden="true" />
+      <FallbackIcon className="h-4 w-4 text-white" aria-hidden="true" />
     </span>
   );
 }
 
-function SearchSection({ title, items, showDivider, onSelect, onHighlight, activeIndex }) {
+function SearchSection({
+  title,
+  items,
+  showDivider,
+  onSelect,
+  onHighlight,
+  activeIndex,
+}) {
   if (!items.length) return null;
 
   return (
@@ -147,7 +194,7 @@ function SearchSection({ title, items, showDivider, onSelect, onHighlight, activ
             }`}
             aria-selected={activeIndex === item.flatIndex}
           >
-            <SearchThumbnail imageUrl={item.imageUrl} />
+            <SearchThumbnail imageUrl={item.imageUrl} fallbackIcon={item.thumbnailIcon} />
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-[#1C201D]">
                 {item.name}
@@ -340,10 +387,12 @@ export default function Navbar() {
   }, [debouncedQuery]);
 
   const searchSections = useMemo(() => {
+    const cuisineMatches = buildCuisineMatches(debouncedQuery);
     const sections = [
       { title: 'Hawker Centres', items: searchResults.hawkerCentres },
       { title: 'Stalls', items: searchResults.stalls },
       { title: 'Dishes', items: searchResults.dishes },
+      { title: 'Cuisines', items: cuisineMatches },
     ];
 
     let index = 0;
@@ -359,7 +408,7 @@ export default function Navbar() {
     });
 
     return { sections: enrichedSections, flatItems };
-  }, [searchResults]);
+  }, [searchResults, debouncedQuery]);
 
 
   useEffect(() => {
@@ -419,6 +468,8 @@ export default function Navbar() {
       } else {
         setSearchQuery(item.name);
       }
+    } else if (item.entityType === 'cuisine') {
+      navigate('/hawker-centres', { state: { selectedCuisine: item.name } });
     }
 
     setIsSearchOpen(false);
@@ -514,7 +565,7 @@ export default function Navbar() {
                 <Search className="h-4 w-4 text-[#4A554B]" />
               </Box>
               <Input
-                placeholder="Search dishes, stalls, categories..."
+                placeholder="Search dishes, stalls, cuisine..."
                 value={searchQuery}
                 onChange={handleSearchChange}
                 onFocus={handleSearchFocus}
@@ -733,7 +784,7 @@ export default function Navbar() {
                 <Search className="h-4 w-4 text-[#4A554B]" />
               </Box>
               <Input
-                placeholder="Search dishes, stalls, categories..."
+                placeholder="Search dishes, stalls, cuisine..."
                 value={searchQuery}
                 onChange={handleSearchChange}
                 onFocus={handleSearchFocus}
