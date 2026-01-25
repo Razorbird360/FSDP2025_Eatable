@@ -18,7 +18,6 @@ import OrdersPage from "../pages/OrdersPage";
 import SpendingsPage from "../pages/SpendingsPage";
 import VouchersPage from "../pages/VouchersPage";
 import AchievementsPage from "../pages/AchievementsPage";
-import AdminHomePage from "../pages/AdminHomePage";
 import AdminVouchersPage from "../pages/AdminVouchersPage";
 import AdminAchievementsPage from "../pages/AdminAchievementsPage";
 import AdminModerationUsersPage from "../pages/AdminModerationUsersPage";
@@ -163,7 +162,7 @@ function AppRoutes() {
             </RequireRole>
           }
         >
-          <Route index element={<AdminHomePage />} />
+          <Route index element={<Navigate to="/admin/moderation/reports" replace />} />
           <Route path="vouchers" element={<AdminVouchersPage />} />
           <Route path="achievements" element={<AdminAchievementsPage />} />
           <Route path="rewards" element={<Navigate to="/admin/vouchers" replace />} />

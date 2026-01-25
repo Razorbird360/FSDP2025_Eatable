@@ -87,6 +87,64 @@ model MenuItem {
   @@map("menu_items")
 }
 
+model Event {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String?  @map("user_id") @db.Uuid
+  anonId     String?  @map("anon_id")
+  sessionId  String   @map("session_id")
+  eventType  String   @map("event_type")
+  itemId     String   @map("item_id") @db.Uuid
+  categoryId String?  @map("category_id")
+  timestamp  DateTime @map("timestamp") @db.Timestamptz(6)
+  metadata   Json?
+
+  @@index([userId, timestamp(sort: Desc)])
+  @@index([anonId, timestamp(sort: Desc)])
+  @@index([itemId, timestamp(sort: Desc)])
+  @@index([eventType, timestamp(sort: Desc)])
+  @@map("events")
+}
+
+model ItemStatsDaily {
+  date       DateTime @db.Date
+  itemId     String   @map("item_id") @db.Uuid
+  views      Int      @default(0)
+  clicks     Int      @default(0)
+  adds       Int      @default(0)
+  orders     Int      @default(0)
+  ctr        Float    @default(0)
+  conversion Float    @default(0)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@id([date, itemId])
+  @@map("item_stats_daily")
+}
+
+model UserProfile {
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String?  @unique @map("user_id") @db.Uuid
+  anonId         String?  @unique @map("anon_id")
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  categoryScores Json     @map("category_scores")
+  tagScores      Json     @map("tag_scores")
+  recentItems    String[] @default([]) @map("recent_items")
+  pricePrefMin   Int?     @map("price_pref_min")
+  pricePrefMax   Int?     @map("price_pref_max")
+
+  @@map("user_profile")
+}
+
+model ItemSimilarity {
+  itemId        String   @map("item_id") @db.Uuid
+  similarItemId String   @map("similar_item_id") @db.Uuid
+  score         Float
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@id([itemId, similarItemId])
+  @@index([similarItemId])
+  @@map("item_similarity")
+}
+
 model MediaUpload {
   id                String            @id @default(uuid()) @db.Uuid
   menuItemId        String            @map("menu_item_id") @db.Uuid

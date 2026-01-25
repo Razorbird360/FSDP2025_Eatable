@@ -3,9 +3,11 @@ import { Link, useParams } from "react-router-dom";
 import foodStallIcon from "./Assets/FoodStall_Icon.png";
 import StallGallery from "../../stalls/components/StallGallery";
 import { useCart } from "../../orders/components/CartContext";
+import { useAuth } from "../../auth/useAuth";
 import api from "@lib/api"; // ⬅️ adjust path if needed
+import { getOrCreateAnonId, trackEvent } from "@lib/events";
 import { resolveTagConflicts } from "../../../utils/tagging";
-import { useNavigate } from "react-router-dom"
+import { useNavigate } from "react-router-dom";
 
 const Icon = {
   MapPin: (props) => (
@@ -275,9 +277,39 @@ export default function StallEmenu() {
   const [showItem, setShowItem] = useState(false);
 
   const { addToCart } = useCart();
+  const { profile } = useAuth();
   const [toast, setToast] = useState(null);
-  const navigate = useNavigate()
+  const navigate = useNavigate();
 
+  const trackMenuClick = (item, source = "stall-menu") => {
+    if (!item?.id) return;
+    const userId = profile?.id ?? null;
+    const anonId = userId ? null : getOrCreateAnonId();
+    if (!userId && !anonId) return;
+
+    const tags = Array.isArray(item.tags)
+      ? item.tags
+        .map((tag) => (typeof tag === "string" ? tag : tag?.label))
+        .filter(Boolean)
+      : [];
+    const priceCents =
+      typeof item.price === "number" ? Math.round(item.price * 100) : null;
+
+    trackEvent({
+      userId,
+      anonId,
+      eventType: "click",
+      itemId: item.id,
+      categoryId: item.category || null,
+      metadata: {
+        source,
+        stallId: stall?.id ?? null,
+        stallName: stall?.name ?? null,
+        priceCents,
+        ...(tags.length > 0 ? { tags } : {}),
+      },
+    });
+  };
   const handleMenuImageError = (itemId) => {
     setMenu((prev) =>
       prev.map((item) => {
@@ -289,7 +321,6 @@ export default function StallEmenu() {
       })
     );
   };
-
   // Fetch stall from API
   useEffect(() => {
     let cancelled = false;
@@ -765,6 +796,7 @@ export default function StallEmenu() {
                             key={`${item.id}-${item.name}`}
                             className="flex cursor-pointer items-center gap-2.5 rounded-xl border bg-white p-2.5 md:p-4"
                             onClick={() => {
+                              trackMenuClick(item);
                               setSelected(item);
                               setShowItem(true);
                             }}
@@ -802,6 +834,7 @@ export default function StallEmenu() {
                               aria-label={`Add ${item.name}`}
                               onClick={(e) => {
                                 e.stopPropagation();
+                                trackMenuClick(item);
                                 setSelected(item);
                                 setShowItem(true);
                               }}
@@ -829,6 +862,7 @@ export default function StallEmenu() {
                   const menuItem = menu.find(item => item.id === menuItemId);
                   if (menuItem) {
                     // Open the item dialog
+                    trackMenuClick(menuItem, "stall-photos");
                     setSelected(menuItem);
                     setShowItem(true);
                   }

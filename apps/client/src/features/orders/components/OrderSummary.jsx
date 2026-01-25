@@ -1,7 +1,9 @@
 import { useNavigate } from "react-router-dom";
 import LogoImage from "../../../assets/logo/logo_full.png";
 import api from "@lib/api";
+import { getOrCreateAnonId, trackEvents } from "@lib/events";
 import { useCart } from "./CartContext";
+import { useAuth } from "../../auth/useAuth";
 import { useState, useEffect, useCallback } from "react";
 
 export default function OrderSummary() {
@@ -17,6 +19,7 @@ export default function OrderSummary() {
   const [selectedVoucher, setSelectedVoucher] = useState(null);
 
   const { items, total: cartTotal, updateQty, closeCart, refreshCart } = useCart();
+  const { profile } = useAuth();
 
   // Stall name from first item in cart
   const stallName =
@@ -120,6 +123,39 @@ export default function OrderSummary() {
       const res = await api.post("/orders/newOrder");
 
       if (res.status === 200) {
+        const userId = profile?.id ?? null;
+        const anonId = userId ? null : getOrCreateAnonId();
+        const orderId = res.data?.orderId ?? null;
+
+        if ((userId || anonId) && items.length > 0) {
+          const events = items
+            .filter((item) => item?.id)
+            .map((item) => {
+              const priceCents = Number.isFinite(item.price)
+                ? Math.round(item.price * 100)
+                : null;
+
+              return {
+                userId,
+                anonId,
+                eventType: "order",
+                itemId: item.id,
+                categoryId: item.categoryId || item.category || item.stallCuisine || null,
+                metadata: {
+                  source: "order",
+                  orderId,
+                  qty: item.qty,
+                  priceCents,
+                  stallId: item.stallId || null,
+                  stallName: item.stallName || null,
+                },
+              };
+            });
+
+          if (events.length > 0) {
+            trackEvents(events);
+          }
+        }
         // if backend clears cart on newOrder, then sync front-end
         await refreshCart();
         closeCart();

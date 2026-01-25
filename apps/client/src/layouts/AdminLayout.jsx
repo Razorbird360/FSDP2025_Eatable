@@ -1,9 +1,6 @@
 import { Link, NavLink, Outlet } from 'react-router-dom';
 
 const navItems = [
-  { label: 'Overview', to: '/admin', end: true },
-  { label: 'Users', to: '/admin/moderation/users' },
-  { label: 'Media', to: '/admin/moderation/media' },
   { label: 'Reports', to: '/admin/moderation/reports' },
   { label: 'Vouchers', to: '/admin/vouchers' },
   { label: 'Achievements', to: '/admin/achievements' },
