@@ -7,7 +7,7 @@ import { useAuth } from "../../auth/useAuth";
 import api from "@lib/api"; // ⬅️ adjust path if needed
 import { getOrCreateAnonId, trackEvent } from "@lib/events";
 import { resolveTagConflicts } from "../../../utils/tagging";
-import { useNavigate } from "react-router-dom"
+import { useNavigate } from "react-router-dom";
 
 const Icon = {
   MapPin: (props) => (
@@ -120,7 +120,7 @@ const getTagStyle = (percent = 0) => {
 };
 
 
-function ItemDialog({ open, item, onClose, onAdd }) {
+function ItemDialog({ open, item, onClose, onAdd, onImageError }) {
   const [qty, setQty] = useState(1);
   const [notes, setNotes] = useState("");
 
@@ -164,11 +164,16 @@ function ItemDialog({ open, item, onClose, onAdd }) {
       <div className="absolute inset-0 bg-black/50" />
       <div className="relative z-10 w-[92vw] max-w-md rounded-2xl overflow-hidden bg-white shadow-xl">
         <div className="relative">
-          <img
-            src={item.img}
-            alt={item.name}
-            className="w-full h-56 object-cover"
-          />
+          {item.img ? (
+            <img
+              src={item.img}
+              alt={item.name}
+              className="w-full h-56 object-cover"
+              onError={() => onImageError?.(item.id)}
+            />
+          ) : (
+            <div className="w-full h-56 bg-gray-100" />
+          )}
           <button
             onClick={onClose}
             className="absolute right-3 top-3 grid place-items-center w-8 h-8 rounded-full bg-white/90 hover:bg-white"
@@ -274,7 +279,7 @@ export default function StallEmenu() {
   const { addToCart } = useCart();
   const { profile } = useAuth();
   const [toast, setToast] = useState(null);
-  const navigate = useNavigate()
+  const navigate = useNavigate();
 
   const trackMenuClick = (item, source = "stall-menu") => {
     if (!item?.id) return;
@@ -305,8 +310,17 @@ export default function StallEmenu() {
       },
     });
   };
-
-
+  const handleMenuImageError = (itemId) => {
+    setMenu((prev) =>
+      prev.map((item) => {
+        if (item.id !== itemId) return item;
+        if (item.fallbackImg && item.img !== item.fallbackImg) {
+          return { ...item, img: item.fallbackImg, fallbackImg: null };
+        }
+        return { ...item, img: null, fallbackImg: null };
+      })
+    );
+  };
   // Fetch stall from API
   useEffect(() => {
     let cancelled = false;
@@ -331,8 +345,25 @@ export default function StallEmenu() {
             .map((m) => {
               // 👇 take the top upload for this menu item (Prisma already limited to 1)
               const topUpload = m.mediaUploads?.[0];
-
-
+              const approvedUploadCount =
+                typeof m.approvedUploadCount === "number"
+                  ? m.approvedUploadCount
+                  : 0;
+              const topUploadVotes =
+                typeof topUpload?.upvoteCount === "number"
+                  ? topUpload.upvoteCount
+                  : 0;
+              const officialImageUrl = m.imageUrl || null;
+              const uploadImageUrl = topUpload?.imageUrl || null;
+              const useCommunityPhoto =
+                approvedUploadCount >= 5 &&
+                topUploadVotes >= 10 &&
+                !!uploadImageUrl;
+              const primaryImageUrl = useCommunityPhoto
+                ? uploadImageUrl || officialImageUrl
+                : officialImageUrl || uploadImageUrl;
+              const fallbackImageUrl =
+                primaryImageUrl === officialImageUrl ? uploadImageUrl : officialImageUrl;
 
               return {
                 id: m.id,
@@ -340,10 +371,9 @@ export default function StallEmenu() {
                 desc: m.description || "",
                 price: (m.priceCents || 0) / 100,
                 category: m.category || "Others",
-                // 👇 use imageUrl from the top upload, fallback to placeholder
-                img:
-                  topUpload?.imageUrl ||
-                  "https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=800",
+                // Prefer dish photo until community uploads are strong enough
+                img: primaryImageUrl,
+                fallbackImg: fallbackImageUrl,
                 // optional: show upvote count from the top upload
                 votes:
                   typeof topUpload?.upvoteCount === "number"
@@ -771,11 +801,16 @@ export default function StallEmenu() {
                               setShowItem(true);
                             }}
                           >
-                            <img
-                              src={item.img}
-                              alt={item.name}
-                              className="h-14 w-14 rounded-lg border object-cover sm:h-20 sm:w-20"
-                            />
+                            {item.img ? (
+                              <img
+                                src={item.img}
+                                alt={item.name}
+                                className="h-14 w-14 rounded-lg border object-cover sm:h-20 sm:w-20"
+                                onError={() => handleMenuImageError(item.id)}
+                              />
+                            ) : (
+                              <div className="h-14 w-14 rounded-lg border bg-gray-100 sm:h-20 sm:w-20" />
+                            )}
                             <div className="flex-1">
                               <div className="text-[15px] font-semibold">
                                 {item.name}
@@ -860,6 +895,7 @@ export default function StallEmenu() {
         open={showItem}
         item={selected}
         onClose={() => setShowItem(false)}
+        onImageError={handleMenuImageError}
         onAdd={({ item, qty, notes }) => {
           addToCart(
             {
