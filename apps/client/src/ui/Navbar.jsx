@@ -438,6 +438,8 @@ export default function Navbar() {
   const handleSearchChange = (event) => {
     setSearchQuery(event.target.value);
     setSearchError(null);
+    setIsSearchOpen(true);
+    setActiveResultIndex(-1);
   };
 
   const handleSearchKeyDown = (event) => {
