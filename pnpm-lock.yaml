@@ -158,6 +158,9 @@ importers:
         specifier: ^0.34.5
         version: 0.34.5
     devDependencies:
+      eslint:
+        specifier: ^8.55.0
+        version: 8.57.1
       nodemon:
         specifier: ^3.0.2
         version: 3.1.10
