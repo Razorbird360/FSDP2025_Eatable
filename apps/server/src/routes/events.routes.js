@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import Joi from 'joi';
 import { eventsController } from '../controllers/events.controller.js';
-import { validate } from '../middleware/auth.middleware.js';
+import { authMiddleware, validate } from '../middleware/auth.middleware.js';
 
 const eventSchema = Joi.object({
   userId: Joi.string().guid({ version: 'uuidv4' }).allow(null),
@@ -28,6 +28,8 @@ const eventsPayloadSchema = Joi.object({
 });
 
 const router = Router();
+
+router.use(authMiddleware);
 
 router.post('/', validate(eventsPayloadSchema), eventsController.ingestEvents);
 

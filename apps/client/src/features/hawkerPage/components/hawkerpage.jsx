@@ -1,5 +1,5 @@
 // src/features/hawkers/pages/HawkerCentreDetailPage.jsx
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ChevronRight, Clock, LayoutGrid, List, MapPin, TrendingUp } from 'lucide-react';
 import Filters from "../../hawkerCentres/components/Filters";
@@ -9,7 +9,7 @@ import { useFilters } from "../../hawkerCentres/hooks/useFilters";
 import { useUserLocation } from "../../hawkerCentres/hooks/useUserLocation";
 import { resolveTagConflicts } from "../../../utils/tagging";
 import { useAuth } from "../../auth/useAuth";
-import { getOrCreateAnonId, trackEvent } from "@lib/events";
+import { getOrCreateAnonId, trackEvent, trackEvents } from "@lib/events";
 
 const fallbackHeroImg =
   "https://images.unsplash.com/photo-1544027993-37dbfe43562a?q=80&w=800&auto=format&fit=crop";
@@ -143,6 +143,11 @@ const HawkerCentreDetailPage = () => {
   const navigate = useNavigate(); // 1. Initialize navigate hook
   const { profile } = useAuth();
   const [activeTab, setActiveTab] = useState("dishes");
+  const viewedDishIdsRef = useRef(new Set());
+
+  useEffect(() => {
+    viewedDishIdsRef.current = new Set();
+  }, [hawkerId]);
 
   // Centre info from /info/:hawkerId + some UI-only fields
   const [centre, setCentre] = useState({
@@ -375,6 +380,50 @@ const HawkerCentreDetailPage = () => {
 
     return true;
   });
+
+  useEffect(() => {
+    if (activeTab !== "dishes") return;
+    if (filteredDishes.length === 0) return;
+
+    const userId = profile?.id ?? null;
+    const anonId = userId ? null : getOrCreateAnonId();
+    if (!userId && !anonId) return;
+
+    const newEvents = [];
+
+    filteredDishes.forEach((dish) => {
+      if (!dish?.id || viewedDishIdsRef.current.has(dish.id)) {
+        return;
+      }
+
+      viewedDishIdsRef.current.add(dish.id);
+
+      const priceCents =
+        typeof dish.priceCents === "number"
+          ? dish.priceCents
+          : typeof dish.price === "number"
+            ? Math.round(dish.price * 100)
+            : null;
+
+      newEvents.push({
+        userId,
+        anonId,
+        eventType: "view",
+        itemId: dish.id,
+        categoryId: dish.category || dish.cuisine || null,
+        metadata: {
+          source: "hawker-centre",
+          hawkerId,
+          priceCents,
+          tags: buildDishTags(dish),
+        },
+      });
+    });
+
+    if (newEvents.length > 0) {
+      trackEvents(newEvents);
+    }
+  }, [activeTab, filteredDishes, hawkerId, profile?.id]);
 
   const distanceKm =
     locationStatus === "granted" &&
