@@ -181,4 +181,94 @@ export const stallsService = {
       },
     });
   },
+
+  async exists(id) {
+    if (!id) return false;
+    const stall = await prisma.stall.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+    return Boolean(stall);
+  },
+
+  async getLikeStatus(stallId, userId) {
+    const [count, like] = await prisma.$transaction([
+      prisma.stallLike.count({ where: { stallId } }),
+      prisma.stallLike.findUnique({
+        where: {
+          userId_stallId: {
+            userId,
+            stallId,
+          },
+        },
+        select: { userId: true },
+      }),
+    ]);
+
+    return { liked: Boolean(like), count };
+  },
+
+  async getLikedStalls(userId) {
+    const likes = await prisma.stallLike.findMany({
+      where: { userId },
+      include: {
+        stall: {
+          select: {
+            id: true,
+            name: true,
+            location: true,
+            cuisineType: true,
+            image_url: true,
+            _count: {
+              select: {
+                menuItems: true,
+                stallLikes: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return likes.map((like) => ({
+      likedAt: like.createdAt,
+      stall: {
+        ...like.stall,
+        likeCount: like.stall?._count?.stallLikes ?? 0,
+        menuItemCount: like.stall?._count?.menuItems ?? 0,
+      },
+    }));
+  },
+
+  async like(stallId, userId) {
+    await prisma.stallLike.upsert({
+      where: {
+        userId_stallId: {
+          userId,
+          stallId,
+        },
+      },
+      update: {},
+      create: {
+        userId,
+        stallId,
+      },
+    });
+
+    const count = await prisma.stallLike.count({ where: { stallId } });
+    return { liked: true, count };
+  },
+
+  async unlike(stallId, userId) {
+    await prisma.stallLike.deleteMany({
+      where: {
+        userId,
+        stallId,
+      },
+    });
+
+    const count = await prisma.stallLike.count({ where: { stallId } });
+    return { liked: false, count };
+  },
 };

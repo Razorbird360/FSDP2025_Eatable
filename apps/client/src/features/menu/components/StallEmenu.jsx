@@ -105,6 +105,17 @@ const Icon = {
       <path d="M6 6l12 12M18 6L6 18" strokeWidth="2" strokeLinecap="round" />
     </svg>
   ),
+  Heart: ({ filled = false, ...props }) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" {...props}>
+      <path
+        d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill={filled ? "currentColor" : "none"}
+      />
+    </svg>
+  ),
 };
 
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
@@ -272,13 +283,17 @@ export default function StallEmenu() {
   const [showItem, setShowItem] = useState(false);
 
   const { addToCart } = useCart();
-  const { profile } = useAuth();
+  const { profile, status } = useAuth();
+  const profileId = profile?.id ?? null;
   const [toast, setToast] = useState(null);
   const navigate = useNavigate()
+  const [liked, setLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
+  const [likeLoading, setLikeLoading] = useState(false);
 
   const trackMenuClick = (item, source = "stall-menu") => {
     if (!item?.id) return;
-    const userId = profile?.id ?? null;
+    const userId = profileId;
     const anonId = userId ? null : getOrCreateAnonId();
     if (!userId && !anonId) return;
 
@@ -304,6 +319,57 @@ export default function StallEmenu() {
         ...(tags.length > 0 ? { tags } : {}),
       },
     });
+  };
+
+  useEffect(() => {
+    if (!stallId) return;
+    if (status !== "authenticated" || !profileId) {
+      setLiked(false);
+      setLikeCount(0);
+      return;
+    }
+
+    let ignore = false;
+
+    async function loadLikeStatus() {
+      try {
+        const res = await api.get(`/stalls/${stallId}/likes`);
+        if (ignore) return;
+        setLiked(Boolean(res.data?.liked));
+        setLikeCount(Number(res.data?.count ?? 0));
+      } catch (err) {
+        if (!ignore) {
+          console.error("Failed to load stall like status:", err);
+        }
+      }
+    }
+
+    loadLikeStatus();
+    return () => {
+      ignore = true;
+    };
+  }, [stallId, status, profileId]);
+
+  const handleToggleLike = async () => {
+    if (!stallId) return;
+    if (status !== "authenticated") {
+      navigate("/login");
+      return;
+    }
+    if (likeLoading) return;
+
+    setLikeLoading(true);
+    try {
+      const res = liked
+        ? await api.delete(`/stalls/${stallId}/likes`)
+        : await api.post(`/stalls/${stallId}/likes`);
+      setLiked(Boolean(res.data?.liked));
+      setLikeCount(Number(res.data?.count ?? 0));
+    } catch (err) {
+      console.error("Failed to toggle stall like:", err);
+    } finally {
+      setLikeLoading(false);
+    }
   };
 
 
@@ -537,24 +603,47 @@ export default function StallEmenu() {
           {/* Content section */}
           <div className="flex-1 flex flex-col gap-3 relative z-10 justify-center md:justify-start">
             {/* Title + description */}
-            <div>
-              <h1 className="text-xl md:text-2xl font-semibold text-white md:text-slate-900">
-                {STALL_META.name}
-              </h1>
-              <p className="text-sm font-medium text-white/80 md:text-gray-600 mt-0.5">
-                ({STALL_META.market})
-              </p>
-              <p className="mt-2 text-sm leading-relaxed text-white/90 md:text-gray-600">
-                {blurb}
-                {isMobile && STALL_META.blurb.length > blurbLimit && (
-                  <button
-                    onClick={() => setShowFullBlurb((v) => !v)}
-                    className="ml-1 font-medium text-white underline md:text-[#21421B] md:no-underline md:hover:underline"
-                  >
-                    {showFullBlurb ? "show less" : "more"}
-                  </button>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h1 className="text-xl md:text-2xl font-semibold text-white md:text-slate-900">
+                  {STALL_META.name}
+                </h1>
+                <p className="text-sm font-medium text-white/80 md:text-gray-600 mt-0.5">
+                  ({STALL_META.market})
+                </p>
+                <p className="mt-2 text-sm leading-relaxed text-white/90 md:text-gray-600">
+                  {blurb}
+                  {isMobile && STALL_META.blurb.length > blurbLimit && (
+                    <button
+                      onClick={() => setShowFullBlurb((v) => !v)}
+                      className="ml-1 font-medium text-white underline md:text-[#21421B] md:no-underline md:hover:underline"
+                    >
+                      {showFullBlurb ? "show less" : "more"}
+                    </button>
+                  )}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleToggleLike}
+                disabled={likeLoading}
+                aria-pressed={liked}
+                aria-label={liked ? "Unlike stall" : "Like stall"}
+                className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${
+                  liked
+                    ? "bg-white/95 text-rose-500 border-rose-200"
+                    : "bg-white/10 text-white border-white/40 md:bg-white md:text-gray-600 md:border-gray-200"
+                }`}
+              >
+                <Icon.Heart
+                  filled={liked}
+                  className="h-4 w-4"
+                  aria-hidden="true"
+                />
+                {status === "authenticated" && (
+                  <span className="tabular-nums">{likeCount}</span>
                 )}
-              </p>
+              </button>
             </div>
 
             {/* Location + Wait time row */}

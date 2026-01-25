@@ -33,6 +33,7 @@ model User {
   ownedStalls             Stall[]
   user_cart               user_cart[]
   favorites               UserFavorite[]
+  stallLikes              StallLike[]
   userVouchers            UserVoucher[]
   discounts_charges       discounts_charges[]
   achievements            UserAchievement[]
@@ -60,6 +61,7 @@ model Stall {
   hawkerCentre   HawkerCentre?  @relation(fields: [hawkerCentreId], references: [id], onUpdate: NoAction)
   owner          User?          @relation(fields: [ownerId], references: [id])
   favorites      UserFavorite[]
+  stallLikes     StallLike[]
 
   @@map("stalls")
 }
@@ -290,6 +292,17 @@ model UserFavorite {
   @@unique([userId, menuItemId])
   @@unique([userId, stallId])
   @@map("user_favorites")
+}
+
+model StallLike {
+  userId    String   @map("user_id") @db.Uuid
+  stallId   String   @map("stall_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stall     Stall    @relation(fields: [stallId], references: [id], onDelete: Cascade)
+
+  @@id([userId, stallId])
+  @@map("stall_likes")
 }
 
 model ContentReport {

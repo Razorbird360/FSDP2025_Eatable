@@ -1,611 +1,256 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import api from '@lib/api';
-import { supabase } from '../lib/supabase';
-import { formatDate } from '../utils/helpers';
 import UpvoteIcon from '../features/stalls/assets/upvote.svg';
 import DownvoteIcon from '../features/stalls/assets/downvote.svg';
 
+const fallbackStallImg =
+    'https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=800&auto=format&fit=crop';
+const fallbackUploadImg =
+    'https://images.unsplash.com/photo-1544025162-d76694265947?q=80&w=800&auto=format&fit=crop';
+
+const formatCount = (value) => (Number.isFinite(value) ? value : 0);
+
+const StallCard = ({ like }) => {
+    const stall = like?.stall;
+    if (!stall) return null;
+
+    const details = [stall.cuisineType, stall.location].filter(Boolean).join(' - ');
+
+    return (
+        <Link
+            to={`/stalls/${stall.id}`}
+            className="bg-white rounded-2xl border border-[#E7EEE7] overflow-hidden hover:shadow-xl transition-all duration-300"
+        >
+            <div className="aspect-[4/3] bg-gray-100 overflow-hidden">
+                <img
+                    src={stall.image_url || fallbackStallImg}
+                    alt={stall.name}
+                    className="h-full w-full object-cover"
+                />
+            </div>
+            <div className="p-4">
+                <h3 className="text-base font-semibold text-gray-900 line-clamp-1">
+                    {stall.name}
+                </h3>
+                <p className="text-xs text-gray-500 line-clamp-1 mt-1">
+                    {details || 'Stall details unavailable'}
+                </p>
+                <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
+                    <span>{formatCount(stall.menuItemCount)} items</span>
+                    <span>{formatCount(stall.likeCount)} likes</span>
+                </div>
+            </div>
+        </Link>
+    );
+};
+
+const VoteCard = ({ vote, type }) => {
+    const upload = vote?.upload;
+    const menuItem = upload?.menuItem;
+    const stall = menuItem?.stall;
+
+    return (
+        <Link
+            to={stall?.id ? `/stalls/${stall.id}` : '/stalls'}
+            className="bg-white rounded-2xl border border-[#E7EEE7] overflow-hidden hover:shadow-xl transition-all duration-300"
+        >
+            <div className="aspect-[4/3] bg-gray-100 overflow-hidden">
+                <img
+                    src={upload?.imageUrl || fallbackUploadImg}
+                    alt={menuItem?.name || 'Menu item'}
+                    className="h-full w-full object-cover"
+                />
+            </div>
+            <div className="p-4 space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                    <h3 className="text-base font-semibold text-gray-900 line-clamp-1">
+                        {menuItem?.name || 'Menu item'}
+                    </h3>
+                    <span
+                        className={`rounded-full px-2 py-1 text-[10px] font-semibold ${type === 'upvote'
+                                ? 'bg-emerald-100 text-emerald-700'
+                                : 'bg-rose-100 text-rose-700'
+                            }`}
+                    >
+                        {type === 'upvote' ? 'Upvoted' : 'Downvoted'}
+                    </span>
+                </div>
+                <p className="text-xs text-gray-500">
+                    {stall?.name || 'Unknown stall'}
+                </p>
+                <div className="flex items-center gap-4 text-xs text-gray-500">
+                    <span className="flex items-center gap-1">
+                        <img src={UpvoteIcon} alt="Upvotes" className="h-4 w-4" />
+                        {formatCount(upload?.upvoteCount)}
+                    </span>
+                    <span className="flex items-center gap-1">
+                        <img src={DownvoteIcon} alt="Downvotes" className="h-4 w-4" />
+                        {formatCount(upload?.downvoteCount)}
+                    </span>
+                </div>
+            </div>
+        </Link>
+    );
+};
+
 const FavouritesPage = () => {
-    const [voteFilter, setVoteFilter] = useState('upvote'); // 'upvote' or 'downvote'
-    const [favourites, setFavourites] = useState([]);
+    const [tab, setTab] = useState('stalls');
+    const [votes, setVotes] = useState([]);
+    const [stallLikes, setStallLikes] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    // Auth state
-    const [currentUserId, setCurrentUserId] = useState(null);
-
-    // Voting state
-    const [relations, setRelations] = useState([]);
-
-    // Notification state
-    // eslint-disable-next-line no-unused-vars
-    const [notice, setNotice] = useState(null);
-
-    // Popup state
-    const [popupItem, setPopupItem] = useState(null);
-
-    // Report state
-    const [reportedIds, setReportedIds] = useState([]);
-    const [reportModalOpen, setReportModalOpen] = useState(false);
-    const [reportReason, setReportReason] = useState('');
-    const [reportDetails, setReportDetails] = useState('');
-    const [reportTargetItem, setReportTargetItem] = useState(null);
-
-    // Get current user
     useEffect(() => {
-        async function loadUser() {
-            const { data } = await supabase.auth.getSession();
-            const userId = data?.session?.user?.id ?? null;
-            setCurrentUserId(userId);
-        }
-        loadUser();
-    }, []);
+        let ignore = false;
 
-    useEffect(() => {
         const fetchData = async () => {
             setLoading(true);
             setError(null);
             try {
-                const response = await api.get('/media/getVotes');
-                setFavourites(response.data.votes || []);
+                const [votesRes, likesRes] = await Promise.allSettled([
+                    api.get('/media/getVotes'),
+                    api.get('/stalls/likes'),
+                ]);
+
+                if (ignore) return;
+
+                if (votesRes.status === 'fulfilled') {
+                    setVotes(votesRes.value?.data?.votes || []);
+                } else {
+                    setVotes([]);
+                }
+
+                if (likesRes.status === 'fulfilled') {
+                    setStallLikes(likesRes.value?.data?.likes || []);
+                } else {
+                    setStallLikes([]);
+                }
+
+                if (votesRes.status === 'rejected' && likesRes.status === 'rejected') {
+                    setError('Failed to load favourites.');
+                }
             } catch (err) {
-                console.error('Error fetching data:', err);
-                setError('Failed to load data');
+                if (!ignore) {
+                    setError('Failed to load favourites.');
+                }
             } finally {
-                setLoading(false);
+                if (!ignore) {
+                    setLoading(false);
+                }
             }
         };
 
         fetchData();
+        return () => {
+            ignore = true;
+        };
     }, []);
 
-    // Fetch user's votes
-    useEffect(() => {
-        async function fetchVotes() {
-            try {
-                if (!currentUserId) {
-                    setRelations([]);
-                    return;
-                }
+    const upvotes = useMemo(
+        () => votes.filter((vote) => vote?.vote === 1),
+        [votes]
+    );
+    const downvotes = useMemo(
+        () => votes.filter((vote) => vote?.vote === -1),
+        [votes]
+    );
 
-                const res = await api.get(`/media/getVotes`);
-                const data = res.data;
-
-                const normalizedRelations =
-                    (data.votes || []).map((v) => ({
-                        userId: data.userId,
-                        uploadId: v.uploadId,
-                        value: v.vote === 1 ? 1 : 0,
-                    })) ?? [];
-
-                setRelations(normalizedRelations);
-            } catch (err) {
-                console.error(err);
-            }
-        }
-
-        fetchVotes();
-    }, [currentUserId]);
-
-    // Fetch user's existing reports
-    useEffect(() => {
-        async function fetchReports() {
-            try {
-                if (!currentUserId) {
-                    setReportedIds([]);
-                    return;
-                }
-
-                const res = await api.get('/moderation/reports');
-                const data = res.data || [];
-                const ids = data.map((r) => r.uploadId);
-                setReportedIds(ids);
-            } catch (err) {
-                console.error('Failed to fetch reports:', err.response || err);
-            }
-        }
-
-        fetchReports();
-    }, [currentUserId]);
-
-    // Vote helpers
-    const voteMap = React.useMemo(() => {
-        const map = new Map();
-        relations.forEach((r) => map.set(`${r.userId}::${r.uploadId}`, r.value));
-        return map;
-    }, [relations]);
-
-    const getVoteValue = (id) =>
-        currentUserId ? voteMap.get(`${currentUserId}::${id}`) : undefined;
-
-    const showNotice = (msg) => {
-        setNotice(msg);
-        setTimeout(() => setNotice(null), 3000);
-    };
-
-    const updateCounts = (id, upDelta, downDelta) => {
-        setFavourites((prev) =>
-            prev.map((fav) =>
-                fav.uploadId === id
-                    ? {
-                        ...fav,
-                        upload: {
-                            ...fav.upload,
-                            upvoteCount: Math.max(0, (fav.upload.upvoteCount || 0) + upDelta),
-                            downvoteCount: Math.max(0, (fav.upload.downvoteCount || 0) + downDelta),
-                        },
-                    }
-                    : fav
-            )
+    const TabButton = ({ value, children }) => {
+        const active = tab === value;
+        return (
+            <button
+                onClick={() => setTab(value)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all border
+          ${active
+                        ? 'bg-emerald-100 text-emerald-800 border-emerald-600'
+                        : 'bg-gray-100 text-gray-600 border-transparent hover:bg-gray-200'
+                    }`}
+            >
+                {children}
+            </button>
         );
     };
 
-    const handleUpvote = async (id) => {
-        if (!currentUserId) {
-            showNotice('Please log in to vote on photos.');
-            return;
-        }
+    const EmptyState = ({ message }) => (
+        <div className="rounded-xl border border-dashed border-gray-200 bg-white p-6 text-sm text-gray-500">
+            {message}
+        </div>
+    );
 
-        const val = getVoteValue(id);
-
-        if (val === 1) {
-            try {
-                const res = await api.delete(`/media/removeupvote/${id}`);
-                if (res.status < 200 || res.status >= 300) {
-                    throw new Error(`Server responded ${res.status}`);
-                }
-
-                updateCounts(id, -1, 0);
-                setRelations((prev) =>
-                    prev.filter(
-                        (r) => !(r.userId === currentUserId && r.uploadId === id)
-                    )
-                );
-            } catch (err) {
-                console.error(err);
-                showNotice('Failed to update upvote on server.');
+    const renderContent = () => {
+        if (tab === 'stalls') {
+            if (stallLikes.length === 0) {
+                return <EmptyState message="No liked stalls yet." />;
             }
-            return;
-        }
-
-        if (val === 0) {
-            showNotice('You cannot upvote a picture you already downvoted.');
-            return;
-        }
-
-        try {
-            const res = await api.post(`/media/upvote/${id}`);
-            if (res.status < 200 || res.status >= 300) {
-                throw new Error(`Server responded ${res.status}`);
-            }
-
-            updateCounts(id, +1, 0);
-            setRelations((prev) => [
-                ...prev,
-                { userId: currentUserId, uploadId: id, value: 1 },
-            ]);
-        } catch (err) {
-            console.error(err);
-            showNotice('Failed to update upvote on server.');
-        }
-    };
-
-    const handleDownvote = async (id) => {
-        if (!currentUserId) {
-            showNotice('Please log in to vote on photos.');
-            return;
-        }
-
-        const val = getVoteValue(id);
-
-        if (val === 0) {
-            try {
-                const res = await api.delete(`/media/removedownvote/${id}`);
-                if (res.status < 200 || res.status >= 300) {
-                    throw new Error(`Server responded ${res.status}`);
-                }
-
-                updateCounts(id, 0, -1);
-                setRelations((prev) =>
-                    prev.filter(
-                        (r) => !(r.userId === currentUserId && r.uploadId === id)
-                    )
-                );
-            } catch (err) {
-                console.error(err);
-                showNotice('Failed to update downvote on server.');
-            }
-            return;
-        }
-
-        if (val === 1) {
-            showNotice('You cannot downvote a picture you already upvoted.');
-            return;
-        }
-
-        try {
-            const res = await api.post(`/media/downvote/${id}`);
-            if (res.status < 200 || res.status >= 300) {
-                throw new Error(`Server responded ${res.status}`);
-            }
-
-            updateCounts(id, 0, +1);
-            setRelations((prev) => [
-                ...prev,
-                { userId: currentUserId, uploadId: id, value: 0 },
-            ]);
-        } catch (err) {
-            console.error(err);
-            showNotice('Failed to update downvote on server.');
-        }
-    };
-
-    // Report Actions
-    const openReportModal = () => {
-        if (!popupItem) return;
-
-        if (reportedIds.includes(popupItem.uploadId)) {
-            showNotice("You've already reported this photo. Our team is reviewing it.");
-            return;
-        }
-
-        setReportReason('');
-        setReportDetails('');
-        setReportTargetItem(popupItem);
-        setPopupItem(null);
-        setReportModalOpen(true);
-    };
-
-    const handleSubmitReport = async (e) => {
-        e.preventDefault();
-        const target = reportTargetItem || popupItem;
-        if (!target) return;
-
-        if (!reportReason) {
-            showNotice('Please select a reason to report this photo.');
-            return;
-        }
-
-        try {
-            await api.post(`/moderation/report/${target.uploadId}`, {
-                reason: reportReason,
-                details: reportDetails,
-            });
-
-            setReportedIds((prev) =>
-                prev.includes(target.uploadId) ? prev : [...prev, target.uploadId]
+            return (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                    {stallLikes.map((like) => (
+                        <StallCard key={like.stall?.id || like.likedAt} like={like} />
+                    ))}
+                </div>
             );
-            setReportModalOpen(false);
-            setPopupItem(target);
-            setReportTargetItem(null);
-            showNotice("Thanks for reporting. We'll review this photo shortly.");
-        } catch (err) {
-            console.error('Failed to submit report:', err.response || err);
-            showNotice('Failed to submit report: ' + (err.response?.data?.error || err.message));
         }
-    };
 
-    const closeReportModal = () => {
-        setReportModalOpen(false);
-        if (reportTargetItem) {
-            setPopupItem(reportTargetItem);
+        const list = tab === 'upvotes' ? upvotes : downvotes;
+        if (list.length === 0) {
+            return (
+                <EmptyState
+                    message={`No ${tab === 'upvotes' ? 'upvoted' : 'downvoted'} uploads yet.`}
+                />
+            );
         }
-        setReportTargetItem(null);
-    };
 
-    const popupPostedAt = popupItem?.upload?.createdAt
-        ? formatDate(popupItem.upload.createdAt)
-        : null;
+        return (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                {list.map((vote) => (
+                    <VoteCard
+                        key={`${vote?.uploadId || vote?.upload?.id}-${tab}`}
+                        vote={vote}
+                        type={tab === 'upvotes' ? 'upvote' : 'downvote'}
+                    />
+                ))}
+            </div>
+        );
+    };
 
     return (
-        <div className="bg-white rounded-xl border border-gray-100 p-4 md:p-8 shadow-sm">
-            <h1 className="text-xl font-bold mb-6 text-gray-900">My Votes</h1>
+        <div className="w-full">
+            <div className="bg-white rounded-xl border border-gray-100 p-4 md:p-6 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-lg font-semibold text-gray-900">Favourites</h2>
 
-            {/* Vote Filter Toggle */}
-            <div className="flex gap-2 mb-6">
-                <button
-                    onClick={() => setVoteFilter('upvote')}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${voteFilter === 'upvote'
-                        ? 'bg-emerald-100 text-emerald-800 border-2 border-emerald-600'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                        }`}
-                >
-                    <span className="flex items-center gap-2">
-                        <img src={UpvoteIcon} alt="Upvotes" className="h-4 w-4" />
-                        Upvoted
-                    </span>
-                </button>
-                <button
-                    onClick={() => setVoteFilter('downvote')}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${voteFilter === 'downvote'
-                        ? 'bg-rose-100 text-rose-800 border-2 border-rose-600'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                        }`}
-                >
-                    <span className="flex items-center gap-2">
-                        <img src={DownvoteIcon} alt="Downvotes" className="h-4 w-4" />
-                        Downvoted
-                    </span>
-                </button>
-            </div>
-
-            {/* Content */}
-            <div className="min-h-[300px]">
-                {loading ? (
-                    <div className="flex justify-center items-center py-20">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#21421B]"></div>
+                    <div className="flex gap-2">
+                        <TabButton value="stalls">Stalls</TabButton>
+                        <TabButton value="upvotes">
+                            <span className="flex items-center gap-2">
+                                <img src={UpvoteIcon} alt="Upvotes" className="h-4 w-4" />
+                                Upvotes
+                            </span>
+                        </TabButton>
+                        <TabButton value="downvotes">
+                            <span className="flex items-center gap-2">
+                                <img src={DownvoteIcon} alt="Downvotes" className="h-4 w-4" />
+                                Downvotes
+                            </span>
+                        </TabButton>
                     </div>
-                ) : error ? (
-                    <div className="text-center py-12 text-red-500">{error}</div>
-                ) : (
-                    favourites.filter(vote => vote.vote === (voteFilter === 'upvote' ? 1 : -1)).length > 0 ? (
-                        <div className="grid grid-cols-3 gap-2 md:gap-6">
-                            {favourites.filter(vote => vote.vote === (voteFilter === 'upvote' ? 1 : -1)).map((vote) => {
-                                const voteVal = getVoteValue(vote.uploadId);
-                                return (
-                                    <div
-                                        key={vote.uploadId}
-                                        className="group relative bg-white rounded-2xl border border-[#E7EEE7] overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer"
-                                        onClick={() => setPopupItem(vote)}
-                                    >
-                                        <div className="aspect-square bg-gray-100 relative">
-                                            <img
-                                                src={vote.upload.imageUrl}
-                                                alt={vote.upload.caption || 'Food image'}
-                                                className="w-full h-full object-cover group-hover:scale-110 duration-500"
-                                            />
+                </div>
 
-                                            {/* Vote count pill */}
-                                            <div className="absolute top-3 left-3 bg-black/50 backdrop-blur px-3 py-1 rounded-full text-white opacity-0 group-hover:opacity-100 duration-200 text-sm flex items-center gap-4">
-                                                <span className="flex items-center gap-1">
-                                                    <img src={UpvoteIcon} alt="Upvotes" className="h-6 w-6 invert" />
-                                                    {vote.upload.upvoteCount || 0}
-                                                </span>
-                                                <span className="flex items-center gap-1">
-                                                    <img
-                                                        src={DownvoteIcon}
-                                                        alt="Downvotes"
-                                                        className="h-6 w-6 invert translate-y-[3px]"
-                                                    />
-                                                    {vote.upload.downvoteCount || 0}
-                                                </span>
-                                            </div>
-
-                                            {/* Upvote button */}
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleUpvote(vote.uploadId);
-                                                }}
-                                                className={`absolute bottom-3 left-3
-                                                    flex items-center gap-2 px-2 py-1
-                                                    rounded-full text-white text-sm
-                                                    backdrop-blur border border-white/10 shadow
-                                                    transition-all duration-200 overflow-hidden
-                                                    w-[34px] hover:w-[110px]
-                                                    ${voteVal === 1
-                                                        ? 'bg-emerald-700/70'
-                                                        : 'bg-black/50 hover:bg-black/70'
-                                                    }
-                                                    ${voteVal === 1
-                                                        ? 'opacity-100'
-                                                        : 'opacity-0 group-hover:opacity-100'
-                                                    }`}
-                                            >
-                                                <img
-                                                    src={UpvoteIcon}
-                                                    alt="Upvote"
-                                                    className="h-6 w-6 invert"
-                                                />
-                                                <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                                                    Upvote
-                                                </span>
-                                            </button>
-
-                                            {/* Downvote button */}
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleDownvote(vote.uploadId);
-                                                }}
-                                                className={`absolute bottom-3 right-3
-                                                    flex items-center gap-2 px-2 py-1
-                                                    rounded-full text-white text-sm
-                                                    backdrop-blur border border-white/10 shadow
-                                                    transition-all duration-200 overflow-hidden
-                                                    w-[34px] hover:w-[120px]
-                                                    ${voteVal === 0
-                                                        ? 'bg-rose-700/70'
-                                                        : 'bg-black/50 hover:bg-black/70'
-                                                    }
-                                                    ${voteVal === 0
-                                                        ? 'opacity-100'
-                                                        : 'opacity-0 group-hover:opacity-100'
-                                                    }`}
-                                            >
-                                                <img
-                                                    src={DownvoteIcon}
-                                                    alt="Downvote"
-                                                    className="h-6 w-6 invert translate-y-[3px]"
-                                                />
-                                                <span className="whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                                                    Downvote
-                                                </span>
-                                            </button>
-                                        </div>
-                                        <div className="p-4">
-                                            <h3 className="font-semibold text-[#1C201D] mb-1 truncate">
-                                                {vote.upload.menuItem.name}
-                                            </h3>
-                                            <p className="text-sm text-[#4A554B] truncate">
-                                                {vote.upload.menuItem.stall.name}
-                                            </p>
-                                        </div>
-                                    </div>
-                                );
-                            })}
+                <div className="min-h-[360px]">
+                    {loading ? (
+                        <div className="flex justify-center items-center py-20">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#21421B]" />
+                        </div>
+                    ) : error ? (
+                        <div className="rounded-xl border border-red-100 bg-red-50 p-4 text-sm text-red-600">
+                            {error}
                         </div>
                     ) : (
-                        <div className="flex flex-col items-center justify-center py-16 bg-[#F8FDF3] rounded-2xl border border-dashed border-[#E7EEE7]">
-                            <div className="w-16 h-16 bg-[#EFF8EE] rounded-full flex items-center justify-center mb-4">
-                                <svg className="w-8 h-8 text-[#21421B]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                                </svg>
-                            </div>
-                            <h3 className="text-lg font-semibold text-[#1C201D] mb-2">
-                                {voteFilter === 'upvote' ? 'No upvoted dishes yet' : 'No downvoted dishes yet'}
-                            </h3>
-                            <p className="text-[#4A554B]">
-                                {voteFilter === 'upvote' ? 'Dishes you upvote will appear here' : 'Dishes you downvote will appear here'}
-                            </p>
-                        </div>
-                    )
-                )}
+                        renderContent()
+                    )}
+                </div>
             </div>
-
-            {/* Popup Modal */}
-            {popupItem && (
-                <div
-                    className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
-                    onClick={() => setPopupItem(null)}
-                >
-                    <div
-                        className="relative bg-white rounded-xl max-w-2xl w-full overflow-hidden shadow-2xl"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <button
-                            className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/10 hover:bg-black/20"
-                            onClick={() => setPopupItem(null)}
-                        >
-                            ✕
-                        </button>
-
-                        <img
-                            src={popupItem.upload.imageUrl}
-                            alt={popupItem.upload.caption || 'Food image'}
-                            className="w-full max-h-[70vh] object-cover"
-                        />
-
-                        <div className="p-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                            <div className="flex flex-col gap-1">
-                                <div className="flex items-center gap-2 text-lg font-semibold text-gray-800">
-                                    {popupItem.upload.caption || popupItem.upload.menuItem.name}
-                                </div>
-                                <div className="text-xs text-gray-500">
-                                    Uploaded by <span className="font-medium">{popupItem.upload.user?.displayName || 'Anonymous foodie'}</span>
-                                </div>
-                                {popupPostedAt && (
-                                    <div className="text-xs text-gray-500">
-                                        Posted on <span className="font-medium">{popupPostedAt}</span>
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="flex flex-col items-start md:flex-row md:items-center md:gap-6 gap-1">
-                                <div className="font-medium text-gray-700 flex items-center gap-10">
-                                    <span className="flex items-center gap-1">
-                                        <img
-                                            src={UpvoteIcon}
-                                            alt="Upvotes"
-                                            className="h-6 w-6"
-                                        />
-                                        {popupItem.upload.upvoteCount || 0}
-                                    </span>
-                                    <span className="flex items-center gap-1">
-                                        <img
-                                            src={DownvoteIcon}
-                                            alt="Downvotes"
-                                            className="h-6 w-6 translate-y-[3px]"
-                                        />
-                                        {popupItem.upload.downvoteCount || 0}
-                                    </span>
-                                </div>
-
-                                {/* Report button */}
-                                <button
-                                    onClick={openReportModal}
-                                    className={`text-[11px] md:text-xs mx-5 px-2.5 py-1 rounded-full border whitespace-nowrap
-                                    ${reportedIds.includes(popupItem.uploadId)
-                                            ? 'border-rose-300 bg-rose-50 text-rose-500 cursor-default'
-                                            : 'border-rose-400 text-rose-600 hover:bg-rose-50'
-                                        }`}
-                                >
-                                    {reportedIds.includes(popupItem.uploadId) ? '✓ Reported' : '⚑ Report Post'}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Report Modal */}
-            {reportModalOpen && reportTargetItem && (
-                <div
-                    className="fixed inset-0 bg-black/60 z-50 
-                        flex items-start justify-center p-4 pt-20"
-                    onClick={closeReportModal}
-                >
-                    <div
-                        className="bg-white rounded-xl max-w-md w-full p-5 shadow-2xl"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <h3 className="text-lg font-semibold mb-1">
-                            Report photo
-                        </h3>
-                        <p className="text-xs text-gray-500 mb-4">
-                            Help us keep the community safe. This report will be reviewed by our team.
-                        </p>
-
-                        <form onSubmit={handleSubmitReport} className="space-y-4 ">
-                            <div>
-                                <label className="block text-sm font-medium mb-1">
-                                    Reason <span className="text-rose-500">*</span>
-                                </label>
-                                <select
-                                    value={reportReason}
-                                    onChange={(e) => setReportReason(e.target.value)}
-                                    className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                                >
-                                    <option value="">Select a reason</option>
-                                    <option value="wrong-stall">Not from this stall</option>
-                                    <option value="inappropriate">Inappropriate content</option>
-                                    <option value="spam">Spam / misleading</option>
-                                    <option value="other">Other</option>
-                                </select>
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium mb-1">
-                                    Additional details (optional)
-                                </label>
-                                <textarea
-                                    value={reportDetails}
-                                    onChange={(e) => setReportDetails(e.target.value)}
-                                    rows={3}
-                                    placeholder="Tell us what's wrong with this photo..."
-                                    className="w-full border rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                                />
-                            </div>
-
-                            <div className="flex justify-end gap-2 pt-2">
-                                <button
-                                    type="button"
-                                    onClick={closeReportModal}
-                                    className="px-3 py-1.5 text-sm rounded-lg border border-gray-200 hover:bg-gray-50"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    className="px-4 py-1.5 text-sm rounded-lg bg-rose-600 text-white hover:bg-rose-700"
-                                >
-                                    Submit report
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
         </div>
     );
 };

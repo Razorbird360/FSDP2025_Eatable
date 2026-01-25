@@ -22,6 +22,60 @@ export const stallsController = {
     }
   },
 
+  async getLikes(req, res, next) {
+    try {
+      const stallId = req.params.id;
+      const exists = await stallsService.exists(stallId);
+      if (!exists) {
+        return res.status(404).json({ error: 'Stall not found' });
+      }
+
+      const result = await stallsService.getLikeStatus(stallId, req.user.id);
+      res.json(result);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async getLikedStalls(req, res, next) {
+    try {
+      const likes = await stallsService.getLikedStalls(req.user.id);
+      res.json({ count: likes.length, likes });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async like(req, res, next) {
+    try {
+      const stallId = req.params.id;
+      const exists = await stallsService.exists(stallId);
+      if (!exists) {
+        return res.status(404).json({ error: 'Stall not found' });
+      }
+
+      const result = await stallsService.like(stallId, req.user.id);
+      res.status(201).json(result);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async unlike(req, res, next) {
+    try {
+      const stallId = req.params.id;
+      const exists = await stallsService.exists(stallId);
+      if (!exists) {
+        return res.status(404).json({ error: 'Stall not found' });
+      }
+
+      const result = await stallsService.unlike(stallId, req.user.id);
+      res.json(result);
+    } catch (error) {
+      next(error);
+    }
+  },
+
   async create(req, res, next) {
     try {
       const stall = await stallsService.create(req.body);
