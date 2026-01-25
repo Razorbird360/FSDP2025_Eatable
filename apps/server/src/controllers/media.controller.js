@@ -38,7 +38,7 @@ export const mediaController = {
    * Upload image for a menu item
    * POST /api/media/upload
    */
-  async uploadImage(req, res, _next) {
+  async uploadImage(req, res, next) {
     try {
       // 1. Validate file exists (from Multer)
       if (!req.file) {
@@ -381,7 +381,7 @@ export const mediaController = {
 
   // apps/server/src/controllers/media.controller.js
 
-  async getSkipOnboarding(req, res, _next) {
+  async getSkipOnboarding(req, res, next) {
     try {
       const userId = req.user?.id;
       console.log("Getting skipOnboarding for userId:", userId);
