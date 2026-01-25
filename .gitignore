@@ -55,10 +55,8 @@ env/
 ENV/
 .venv
 
+
 # AI Models (large files)
-apps/ai-service/models/*.h5
-apps/ai-service/models/*.pt
-apps/ai-service/models/*.pkl
 .mcp.json
 .claude/
 .gemini/
@@ -67,3 +65,6 @@ apps/ai-service/models/*.pkl
 # OS
 Thumbs.db
 .DS_Store
+
+# Agents (vibe code ahh)
+AGENTS.md

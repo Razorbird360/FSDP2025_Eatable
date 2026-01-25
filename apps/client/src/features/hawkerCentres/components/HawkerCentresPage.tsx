@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { ChevronRight, MapPin } from 'lucide-react';
 import Filters from './Filters';
 import FiltersMobile from './FiltersMobile';
@@ -13,11 +13,35 @@ const HawkerCentresPage = () => {
   const { hawkerCentres, loading, error, locationStatus } = useHawkerCentres(30); // Fetch more than we need
   const filters = useFilters();
   const navigate = useNavigate();
+  const location = useLocation();
+  const lastAppliedCuisineRef = useRef<string | null>(null);
   const prepTimeLimit = filters.prepTime[0];
   const selectedPriceRanges = filters.selectedPriceRanges;
   const selectedCuisines = filters.selectedCuisines;
   const selectedDietary = filters.selectedDietary;
   const cuisineOptions = filters.cuisines;
+  const setSelectedCuisines = filters.setSelectedCuisines;
+  const cuisineOptionsKey = cuisineOptions.join('|');
+  const incomingCuisine = (location.state as { selectedCuisine?: string } | null)?.selectedCuisine;
+
+  useEffect(() => {
+    if (!incomingCuisine) return;
+    const normalized = String(incomingCuisine).trim().toLowerCase();
+    if (!normalized) return;
+
+    const matched = cuisineOptions.find(
+      (cuisine) => cuisine.toLowerCase() === normalized
+    );
+    if (!matched) return;
+
+    if (lastAppliedCuisineRef.current === normalized) {
+      return;
+    }
+
+    lastAppliedCuisineRef.current = normalized;
+    setSelectedCuisines([matched]);
+    navigate(location.pathname, { replace: true, state: {} });
+  }, [incomingCuisine, cuisineOptionsKey, setSelectedCuisines, navigate, location.pathname]);
   const filteredCentres = useMemo(() => {
     const applyPrepTimeFilter = prepTimeLimit > 0 && prepTimeLimit < 20;
     const applyPriceFilter =

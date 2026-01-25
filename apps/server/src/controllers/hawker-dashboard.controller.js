@@ -1,3 +1,4 @@
+import prisma from '../lib/prisma.js';
 import { stallsService } from '../services/stalls.service.js';
 import { hawkerDashboardService } from '../services/hawker-dashboard.service.js';
 
@@ -51,9 +52,31 @@ const handleMenuItemValidationError = (res, error) => {
   return false;
 };
 
+const ensureVerifiedHawker = async (userId) => {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true, verified: true },
+  });
+
+  if (!user || user.role !== 'hawker') {
+    return { error: 'Unauthorized' };
+  }
+
+  if (!user.verified) {
+    return { error: 'Hawker not verified' };
+  }
+
+  return { user };
+};
+
 export const hawkerDashboardController = {
   async getDashboard(req, res, next) {
     try {
+      const verification = await ensureVerifiedHawker(req.user.id);
+      if (verification.error) {
+        return res.status(403).json({ error: verification.error });
+      }
+
       const { stallId: requestedStallId } = req.query;
       const { stallId, error } = await resolveOwnedStallId(
         req.user.id,
@@ -73,6 +96,11 @@ export const hawkerDashboardController = {
 
   async getActivity(req, res, next) {
     try {
+      const verification = await ensureVerifiedHawker(req.user.id);
+      if (verification.error) {
+        return res.status(403).json({ error: verification.error });
+      }
+
       const { stallId: requestedStallId, limit } = req.query;
       const { stallId, error } = await resolveOwnedStallId(
         req.user.id,
@@ -95,6 +123,11 @@ export const hawkerDashboardController = {
 
   async getDishes(req, res, next) {
     try {
+      const verification = await ensureVerifiedHawker(req.user.id);
+      if (verification.error) {
+        return res.status(403).json({ error: verification.error });
+      }
+
       const { stallId: requestedStallId, sortBy, sortDir } = req.query;
       const { stallId, error } = await resolveOwnedStallId(
         req.user.id,
@@ -118,6 +151,11 @@ export const hawkerDashboardController = {
 
   async updateDish(req, res, next) {
     try {
+      const verification = await ensureVerifiedHawker(req.user.id);
+      if (verification.error) {
+        return res.status(403).json({ error: verification.error });
+      }
+
       const { menuItemId } = req.params;
       const { stallId: requestedStallId } = req.query;
 
@@ -151,6 +189,11 @@ export const hawkerDashboardController = {
 
   async removeDish(req, res, next) {
     try {
+      const verification = await ensureVerifiedHawker(req.user.id);
+      if (verification.error) {
+        return res.status(403).json({ error: verification.error });
+      }
+
       const { menuItemId } = req.params;
       const { stallId: requestedStallId } = req.query;
 
@@ -181,6 +224,11 @@ export const hawkerDashboardController = {
 
   async deleteDish(req, res, next) {
     try {
+      const verification = await ensureVerifiedHawker(req.user.id);
+      if (verification.error) {
+        return res.status(403).json({ error: verification.error });
+      }
+
       const { menuItemId } = req.params;
       const { stallId: requestedStallId } = req.query;
 

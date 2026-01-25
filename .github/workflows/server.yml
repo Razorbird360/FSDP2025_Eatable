@@ -33,5 +33,8 @@ jobs:
       - name: Generate Prisma Client
         run: pnpm --filter server prisma:generate
 
+      - name: Lint server
+        run: pnpm --filter server lint
+
       - name: Check server build
         run: node apps/server/src/server.js --version || echo "Server configured"

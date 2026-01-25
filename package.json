@@ -17,7 +17,8 @@
     "prisma:migrate": "pnpm --filter server prisma:migrate",
     "prisma:studio": "pnpm --filter server prisma:studio",
     "prisma:seed": "pnpm --filter server prisma:seed",
-    "format": "prettier --write \"**/*.{js,jsx,json,md}\""
+    "format": "prettier --write \"**/*.{js,jsx,json,md}\"",
+    "lint": "pnpm --filter client lint && pnpm --filter server lint"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.1",
@@ -27,5 +28,10 @@
   "engines": {
     "node": ">=18.0.0",
     "pnpm": ">=8.0.0"
+  },
+  "dependencies": {
+    "html5-qrcode": "^2.3.8",
+    "qr-scanner": "^1.4.2",
+    "qrcode.react": "^4.2.0"
   }
 }

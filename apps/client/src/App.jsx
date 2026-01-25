@@ -3,6 +3,7 @@ import { ChakraProvider, defaultSystem } from '@chakra-ui/react';
 import AppRoutes from './routes';
 import { AuthProvider } from './features/auth/AuthProvider';
 import ScrollToTop from './components/ScrollToTop';
+import { CartProvider } from './features/orders/components/CartContext.jsx';
 
 function App() {
   return (
@@ -11,7 +12,9 @@ function App() {
       <BrowserRouter>
         <ScrollToTop />
         <AuthProvider>
-          <AppRoutes />
+          <CartProvider>
+            <AppRoutes />
+          </CartProvider>
         </AuthProvider>
       </BrowserRouter>
     </ChakraProvider>

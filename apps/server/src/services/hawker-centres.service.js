@@ -152,12 +152,7 @@ async function getRandomStallsBySlug(slug, limit = 3) {
 
   // Format stalls with image URL
   const formattedStalls = randomStalls.map(stall => {
-    // Try to get image from first menu item's top media upload
-    let imageUrl = stall.image_url;
-
-    if (stall.menuItems.length > 0 && stall.menuItems[0].mediaUploads.length > 0) {
-      imageUrl = stall.menuItems[0].mediaUploads[0].imageUrl;
-    }
+    const topUpload = stall.menuItems?.[0]?.mediaUploads?.[0]?.imageUrl ?? null;
     const prepTimes = stall.menuItems
       .map((item) => item.prepTimeMins)
       .filter((value) => typeof value === 'number');
@@ -174,7 +169,7 @@ async function getRandomStallsBySlug(slug, limit = 3) {
       name: stall.name,
       cuisineType: stall.cuisineType,
       dietaryTags: stall.dietaryTags ?? [],
-      imageUrl: stall.image_url,
+      imageUrl: topUpload ?? stall.image_url ?? null,
       maxPrepTimeMins,
       maxPriceCents,
       menuItemCount: stall._count.menuItems
