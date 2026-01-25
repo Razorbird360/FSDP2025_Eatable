@@ -4,7 +4,6 @@ import prisma from '../lib/prisma.js';
 export const verificationController = {
   async submitVerification(req, res) {
     try {
-      // Check if user is hawker
       const profile = await prisma.user.findUnique({
         where: { id: req.user.id },
       });
@@ -13,20 +12,10 @@ export const verificationController = {
         return res.status(403).json({ error: 'Only hawkers can submit verification' });
       }
 
-      // Check if already verified
-      if (profile.verified) {
+      if (profile?.verified) {
         return res.status(400).json({ error: 'Already verified' });
       }
-
-      // Check if file uploaded
-      if (!req.file) {
-        return res.status(400).json({ error: 'No file uploaded' });
-      }
-
-      const result = await verificationService.submitVerification(
-        req.user.id,
-        req.file.buffer
-      );
+      const result = await verificationService.submitVerification(req.user.id);
 
       res.status(200).json({
         success: true,

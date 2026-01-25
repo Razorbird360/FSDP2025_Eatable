@@ -43,12 +43,9 @@ export default function SpendingsPage() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [budgetDollars, setBudgetDollars] = useState(250);
   const [alertAt, setAlertAt] = useState(50);
-  const [notifiedAlready, setNotifiedAlready] = useState(false);
+
   const [loadingBudget, setLoadingBudget] = useState(false);
   const [budgetError, setBudgetError] = useState(null);
-
-  // --- Budget Alert Popup State ---
-  const [budgetPopup, setBudgetPopup] = useState(null);
 
   // --- Orders State ---
   const [orders, setOrders] = useState([]);
@@ -98,12 +95,10 @@ export default function SpendingsPage() {
 
           setBudgetDollars(serverBudgetDollars);
           setAlertAt(serverAlertAt);
-          setNotifiedAlready(b.notifiedAlready ?? false);
         } else {
           // Default fallback
           setBudgetDollars(250);
           setAlertAt(50);
-          setNotifiedAlready(false);
         }
       } catch (err) {
         console.error('Failed to fetch budget:', err);
@@ -129,9 +124,6 @@ export default function SpendingsPage() {
     (completedOrders || []).forEach((o) => {
       const d = new Date(o?.createdAt);
       if (Number.isNaN(d.getTime())) return;
-
-      // NOTE: Year filter removed to ensure 2025 data appears
-      // if (d.getFullYear() !== new Date().getFullYear()) return
 
       const m = d.getMonth(); // 0-11
       totals[m] += Number(o?.totalCents) || 0;
@@ -170,63 +162,6 @@ export default function SpendingsPage() {
     return Math.max(0, Math.min(100, p));
   }, [spentCents, budgetCapCents]);
 
-  // --- Budget Alert Logic ---
-  useEffect(() => {
-    if (mode !== 'month') return;
-    if (!budgetCapCents) return;
-    if (notifiedAlready) return;
-
-    const hardLimitCents = budgetCapCents;
-    const alertThresholdCents = Math.round(budgetCapCents * (alertAt / 100));
-
-    const reachedHardLimit = spentCents >= hardLimitCents;
-    const reachedAlert =
-      alertAt < 100 &&
-      spentCents >= alertThresholdCents &&
-      spentCents < hardLimitCents;
-
-    const showPopup = async (type, title, message) => {
-      setBudgetPopup({ type, title, message });
-      try {
-        await api.post('/budget/monthly/notify', {
-          year: yearNumber,
-          month: monthNumber,
-        });
-        setNotifiedAlready(true);
-      } catch (err) {
-        console.error('Failed to mark budget as notified:', err);
-      }
-    };
-
-    // 1) Hard limit popup (100%+)
-    if (reachedHardLimit) {
-      showPopup(
-        'limit',
-        'Budget limit reached',
-        `You have used 100% of your budget.\n${formatPrice(spentCents)} / ${formatPrice(budgetCapCents)} spent`
-      );
-      return;
-    }
-
-    // 2) Early warning popup (e.g. 80%)
-    if (reachedAlert) {
-      showPopup(
-        'warning',
-        'Budget alert',
-        `You have used ${percent}% of your budget.\n${formatPrice(spentCents)} / ${formatPrice(budgetCapCents)} spent`
-      );
-    }
-  }, [
-    mode,
-    spentCents,
-    budgetCapCents,
-    alertAt,
-    percent,
-    yearNumber,
-    monthNumber,
-    notifiedAlready,
-  ]);
-
   // --- QuickChart URL (Donut only) ---
   const chartUrl = useMemo(() => {
     return buildBudgetDonutUrl(spentCents, budgetCapCents);
@@ -234,15 +169,17 @@ export default function SpendingsPage() {
 
   return (
     <div className="w-full">
-      {/* Top Header: Navigation & Month Filter + Legend (aligned) */}
-      <div className="w-full pt-1">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="inline-flex rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+      <div className="bg-white rounded-xl border border-gray-100 p-4 md:p-8 shadow-sm">
+        <h1 className="text-xl font-bold mb-6 text-gray-900">Spending Budget</h1>
+
+        {/* Filters (mobile stacks like OrdersPage spacing) */}
+        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="inline-flex rounded-xl border border-slate-200 bg-white p-1 shadow-sm w-full sm:w-auto">
               <button
                 type="button"
                 onClick={() => setMode('month')}
-                className={`px-4 py-2 text-sm font-medium rounded-lg transition ${
+                className={`flex-1 sm:flex-none px-4 py-2 text-sm font-medium rounded-lg transition ${
                   mode === 'month'
                     ? 'bg-[#21421B] text-white'
                     : 'text-slate-700 hover:bg-slate-50'
@@ -253,7 +190,7 @@ export default function SpendingsPage() {
               <button
                 type="button"
                 onClick={() => setMode('overall')}
-                className={`px-4 py-2 text-sm font-medium rounded-lg transition ${
+                className={`flex-1 sm:flex-none px-4 py-2 text-sm font-medium rounded-lg transition ${
                   mode === 'overall'
                     ? 'bg-[#21421B] text-white'
                     : 'text-slate-700 hover:bg-slate-50'
@@ -264,19 +201,17 @@ export default function SpendingsPage() {
             </div>
 
             {mode === 'month' && (
-              <div className="ml-2">
-                <MonthDropdown
-                  value={selectedMonth}
-                  onChange={setSelectedMonth}
-                  options={MONTH_OPTIONS}
-                />
-              </div>
+              <MonthDropdown
+                value={selectedMonth}
+                onChange={setSelectedMonth}
+                options={MONTH_OPTIONS}
+              />
             )}
           </div>
 
-          {/* Legend aligned with dropdown (right side) */}
+          {/* Legend hidden on mobile to match cleaner OrdersPage feel */}
           {mode === 'month' && (
-            <div className="flex items-center gap-6 text-sm text-slate-600 pt-1">
+            <div className="hidden sm:flex items-center gap-6 text-sm text-slate-600">
               <div className="flex items-center gap-2">
                 <div className="h-3.5 w-7 rounded-[4px] bg-[#21421B]" />
                 <span>Spent</span>
@@ -288,67 +223,61 @@ export default function SpendingsPage() {
             </div>
           )}
         </div>
-      </div>
 
-      <div className="w-full pb-12">
-        <div className="mt-8 flex flex-col items-center">
+        {/* Chart */}
+        <div className="flex flex-col items-center">
           {mode === 'month' ? (
             <>
               {loadingBudget ? (
-                <div className="h-64 w-64 flex items-center justify-center rounded-full border border-gray-100 bg-white">
+                <div className="h-56 w-56 sm:h-64 sm:w-64 flex items-center justify-center rounded-full border border-gray-100 bg-white">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#21421B]" />
                 </div>
               ) : budgetError ? (
                 <div className="text-red-500 text-sm">{budgetError}</div>
               ) : (
-                /* DONUT CHART AREA (QuickChart) */
                 <div className="relative flex items-center justify-center">
                   <img
                     src={chartUrl}
                     alt="Budget chart"
-                    className="h-64 w-64 object-contain"
+                    className="h-56 w-56 sm:h-64 sm:w-64 object-contain"
                   />
-                  {/* Center Text */}
                   <div className="absolute flex flex-col items-center">
-                    <div className="text-5xl font-bold text-[#6F6AF8]">
+                    <div className="text-4xl sm:text-5xl font-bold text-[#6F6AF8]">
                       {percent}%
                     </div>
-                    {/* ✅ UPDATED: Red text if overspent */}
                     <div
-                      className={`mt-2 text-base font-medium ${
-                        spentCents > budgetCapCents
-                          ? 'text-red-500'
-                          : 'text-slate-500'
+                      className={`mt-1 text-xs sm:text-base font-medium text-center ${
+                        spentCents > budgetCapCents ? 'text-red-500' : 'text-slate-500'
                       }`}
                     >
                       {formatPrice(spentCents)} / {formatPrice(budgetCapCents)}{' '}
+                      <br className="sm:hidden" />
                       spent
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* Edit Button */}
               <button
                 type="button"
                 onClick={() => setIsEditOpen(true)}
                 disabled={loadingBudget}
-                className="mt-8 h-10 w-40 rounded-2xl bg-[#21421B] text-sm font-semibold text-white shadow-md transition hover:opacity-95 disabled:opacity-50"
+                className="mt-6 h-10 w-full sm:w-40 rounded-2xl bg-[#21421B] text-sm font-semibold text-white shadow-md transition hover:opacity-95 disabled:opacity-50"
               >
                 Edit
               </button>
             </>
           ) : (
-            // --- OVERALL CHART (React Chart.js) ---
             <SpendingPerMonthChart monthlyTotalsCents={monthlyTotalsCents} />
           )}
         </div>
 
-        {/* Transactions List */}
-        <div className="mt-12 w-full bg-white rounded-xl p-8 shadow-sm border border-gray-100">
+        {/* Transactions (match OrdersPage card + mobile spacing) */}
+        <div className="mt-10">
           <h2 className="text-xl font-bold text-gray-900 mb-6">
             Transaction Records
           </h2>
+
           {loadingOrders ? (
             <div className="p-8 flex justify-center">
               <div className="animate-spin h-8 w-8 border-b-2 border-[#21421B] rounded-full" />
@@ -358,8 +287,28 @@ export default function SpendingsPage() {
               {ordersError}
             </div>
           ) : visibleOrders.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
-              No transactions found.
+            <div className="flex flex-col items-center justify-center py-16 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                <svg
+                  className="w-8 h-8 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
+                  />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                No transactions yet
+              </h3>
+              <p className="text-sm text-gray-500 text-center">
+                Your transaction records will appear here
+              </p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -369,32 +318,47 @@ export default function SpendingsPage() {
                   className="border border-gray-100 rounded-xl p-4 hover:shadow-md transition-shadow cursor-pointer bg-white"
                   onClick={() => setSelectedOrder(order)}
                 >
-                  <div className="flex justify-between items-center">
+                  <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
                     <div className="flex items-center gap-3">
                       {order.stall?.image_url ? (
                         <img
                           src={order.stall.image_url}
                           alt={order.stall?.name || 'Stall'}
-                          className="w-10 h-10 rounded-full object-cover border border-gray-200"
+                          className="w-12 h-12 rounded-lg object-cover"
                         />
                       ) : (
-                        <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-lg">
-                          🏪
+                        <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center">
+                          <span className="text-xl">🏪</span>
                         </div>
                       )}
 
                       <div>
                         <h3 className="font-semibold text-gray-900">
-                          {order.stall?.name || 'Unknown'}
+                          {order.stall?.name || 'Unknown Stall'}
                         </h3>
-                        <p className="text-xs text-gray-500">
+                        <p className="text-sm text-gray-500">
                           {formatDateTime(order.createdAt)}
                         </p>
                       </div>
                     </div>
-                    <span className="font-bold text-gray-900">
-                      {formatPrice(order.totalCents)}
-                    </span>
+
+                    <div className="flex items-center justify-between md:justify-end gap-4">
+                      <span className="font-bold text-gray-900">
+                        {formatPrice(order.totalCents)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 pt-3 border-t border-gray-100 flex justify-end">
+                    <button
+                      className="text-sm font-semibold text-[#1B3C18] hover:underline"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedOrder(order);
+                      }}
+                    >
+                      View Details
+                    </button>
                   </div>
                 </div>
               ))}
@@ -425,30 +389,17 @@ export default function SpendingsPage() {
                 (b?.budgetCents ?? budgetCents) / 100
               );
               const nextAlertAt = b?.alertAtPercent ?? alertAt;
-              const nextNotifiedAlready = b?.notifiedAlready ?? false;
 
-              // then update state
               setBudgetDollars(nextBudgetDollars);
               setAlertAt(nextAlertAt);
-              setNotifiedAlready(nextNotifiedAlready);
+              window.dispatchEvent(new Event("budget:changed"));
+
 
               setIsEditOpen(false);
             } catch (err) {
               console.error(err);
               alert('Failed to update.');
             }
-          }}
-        />
-      )}
-
-      {/* Budget Alert Popup (UPDATED) */}
-      {budgetPopup && (
-        <BudgetAlertModal
-          data={budgetPopup}
-          onClose={() => setBudgetPopup(null)}
-          onEdit={() => {
-            setBudgetPopup(null);
-            setIsEditOpen(true);
           }}
         />
       )}
@@ -464,126 +415,6 @@ export default function SpendingsPage() {
 }
 
 // --- Components ---
-
-function BudgetAlertModal({ data, onClose }) {
-  const isLimit = data?.type === 'limit';
-
-  return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 px-4">
-      <div
-        className="
-          relative w-full max-w-[580px]
-          rounded-[24px] bg-[#F6FBF2]
-          pt-14 pb-10 px-6
-          shadow-[0_20px_60px_rgba(0,0,0,0.25)]
-          overflow-hidden
-        "
-      >
-        {/* ICON */}
-        <div className="relative mb-8 flex justify-center">
-          {isLimit ? (
-            // stop icon
-            <svg
-              viewBox="0 0 48 48"
-              className="h-16 w-16 text-[#21421B]"
-              aria-hidden="true"
-            >
-              <circle
-                cx="24"
-                cy="24"
-                r="20"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="3"
-              />
-              <path
-                d="M16 16l16 16"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="3"
-                strokeLinecap="round"
-              />
-            </svg>
-          ) : (
-            // smile icon
-            <svg
-              viewBox="0 0 48 48"
-              className="h-16 w-16 text-[#21421B]"
-              aria-hidden="true"
-            >
-              <circle
-                cx="24"
-                cy="24"
-                r="20"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="3"
-              />
-              <circle cx="18" cy="20" r="2" fill="currentColor" />
-              <circle cx="30" cy="20" r="2" fill="currentColor" />
-              <path
-                d="M16 29c2.5 3 5.5 4.5 8 4.5s5.5-1.5 8-4.5"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="3"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          )}
-        </div>
-
-        {/* TITLE */}
-        <h2 className="relative mb-3 text-center text-[22px] font-semibold text-black leading-snug">
-          {data?.title}
-        </h2>
-
-        {/* MESSAGE */}
-        <p className="relative mb-8 text-center text-sm text-slate-600 whitespace-pre-line leading-relaxed">
-          {data?.message}
-        </p>
-
-        {/* ACTIONS */}
-        <div className="relative flex justify-center gap-3">
-          {/* Primary */}
-          <button
-            type="button"
-            onClick={onClose}
-            className="
-              rounded-full bg-[#21421B]
-              px-10 py-3
-              text-sm font-medium text-white
-              shadow-[0_8px_20px_rgba(33,66,27,0.35)]
-              hover:bg-[#1A3517]
-              transition
-            "
-          >
-            Continue
-          </button>
-        </div>
-
-        {/* top-right close */}
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute right-4 top-4 rounded-full p-2 hover:bg-black/5 transition"
-          aria-label="Close"
-        >
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <path d="M18 6 6 18M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
-    </div>
-  );
-}
 
 function SpendingPerMonthChart({ monthlyTotalsCents }) {
   const labels = [
@@ -610,9 +441,7 @@ function SpendingPerMonthChart({ monthlyTotalsCents }) {
       {
         label: 'Spending',
         data: values,
-        backgroundColor: labels.map((_, i) =>
-          i % 2 === 0 ? '#CFE0FF' : '#6B7A90'
-        ),
+        backgroundColor: labels.map((_, i) => (i % 2 === 0 ? '#CFE0FF' : '#6B7A90')),
         borderRadius: 14,
         borderSkipped: false,
         barPercentage: 0.7,
@@ -662,6 +491,10 @@ function AlertDropdown({ value, onChange }) {
   const [open, setOpen] = useState(false);
   const options = [25, 50, 75, 80, 90, 100];
 
+  useEffect(() => {
+    return () => setOpen(false);
+  }, []);
+
   return (
     <div className="relative">
       <button
@@ -704,11 +537,9 @@ function AlertDropdown({ value, onChange }) {
               </button>
             ))}
           </div>
-          <button
-            type="button"
-            className="fixed inset-0 z-40 cursor-default"
+          <div
+            className="fixed inset-0 z-40"
             onClick={() => setOpen(false)}
-            aria-label="Close dropdown"
           />
         </>
       )}
@@ -794,11 +625,16 @@ function BudgetEditModal({ budget, alertAt, onClose, onSave }) {
 
 function MonthDropdown({ value, onChange, options }) {
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    return () => setOpen(false);
+  }, []);
+
   return (
-    <div className="relative w-[220px]">
+    <div className="relative w-full sm:w-[220px]">
       <button
         onClick={() => setOpen(!open)}
-        className={`h-10 w-full rounded-xl border border-slate-200 bg-white px-4 flex items-center justify-between text-sm text-slate-700 ${open ? 'rounded-b-none' : ''}`}
+        className="h-10 w-full rounded-xl border border-slate-200 bg-white px-4 flex items-center justify-between text-sm text-slate-700"
       >
         <span>{value}</span>
         <svg
@@ -817,7 +653,7 @@ function MonthDropdown({ value, onChange, options }) {
       </button>
       {open && (
         <>
-          <div className="absolute left-0 top-[40px] z-50 w-full max-h-72 overflow-auto rounded-b-xl border border-t-0 border-slate-200 bg-white shadow-lg">
+          <div className="absolute left-0 top-[44px] z-50 w-full max-h-72 overflow-auto rounded-xl border border-slate-200 bg-white shadow-lg">
             {options.map((m) => (
               <button
                 key={m}
@@ -825,7 +661,11 @@ function MonthDropdown({ value, onChange, options }) {
                   onChange(m);
                   setOpen(false);
                 }}
-                className={`w-full px-4 py-2 text-left text-sm ${m === value ? 'bg-[#21421B] text-white' : 'text-slate-700 hover:bg-slate-50'}`}
+                className={`w-full px-4 py-2 text-left text-sm ${
+                  m === value
+                    ? 'bg-[#21421B] text-white'
+                    : 'text-slate-700 hover:bg-slate-50'
+                }`}
               >
                 {m}
               </button>
@@ -846,7 +686,7 @@ function buildBudgetDonutUrl(spentCents, budgetCents) {
   const config = {
     type: 'doughnut',
     data: {
-      labels: ['Spent', 'Remaining'],
+      labels: [], // remove quickchart labels/text
       datasets: [
         {
           data: [safeSpent, remaining],
@@ -856,8 +696,7 @@ function buildBudgetDonutUrl(spentCents, budgetCents) {
       ],
     },
     options: {
-      cutout: '90%', // Thinner ring
-      legend: { display: false },
+      cutout: '90%',
       plugins: {
         legend: { display: false },
         tooltip: { enabled: false },
