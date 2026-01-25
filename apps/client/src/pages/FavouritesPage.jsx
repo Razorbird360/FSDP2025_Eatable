@@ -69,8 +69,8 @@ const VoteCard = ({ vote, type }) => {
                     </h3>
                     <span
                         className={`rounded-full px-2 py-1 text-[10px] font-semibold ${type === 'upvote'
-                                ? 'bg-emerald-100 text-emerald-700'
-                                : 'bg-rose-100 text-rose-700'
+                            ? 'bg-emerald-100 text-emerald-700'
+                            : 'bg-rose-100 text-rose-700'
                             }`}
                     >
                         {type === 'upvote' ? 'Upvoted' : 'Downvoted'}
@@ -161,7 +161,7 @@ const FavouritesPage = () => {
         return (
             <button
                 onClick={() => setTab(value)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all border
+                className={`px-3 py-2 sm:px-4 rounded-lg text-xs sm:text-sm font-medium transition-all border whitespace-nowrap
           ${active
                         ? 'bg-emerald-100 text-emerald-800 border-emerald-600'
                         : 'bg-gray-100 text-gray-600 border-transparent hover:bg-gray-200'
@@ -217,10 +217,10 @@ const FavouritesPage = () => {
     return (
         <div className="w-full">
             <div className="bg-white rounded-xl border border-gray-100 p-4 md:p-6 shadow-sm">
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex flex-col gap-3 mb-4 md:flex-row md:items-center md:justify-between">
                     <h2 className="text-lg font-semibold text-gray-900">Favourites</h2>
 
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 overflow-x-auto no-scrollbar md:overflow-visible">
                         <TabButton value="stalls">Stalls</TabButton>
                         <TabButton value="upvotes">
                             <span className="flex items-center gap-2">
