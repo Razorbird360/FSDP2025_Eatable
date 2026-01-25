@@ -1,6 +1,66 @@
 import prisma from '../lib/prisma.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+const MENU_ITEM_UPDATE_FIELDS = ['name', 'description', 'priceCents', 'prepTimeMins', 'imageUrl'];
+
+const buildMenuItemUpdateData = (payload = {}) => {
+  const data = {};
+
+  for (const field of MENU_ITEM_UPDATE_FIELDS) {
+    if (!Object.prototype.hasOwnProperty.call(payload, field)) {
+      continue;
+    }
+
+    const value = payload[field];
+
+    if (field === 'name') {
+      const trimmed = typeof value === 'string' ? value.trim() : value;
+      if (!trimmed) {
+        throw new Error('Dish name is required');
+      }
+      data.name = trimmed;
+      continue;
+    }
+
+    if (field === 'priceCents' || field === 'prepTimeMins') {
+      if (value === null && field === 'prepTimeMins') {
+        data.prepTimeMins = null;
+        continue;
+      }
+
+      const numeric = typeof value === 'string' && value.trim() === '' ? NaN : Number(value);
+      if (!Number.isFinite(numeric) || numeric < 0) {
+        throw new Error(`${field} must be a non-negative number`);
+      }
+      data[field] = Math.round(numeric);
+      continue;
+    }
+
+    if (field === 'imageUrl') {
+      data.imageUrl = value || null;
+      continue;
+    }
+
+    data[field] = value;
+  }
+
+  if (Object.keys(data).length === 0) {
+    throw new Error('No valid fields provided for update');
+  }
+
+  return data;
+};
+
+const menuItemResponseSelect = {
+  id: true,
+  name: true,
+  description: true,
+  priceCents: true,
+  category: true,
+  prepTimeMins: true,
+  imageUrl: true,
+  isActive: true,
+};
 
 const buildDateRanges = () => {
   const now = new Date();
@@ -339,5 +399,77 @@ export const hawkerDashboardService = {
       items,
       nextCursor: null,
     };
+  },
+
+  async getMenuItems(stallId, { sortBy = 'name', sortDir = 'asc' } = {}) {
+    const validSortFields = {
+      name: 'name',
+      price: 'priceCents',
+      category: 'category',
+      prepTime: 'prepTimeMins',
+    };
+
+    const orderByField = validSortFields[sortBy] || 'name';
+    const orderByDir = sortDir === 'desc' ? 'desc' : 'asc';
+
+    const menuItems = await prisma.menuItem.findMany({
+      where: {
+        stallId,
+        isActive: true,
+      },
+      select: {
+        id: true,
+        name: true,
+        priceCents: true,
+        category: true,
+        prepTimeMins: true,
+        imageUrl: true,
+        mediaUploads: {
+          where: { validationStatus: 'approved' },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: { imageUrl: true },
+        },
+      },
+      orderBy: {
+        [orderByField]: orderByDir,
+      },
+    });
+
+    return menuItems.map(({ mediaUploads, ...item }) => ({
+      ...item,
+      imageUrl: item.imageUrl || mediaUploads?.[0]?.imageUrl || null,
+    }));
+  },
+
+  async getMenuItemOwner(menuItemId) {
+    return await prisma.menuItem.findUnique({
+      where: { id: menuItemId },
+      select: { id: true, stallId: true, isActive: true },
+    });
+  },
+
+  async updateMenuItem(menuItemId, payload) {
+    const data = buildMenuItemUpdateData(payload);
+    return await prisma.menuItem.update({
+      where: { id: menuItemId },
+      data,
+      select: menuItemResponseSelect,
+    });
+  },
+
+  async setMenuItemActive(menuItemId, isActive) {
+    return await prisma.menuItem.update({
+      where: { id: menuItemId },
+      data: { isActive },
+      select: menuItemResponseSelect,
+    });
+  },
+
+  async deleteMenuItem(menuItemId) {
+    return await prisma.menuItem.delete({
+      where: { id: menuItemId },
+      select: { id: true },
+    });
   },
 };
