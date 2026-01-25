@@ -1,6 +1,6 @@
-import { useEffect, useState, ReactNode, useRef } from 'react';
+import { ChangeEvent, FormEvent, ReactNode, useEffect, useRef, useState } from 'react';
 import Chart from 'react-apexcharts';
-import { ChevronDown, ChevronUp, ChevronsUpDown, LayoutDashboard, MoreVertical, Plus, Salad, Sun } from 'lucide-react';
+import { ChevronDown, ChevronUp, ChevronsUpDown, LayoutDashboard, MoreVertical, Pencil, Plus, Salad, Sun, X } from 'lucide-react';
 import api from '../../../lib/api';
 import { formatDate, formatTimeAgo } from '../../../utils/helpers';
 import '../styles/hawkerDashboard.css';
@@ -276,6 +276,26 @@ interface SliderPosition {
   width: number;
 }
 
+interface EditDishFormState {
+  name: string;
+  description: string;
+  price: string;
+  prepTime: string;
+  imageUrl: string;
+  imagePreview: string;
+  imageFile: File | null;
+}
+
+const emptyEditForm: EditDishFormState = {
+  name: '',
+  description: '',
+  price: '',
+  prepTime: '',
+  imageUrl: '',
+  imagePreview: '',
+  imageFile: null,
+};
+
 const HawkerDashboardPage = () => {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
@@ -290,11 +310,16 @@ const HawkerDashboardPage = () => {
   const [sortConfig, setSortConfig] = useState<SortConfig>(getDefaultSortConfig);
   const [isSliderReady, setIsSliderReady] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [editingDish, setEditingDish] = useState<MenuItemData | null>(null);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editForm, setEditForm] = useState<EditDishFormState>(emptyEditForm);
   
   const containerRef = useRef<HTMLDivElement>(null);
   const dashboardBtnRef = useRef<HTMLButtonElement>(null);
   const dishesBtnRef = useRef<HTMLButtonElement>(null);
   const menuContainerRef = useRef<HTMLDivElement | null>(null);
+  const editFileInputRef = useRef<HTMLInputElement | null>(null);
+  const editImageObjectUrlRef = useRef<string | null>(null);
 
   // Update slider position when active tab changes or container resizes
   useEffect(() => {
@@ -391,6 +416,63 @@ const HawkerDashboardPage = () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [openMenuId]);
+
+  useEffect(() => {
+    return () => {
+      if (editImageObjectUrlRef.current) {
+        URL.revokeObjectURL(editImageObjectUrlRef.current);
+      }
+    };
+  }, []);
+
+  const openEditModal = (dish: MenuItemData) => {
+    setEditingDish(dish);
+    setEditForm({
+      name: dish.name || '',
+      description: dish.description || '',
+      price: typeof dish.priceCents === 'number' ? (dish.priceCents / 100).toFixed(2) : '',
+      prepTime: typeof dish.prepTimeMins === 'number' ? String(dish.prepTimeMins) : '',
+      imageUrl: dish.imageUrl || '',
+      imagePreview: dish.imageUrl || '',
+      imageFile: null,
+    });
+    setIsEditOpen(true);
+  };
+
+  const closeEditModal = () => {
+    setIsEditOpen(false);
+    setEditingDish(null);
+    setEditForm(emptyEditForm);
+    if (editImageObjectUrlRef.current) {
+      URL.revokeObjectURL(editImageObjectUrlRef.current);
+      editImageObjectUrlRef.current = null;
+    }
+  };
+
+  const handleEditImageChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    if (editImageObjectUrlRef.current) {
+      URL.revokeObjectURL(editImageObjectUrlRef.current);
+    }
+
+    const previewUrl = URL.createObjectURL(file);
+    editImageObjectUrlRef.current = previewUrl;
+
+    setEditForm((prev) => ({
+      ...prev,
+      imageFile: file,
+      imagePreview: previewUrl,
+    }));
+  };
+
+  const handleEditSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    closeEditModal();
+  };
 
   if (loading) {
     return (
@@ -906,7 +988,10 @@ const HawkerDashboardPage = () => {
                                   <button
                                     type="button"
                                     role="menuitem"
-                                    onClick={() => setOpenMenuId(null)}
+                                    onClick={() => {
+                                      setOpenMenuId(null);
+                                      openEditModal(dish);
+                                    }}
                                     className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 rounded-t-xl"
                                   >
                                     Edit dish
@@ -972,7 +1057,10 @@ const HawkerDashboardPage = () => {
                                 <button
                                   type="button"
                                   role="menuitem"
-                                  onClick={() => setOpenMenuId(null)}
+                                  onClick={() => {
+                                    setOpenMenuId(null);
+                                    openEditModal(dish);
+                                  }}
                                   className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 rounded-t-xl"
                                 >
                                   Edit dish
@@ -1026,6 +1114,132 @@ const HawkerDashboardPage = () => {
           )}
         </div>
       </div>
+
+      {isEditOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-8">
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-xl">
+            <div className="flex items-start justify-between px-6 pt-6">
+              <h2 className="text-xl font-semibold text-gray-900">
+                Edit {editingDish?.name || 'Dish'}
+              </h2>
+              <button
+                type="button"
+                onClick={closeEditModal}
+                className="p-1 rounded-full hover:bg-gray-100"
+                aria-label="Close edit dish modal"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            <form onSubmit={handleEditSubmit} className="px-6 pb-6 pt-4">
+              <div className="mb-5">
+                <label className="text-sm font-semibold text-gray-700">Dish photo</label>
+                <div className="mt-2 relative">
+                  <div className="h-56 w-full overflow-hidden rounded-2xl bg-gray-100 flex items-center justify-center">
+                    {editForm.imagePreview ? (
+                      <img
+                        src={editForm.imagePreview}
+                        alt={editForm.name || 'Dish photo'}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <Salad className="w-10 h-10 text-gray-300" />
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => editFileInputRef.current?.click()}
+                    className="absolute right-3 top-3 h-9 w-9 rounded-full bg-white shadow-md flex items-center justify-center"
+                    aria-label="Change dish photo"
+                  >
+                    <Pencil className="w-4 h-4 text-gray-600" />
+                  </button>
+                  <input
+                    ref={editFileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleEditImageChange}
+                  />
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <label className="text-sm font-semibold text-gray-700">Dish name</label>
+                <input
+                  value={editForm.name}
+                  onChange={(event) =>
+                    setEditForm((prev) => ({ ...prev, name: event.target.value }))
+                  }
+                  className="mt-2 w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#21421B]/40"
+                  placeholder="Dish name"
+                />
+              </div>
+
+              <div className="mb-4">
+                <label className="text-sm font-semibold text-gray-700">Description</label>
+                <textarea
+                  value={editForm.description}
+                  onChange={(event) =>
+                    setEditForm((prev) => ({ ...prev, description: event.target.value }))
+                  }
+                  className="mt-2 w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#21421B]/40"
+                  rows={3}
+                  placeholder="Add a short description"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                <div>
+                  <label className="text-sm font-semibold text-gray-700">Price</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={editForm.price}
+                    onChange={(event) =>
+                      setEditForm((prev) => ({ ...prev, price: event.target.value }))
+                    }
+                    className="mt-2 w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#21421B]/40"
+                    placeholder="$"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-gray-700">Preparation Time (min)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={editForm.prepTime}
+                    onChange={(event) =>
+                      setEditForm((prev) => ({ ...prev, prepTime: event.target.value }))
+                    }
+                    className="mt-2 w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#21421B]/40"
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={closeEditModal}
+                  className="flex-1 rounded-xl bg-gray-100 px-4 py-2.5 text-sm font-semibold text-gray-600 hover:bg-gray-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 rounded-xl bg-[#21421B] px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#1B3616]"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </section>
   );
 };
