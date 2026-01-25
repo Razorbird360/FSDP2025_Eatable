@@ -150,7 +150,7 @@ function SearchThumbnail({ imageUrl, fallbackIcon: FallbackIcon = Salad }) {
       <img
         src={imageUrl}
         alt=""
-        className="h-8 w-8 rounded-lg object-cover"
+        className="h-12 w-12 rounded-xl object-cover"
         loading="lazy"
         aria-hidden="true"
       />
@@ -158,8 +158,8 @@ function SearchThumbnail({ imageUrl, fallbackIcon: FallbackIcon = Salad }) {
   }
 
   return (
-    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#21421B]">
-      <FallbackIcon className="h-4 w-4 text-white" aria-hidden="true" />
+    <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#21421B]">
+      <FallbackIcon className="h-5 w-5 text-white" aria-hidden="true" />
     </span>
   );
 }
@@ -189,18 +189,18 @@ function SearchSection({
               onSelect?.(item);
             }}
             onMouseEnter={() => onHighlight?.(item)}
-            className={`flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition-colors ${
+            className={`flex w-full items-center gap-4 rounded-xl px-3 py-2.5 text-left transition-colors ${
               activeIndex === item.flatIndex ? 'bg-[#F0F7ED]' : 'hover:bg-[#F8FDF3]'
             }`}
             aria-selected={activeIndex === item.flatIndex}
           >
             <SearchThumbnail imageUrl={item.imageUrl} fallbackIcon={item.thumbnailIcon} />
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-[#1C201D]">
+            <div className="min-w-0 flex-1">
+              <p className="text-base font-semibold text-[#1C201D]">
                 {item.name}
               </p>
               {item.subtitle ? (
-                <p className="truncate text-xs text-[#6D7F68]">
+                <p className="text-sm text-[#6D7F68]">
                   {item.subtitle}
                 </p>
               ) : null}
@@ -766,22 +766,22 @@ export default function Navbar() {
           </div>
 
           <div
-            className={`overflow-hidden transition-all duration-300 ${
+            className={`transition-all duration-300 ${
               isMobileSearchOpen
-                ? 'max-h-32 translate-y-0 opacity-100'
-                : '-translate-y-2 max-h-0 pointer-events-none opacity-0'
+                ? 'translate-y-0 opacity-100'
+                : '-translate-y-2 max-h-0 overflow-hidden pointer-events-none opacity-0'
             }`}
           >
             <Box className="relative w-full" position="relative">
               <Box
                 position="absolute"
-                left="3"
+                left="3.5"
                 top="50%"
                 transform="translateY(-50%)"
                 pointerEvents="none"
                 zIndex="1"
               >
-                <Search className="h-4 w-4 text-[#4A554B]" />
+                <Search className="h-5 w-5 text-[#4A554B]" />
               </Box>
               <Input
                 placeholder="Search dishes, stalls, cuisine..."
@@ -796,12 +796,24 @@ export default function Navbar() {
                 borderColor="#E7EEE7"
                 bg="white"
                 color="#4A554B"
-                fontSize="sm"
+                fontSize="md"
+                height="56px"
                 _placeholder={{ color: '#6d7f68' }}
                 _focus={{ borderColor: '#21421B', boxShadow: 'none' }}
-                paddingLeft="2.5rem"
+                paddingLeft="2.75rem"
                 width="100%"
                 className="w-full"
+              />
+              <SearchDropdown
+                isOpen={isSearchOpen && isMobileSearchOpen}
+                isLoading={isSearchLoading}
+                error={searchError}
+                query={debouncedQuery}
+                sections={searchSections.sections}
+                activeIndex={activeResultIndex}
+                onSelect={handleSearchSelect}
+                onHighlight={(item) => setActiveResultIndex(item.flatIndex)}
+                className="max-h-[50vh] overflow-y-auto"
               />
             </Box>
           </div>
