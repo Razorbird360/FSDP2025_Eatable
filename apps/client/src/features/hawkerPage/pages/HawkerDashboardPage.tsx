@@ -322,7 +322,8 @@ const HawkerDashboardPage = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const dashboardBtnRef = useRef<HTMLButtonElement>(null);
   const dishesBtnRef = useRef<HTMLButtonElement>(null);
-  const menuContainerRef = useRef<HTMLDivElement | null>(null);
+  const menuContainerMobileRef = useRef<HTMLDivElement | null>(null);
+  const menuContainerDesktopRef = useRef<HTMLDivElement | null>(null);
   const editFileInputRef = useRef<HTMLInputElement | null>(null);
   const editImageObjectUrlRef = useRef<string | null>(null);
 
@@ -396,13 +397,18 @@ const HawkerDashboardPage = () => {
 
   useEffect(() => {
     if (!openMenuId) {
-      menuContainerRef.current = null;
+      menuContainerMobileRef.current = null;
+      menuContainerDesktopRef.current = null;
       return;
     }
 
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
-      if (menuContainerRef.current && !menuContainerRef.current.contains(target)) {
+      const insideMobile =
+        menuContainerMobileRef.current?.contains(target) ?? false;
+      const insideDesktop =
+        menuContainerDesktopRef.current?.contains(target) ?? false;
+      if (!insideMobile && !insideDesktop) {
         setOpenMenuId(null);
       }
     };
@@ -550,7 +556,7 @@ const HawkerDashboardPage = () => {
             ? {
                 ...dish,
                 ...updatedDish,
-                description: updatedDish.description ?? dish.description ?? null,
+                description: updatedDish.description ?? null,
                 imageUrl: updatedDish.imageUrl ?? updatedImageUrl ?? dish.imageUrl,
               }
             : dish
@@ -1140,7 +1146,7 @@ const HawkerDashboardPage = () => {
                             </div>
                             <div
                               className="relative"
-                              ref={openMenuId === dish.id ? menuContainerRef : null}
+                              ref={openMenuId === dish.id ? menuContainerMobileRef : null}
                             >
                               <button
                                 type="button"
@@ -1217,7 +1223,7 @@ const HawkerDashboardPage = () => {
                         <div className="hidden md:flex items-center justify-center">
                           <div
                             className="relative"
-                            ref={openMenuId === dish.id ? menuContainerRef : null}
+                            ref={openMenuId === dish.id ? menuContainerDesktopRef : null}
                           >
                             <button
                               type="button"
