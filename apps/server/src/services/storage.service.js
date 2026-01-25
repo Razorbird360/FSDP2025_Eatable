@@ -140,7 +140,7 @@ export const storageService = {
       throw new Error('Invalid file buffer provided');
     }
 
-    const { data, error } = await supabaseAdmin.storage
+    const { error } = await supabaseAdmin.storage
       .from(bucket)
       .upload(path, fileBuffer, {
         contentType,

@@ -92,7 +92,7 @@ router.post("/query/:orderId", async (req, res) => {
     if (isSuccess) {
 
       try {
-        const updated = await orderService.orderPaymentSuccess(orderId);
+        await orderService.orderPaymentSuccess(orderId);
       } catch (dbErr) {
         console.error("❌ Failed to update order:", dbErr);
       }

@@ -1,5 +1,5 @@
 // Global error handling middleware
-export function errorMiddleware(err, req, res, next) {
+export function errorMiddleware(err, req, res, _next) {
   console.error('Error:', err);
 
   // Prisma errors

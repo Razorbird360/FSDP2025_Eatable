@@ -62,7 +62,7 @@ const isVoucherExpired = (expiryDate) => {
 
 
 export const orderService = {
-    async getServiceFees(req, res, next) {
+    async getServiceFees(req, res, _next) {
         const config = await prisma.system_configuration.findUnique({
             where: { id: 1 },
         });

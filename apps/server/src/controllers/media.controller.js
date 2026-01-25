@@ -13,7 +13,7 @@ export const mediaController = {
    * Validate if image contains food (generic check)
    * POST /api/media/validate-generic
    */
-  async validateGeneric(req, res, next) {
+  async validateGeneric(req, res, _next) {
     try {
       // 1. Validate file exists (from Multer)
       if (!req.file) {
@@ -38,7 +38,7 @@ export const mediaController = {
    * Upload image for a menu item
    * POST /api/media/upload
    */
-  async uploadImage(req, res, next) {
+  async uploadImage(req, res, _next) {
     try {
       // 1. Validate file exists (from Multer)
       if (!req.file) {
@@ -381,7 +381,7 @@ export const mediaController = {
 
   // apps/server/src/controllers/media.controller.js
 
-  async getSkipOnboarding(req, res, next) {
+  async getSkipOnboarding(req, res, _next) {
     try {
       const userId = req.user?.id;
       console.log("Getting skipOnboarding for userId:", userId);
@@ -398,9 +398,9 @@ export const mediaController = {
       if (!user) {
         return res.status(404).json({ error: 'User not found' });
       }
-      return user.skipOnboarding === true ? res.json({ skipOnboarding: true }) : res.json({ skipOnboarding: false });
-
-      return res.json({ skipOnboarding: user.skipOnboarding === true });
+      return user.skipOnboarding === true
+        ? res.json({ skipOnboarding: true })
+        : res.json({ skipOnboarding: false });
     } catch (error) {
       next(error);
     }
