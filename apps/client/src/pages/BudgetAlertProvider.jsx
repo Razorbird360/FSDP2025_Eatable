@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import api from "@lib/api";
 import { formatPrice } from "../utils/helpers";
+import { useAuth } from "../features/auth/useAuth";
 
 export default function BudgetAlertProvider({ children }) {
   const [budgetPopup, setBudgetPopup] = useState(null);
+  const { status } = useAuth();
 
   const busyRef = useRef(false);
   const timerRef = useRef(null);
@@ -123,6 +125,14 @@ export default function BudgetAlertProvider({ children }) {
   };
 
   useEffect(() => {
+    if (status !== "authenticated") {
+      if (timerRef.current) clearInterval(timerRef.current);
+      if (recheckTimeoutRef.current) clearTimeout(recheckTimeoutRef.current);
+      showingRef.current = false;
+      setBudgetPopup(null);
+      return;
+    }
+
     poll();
 
     // Poll every 30s
@@ -148,7 +158,7 @@ export default function BudgetAlertProvider({ children }) {
       window.removeEventListener("budget:changed", onRecheck);
       window.removeEventListener("payment:success", onRecheck);
     };
-  }, []);
+  }, [status]);
 
   return (
     <>

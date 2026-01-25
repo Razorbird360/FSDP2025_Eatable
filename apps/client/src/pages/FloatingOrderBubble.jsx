@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react"
 import { ClipboardList } from "lucide-react"
 import api from "@lib/api"
 import OrderCompletedModal from "../features/payment/OrderCompleted"
+import { useAuth } from "../features/auth/useAuth"
 
 function getActiveOrders(data) {
   const list = Array.isArray(data)
@@ -39,6 +40,7 @@ const POS_KEY = "eatable:floatingOrderBubblePos"
 export default function FloatingOrderBubble() {
   const [activeOrders, setActiveOrders] = useState([])
   const [openModal, setOpenModal] = useState(false)
+  const { status } = useAuth()
 
   // draggable position
   const [pos, setPos] = useState(() => {
@@ -64,6 +66,11 @@ export default function FloatingOrderBubble() {
 
   // Poll active orders
   useEffect(() => {
+    if (status !== "authenticated") {
+      setActiveOrders([])
+      return
+    }
+
     let mounted = true
 
     async function refresh() {
@@ -86,7 +93,7 @@ export default function FloatingOrderBubble() {
       mounted = false
       if (pollRef.current) clearInterval(pollRef.current)
     }
-  }, [])
+  }, [status])
 
   // Default position if none saved
   useEffect(() => {
@@ -124,7 +131,7 @@ export default function FloatingOrderBubble() {
     }
   }, [pos])
 
-  if (activeOrders.length === 0) return null
+  if (status !== "authenticated" || activeOrders.length === 0) return null
 
   const primary = activeOrders[0]
   const count = activeOrders.length
