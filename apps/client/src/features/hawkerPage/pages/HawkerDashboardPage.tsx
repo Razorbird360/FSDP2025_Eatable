@@ -74,6 +74,7 @@ interface ActivityItem {
 interface MenuItemData {
   id: string;
   name: string;
+  description?: string | null;
   priceCents: number;
   category: string | null;
   prepTimeMins: number | null;
@@ -313,6 +314,8 @@ const HawkerDashboardPage = () => {
   const [editingDish, setEditingDish] = useState<MenuItemData | null>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editForm, setEditForm] = useState<EditDishFormState>(emptyEditForm);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
   
   const containerRef = useRef<HTMLDivElement>(null);
   const dashboardBtnRef = useRef<HTMLButtonElement>(null);
@@ -427,6 +430,7 @@ const HawkerDashboardPage = () => {
 
   const openEditModal = (dish: MenuItemData) => {
     setEditingDish(dish);
+    setEditError(null);
     setEditForm({
       name: dish.name || '',
       description: dish.description || '',
@@ -443,6 +447,7 @@ const HawkerDashboardPage = () => {
     setIsEditOpen(false);
     setEditingDish(null);
     setEditForm(emptyEditForm);
+    setEditError(null);
     if (editImageObjectUrlRef.current) {
       URL.revokeObjectURL(editImageObjectUrlRef.current);
       editImageObjectUrlRef.current = null;
@@ -469,9 +474,98 @@ const HawkerDashboardPage = () => {
     }));
   };
 
-  const handleEditSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleEditSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    closeEditModal();
+
+    if (!editingDish) {
+      return;
+    }
+
+    const trimmedName = editForm.name.trim();
+    if (!trimmedName) {
+      setEditError('Dish name is required.');
+      return;
+    }
+
+    const priceValue = Number(editForm.price);
+    if (!Number.isFinite(priceValue) || priceValue < 0) {
+      setEditError('Price must be a non-negative number.');
+      return;
+    }
+
+    let prepValue: number | null = null;
+    if (editForm.prepTime.trim() !== '') {
+      const parsedPrep = Number(editForm.prepTime);
+      if (!Number.isFinite(parsedPrep) || parsedPrep < 0) {
+        setEditError('Preparation time must be a non-negative number.');
+        return;
+      }
+      prepValue = Math.round(parsedPrep);
+    }
+
+    setIsSavingEdit(true);
+    setEditError(null);
+
+    try {
+      let updatedImageUrl = editForm.imageUrl;
+
+      if (editForm.imageFile) {
+        const formData = new FormData();
+        formData.append('image', editForm.imageFile);
+        formData.append('menuItemId', editingDish.id);
+        formData.append('aspectRatio', 'square');
+        formData.append('setAsMenuItemImage', 'true');
+
+        const uploadRes = await api.post('/media/upload', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+          timeout: 35000,
+        });
+
+        updatedImageUrl =
+          uploadRes.data?.menuItemImageUrl ||
+          uploadRes.data?.upload?.imageUrl ||
+          updatedImageUrl;
+      }
+
+      const payload = {
+        name: trimmedName,
+        description: editForm.description.trim() || null,
+        priceCents: Math.round(priceValue * 100),
+        prepTimeMins: prepValue,
+        imageUrl: updatedImageUrl || null,
+      };
+
+      const updateRes = await api.patch(
+        `/hawker/dashboard/dishes/${editingDish.id}`,
+        payload
+      );
+
+      const updatedDish = updateRes.data;
+
+      setDishes((prev) =>
+        prev.map((dish) =>
+          dish.id === updatedDish.id
+            ? {
+                ...dish,
+                ...updatedDish,
+                description: updatedDish.description ?? dish.description ?? null,
+                imageUrl: updatedDish.imageUrl ?? updatedImageUrl ?? dish.imageUrl,
+              }
+            : dish
+        )
+      );
+
+      closeEditModal();
+    } catch (error) {
+      const err = error as { response?: { data?: { message?: string; error?: string } } };
+      const message =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        'Failed to update dish. Please try again.';
+      setEditError(message);
+    } finally {
+      setIsSavingEdit(false);
+    }
   };
 
   if (loading) {
@@ -1221,19 +1315,27 @@ const HawkerDashboardPage = () => {
                 </div>
               </div>
 
+              {editError && (
+                <div className="mb-4 rounded-xl bg-red-50 px-4 py-2 text-sm text-red-600">
+                  {editError}
+                </div>
+              )}
+
               <div className="flex items-center gap-3">
                 <button
                   type="button"
                   onClick={closeEditModal}
-                  className="flex-1 rounded-xl bg-gray-100 px-4 py-2.5 text-sm font-semibold text-gray-600 hover:bg-gray-200"
+                  className="flex-1 rounded-xl bg-gray-100 px-4 py-2.5 text-sm font-semibold text-gray-600 hover:bg-gray-200 disabled:opacity-60"
+                  disabled={isSavingEdit}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 rounded-xl bg-[#21421B] px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#1B3616]"
+                  className="flex-1 rounded-xl bg-[#21421B] px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#1B3616] disabled:opacity-70"
+                  disabled={isSavingEdit}
                 >
-                  Save Changes
+                  {isSavingEdit ? 'Saving...' : 'Save Changes'}
                 </button>
               </div>
             </form>
