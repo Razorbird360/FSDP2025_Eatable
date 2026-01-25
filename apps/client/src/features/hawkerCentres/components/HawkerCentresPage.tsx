@@ -14,7 +14,7 @@ const HawkerCentresPage = () => {
   const filters = useFilters();
   const navigate = useNavigate();
   const location = useLocation();
-  const didApplyCuisineRef = useRef(false);
+  const lastAppliedCuisineRef = useRef<string | null>(null);
   const prepTimeLimit = filters.prepTime[0];
   const selectedPriceRanges = filters.selectedPriceRanges;
   const selectedCuisines = filters.selectedCuisines;
@@ -22,23 +22,26 @@ const HawkerCentresPage = () => {
   const cuisineOptions = filters.cuisines;
   const setSelectedCuisines = filters.setSelectedCuisines;
   const cuisineOptionsKey = cuisineOptions.join('|');
-  const selectedCuisinesKey = selectedCuisines.join('|');
+  const incomingCuisine = (location.state as { selectedCuisine?: string } | null)?.selectedCuisine;
 
   useEffect(() => {
-    const rawCuisine = (location.state as { selectedCuisine?: string } | null)?.selectedCuisine;
-    if (!rawCuisine) return;
-    if (didApplyCuisineRef.current) return;
-    const normalized = String(rawCuisine).trim().toLowerCase();
+    if (!incomingCuisine) return;
+    const normalized = String(incomingCuisine).trim().toLowerCase();
     if (!normalized) return;
 
     const matched = cuisineOptions.find(
       (cuisine) => cuisine.toLowerCase() === normalized
     );
     if (!matched) return;
-    didApplyCuisineRef.current = true;
+
+    if (lastAppliedCuisineRef.current === normalized) {
+      return;
+    }
+
+    lastAppliedCuisineRef.current = normalized;
     setSelectedCuisines([matched]);
     navigate(location.pathname, { replace: true, state: {} });
-  }, [location.state, cuisineOptionsKey, setSelectedCuisines, navigate, location.pathname]);
+  }, [incomingCuisine, cuisineOptionsKey, setSelectedCuisines, navigate, location.pathname]);
   const filteredCentres = useMemo(() => {
     const applyPrepTimeFilter = prepTimeLimit > 0 && prepTimeLimit < 20;
     const applyPriceFilter =
