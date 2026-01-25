@@ -110,18 +110,13 @@ const formatRelativeDate = (value: string | null | undefined): string | null => 
 
 function DishCard({ dish }: DishCardProps) {
   const navigate = useNavigate();
-  const verifiedLabel =
-    dish.approvedUploadCount > 0
-      ? `${dish.approvedUploadCount} verified photo${dish.approvedUploadCount === 1 ? "" : "s"}`
-      : "No verified photos yet";
-  const lastUploadLabel = formatRelativeDate(dish.lastApprovedUploadAt);
 
   return (
     <div
       onClick={() => navigate(`/stalls/${dish.stallId}`)}
-      className="bg-white rounded-xl shadow-[0_2px_12px_rgba(0,0,0,0.08)] overflow-hidden cursor-pointer transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_8px_24px_rgba(0,0,0,0.12)]"
+      className="bg-white rounded-xl shadow-[0_2px_12px_rgba(0,0,0,0.08)] overflow-hidden cursor-pointer transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_8px_24px_rgba(0,0,0,0.12)] h-full flex flex-col"
     >
-      <div className="aspect-[4/3] w-full overflow-hidden">
+      <div className="aspect-[4/3] w-full overflow-hidden flex-shrink-0">
         <img
           src={dish.imageUrl || fallbackDishImg}
           alt={dish.name}
@@ -130,36 +125,37 @@ function DishCard({ dish }: DishCardProps) {
       </div>
 
       {/* Card content */}
-      <div className="p-3">
-        <h3 className="text-sm font-semibold text-slate-900 line-clamp-2 mb-1">
-          {dish.name}
-        </h3>
-        <p className="text-xs text-gray-500 mb-3">
-          {dish.cuisine}
-        </p>
-        <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] text-slate-500">
-          <span>{verifiedLabel}</span>
-          {lastUploadLabel && <span>Last upload {lastUploadLabel}</span>}
+      <div className="p-3 lg:p-4 flex flex-col flex-grow">
+        {/* Title with min-height for consistent wrapping */}
+        <div className="min-h-[2.5rem] lg:min-h-[3rem] mb-1 lg:mb-2">
+          <h3 className="text-sm lg:text-lg font-semibold text-slate-900 leading-tight line-clamp-2">
+            {dish.name}
+          </h3>
         </div>
 
-        {/* Stats row */}
-        <div className="flex items-center justify-between text-xs text-slate-500">
-          <div className="flex items-center gap-3">
+        {/* Category */}
+        <p className="text-xs lg:text-sm text-gray-500 mb-2">
+          {dish.cuisine}
+        </p>
+
+        {/* Stats row - moved higher */}
+        <div className="flex items-center justify-between text-xs lg:text-sm text-slate-600 mt-auto">
+          <div className="flex items-center gap-2 lg:gap-3">
             {/* Orders/upvotes with trend-up icon */}
             <div className="flex items-center gap-1">
-              <TrendingUp className="w-4 h-4 text-slate-500" aria-hidden="true" />
-              <span>{dish.orders ?? "–"}</span>
+              <TrendingUp className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-slate-500" aria-hidden="true" />
+              <span className="font-medium">{dish.orders ?? "–"}</span>
             </div>
 
             {/* Prep time with clock icon */}
             <div className="flex items-center gap-1">
-              <Clock className="w-4 h-4 text-slate-500" aria-hidden="true" />
+              <Clock className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-slate-500" aria-hidden="true" />
               <span>{dish.prepTime}</span>
             </div>
           </div>
 
           {/* Price */}
-          <div className="font-semibold text-slate-900">
+          <div className="font-semibold text-slate-900 text-sm lg:text-base">
             ${dish.price.toFixed(2)}
           </div>
         </div>
