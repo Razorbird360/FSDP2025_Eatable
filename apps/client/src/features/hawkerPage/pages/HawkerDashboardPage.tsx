@@ -289,10 +289,12 @@ const HawkerDashboardPage = () => {
   const [sliderPosition, setSliderPosition] = useState<SliderPosition>({ left: 0, width: 0 });
   const [sortConfig, setSortConfig] = useState<SortConfig>(getDefaultSortConfig);
   const [isSliderReady, setIsSliderReady] = useState(false);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   
   const containerRef = useRef<HTMLDivElement>(null);
   const dashboardBtnRef = useRef<HTMLButtonElement>(null);
   const dishesBtnRef = useRef<HTMLButtonElement>(null);
+  const menuContainerRef = useRef<HTMLDivElement | null>(null);
 
   // Update slider position when active tab changes or container resizes
   useEffect(() => {
@@ -361,6 +363,34 @@ const HawkerDashboardPage = () => {
     };
     fetchData();
   }, []);
+
+  useEffect(() => {
+    if (!openMenuId) {
+      menuContainerRef.current = null;
+      return;
+    }
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (menuContainerRef.current && !menuContainerRef.current.contains(target)) {
+        setOpenMenuId(null);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setOpenMenuId(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [openMenuId]);
 
   if (loading) {
     return (
@@ -841,14 +871,64 @@ const HawkerDashboardPage = () => {
                             )}
                           </div>
                           {/* Mobile: Name and details stacked beside image */}
-                          <div className="flex flex-col md:hidden">
-                            <span className="font-medium text-gray-900 text-base">{dish.name}</span>
-                            <div className="flex items-center gap-2 text-sm text-gray-500 mt-0.5">
-                              <span>${(dish.priceCents / 100).toFixed(2)}</span>
-                              <span>•</span>
-                              <span>{dish.category || 'Uncategorized'}</span>
-                              <span>•</span>
-                              <span>{dish.prepTimeMins ?? '-'} min</span>
+                          <div className="flex flex-1 items-start justify-between gap-3 md:hidden">
+                            <div className="flex flex-col">
+                              <span className="font-medium text-gray-900 text-base">{dish.name}</span>
+                              <div className="flex items-center gap-2 text-sm text-gray-500 mt-0.5">
+                                <span>${(dish.priceCents / 100).toFixed(2)}</span>
+                                <span>•</span>
+                                <span>{dish.category || 'Uncategorized'}</span>
+                                <span>•</span>
+                                <span>{dish.prepTimeMins ?? '-'} min</span>
+                              </div>
+                            </div>
+                            <div
+                              className="relative"
+                              ref={openMenuId === dish.id ? menuContainerRef : null}
+                            >
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setOpenMenuId((prev) => (prev === dish.id ? null : dish.id))
+                                }
+                                className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+                                aria-haspopup="menu"
+                                aria-expanded={openMenuId === dish.id}
+                              >
+                                <MoreVertical className="w-5 h-5 text-gray-400" />
+                              </button>
+
+                              {openMenuId === dish.id && (
+                                <div
+                                  role="menu"
+                                  className="absolute right-0 top-full z-20 mt-2 w-44 rounded-xl border border-gray-100 bg-white shadow-lg"
+                                >
+                                  <button
+                                    type="button"
+                                    role="menuitem"
+                                    onClick={() => setOpenMenuId(null)}
+                                    className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 rounded-t-xl"
+                                  >
+                                    Edit dish
+                                  </button>
+                                  <button
+                                    type="button"
+                                    role="menuitem"
+                                    onClick={() => setOpenMenuId(null)}
+                                    className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50"
+                                  >
+                                    Remove dish
+                                  </button>
+                                  <button
+                                    type="button"
+                                    role="menuitem"
+                                    onClick={() => setOpenMenuId(null)}
+                                    className="w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 rounded-b-xl"
+                                  >
+                                    Delete dish
+                                  </button>
+                                </div>
+                              )}
                             </div>
                           </div>
                           {/* Desktop: Just name */}
@@ -868,9 +948,54 @@ const HawkerDashboardPage = () => {
 
                         {/* Actions */}
                         <div className="hidden md:flex items-center justify-center">
-                          <button className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
-                            <MoreVertical className="w-5 h-5 text-gray-400" />
-                          </button>
+                          <div
+                            className="relative"
+                            ref={openMenuId === dish.id ? menuContainerRef : null}
+                          >
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setOpenMenuId((prev) => (prev === dish.id ? null : dish.id))
+                              }
+                              className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+                              aria-haspopup="menu"
+                              aria-expanded={openMenuId === dish.id}
+                            >
+                              <MoreVertical className="w-5 h-5 text-gray-400" />
+                            </button>
+
+                            {openMenuId === dish.id && (
+                              <div
+                                role="menu"
+                                className="absolute right-0 top-full z-20 mt-2 w-44 rounded-xl border border-gray-100 bg-white shadow-lg"
+                              >
+                                <button
+                                  type="button"
+                                  role="menuitem"
+                                  onClick={() => setOpenMenuId(null)}
+                                  className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 rounded-t-xl"
+                                >
+                                  Edit dish
+                                </button>
+                                <button
+                                  type="button"
+                                  role="menuitem"
+                                  onClick={() => setOpenMenuId(null)}
+                                  className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50"
+                                >
+                                  Remove dish
+                                </button>
+                                <button
+                                  type="button"
+                                  role="menuitem"
+                                  onClick={() => setOpenMenuId(null)}
+                                  className="w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 rounded-b-xl"
+                                >
+                                  Delete dish
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     ))
