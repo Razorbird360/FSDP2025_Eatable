@@ -103,10 +103,10 @@ function isSameStall(incoming, existing) {
   const existingName = existing?.name;
   return Boolean(
     !incomingId &&
-      !existingId &&
-      incomingName &&
-      existingName &&
-      incomingName === existingName
+    !existingId &&
+    incomingName &&
+    existingName &&
+    incomingName === existingName
   );
 }
 
@@ -114,12 +114,13 @@ export function CartProvider({ children }) {
   const [items, setItems] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
   const { status, profile } = useAuth();
+  const profileId = profile?.id ?? null;
 
-  const resolveEventIdentity = () => {
-    const userId = profile?.id ?? null;
+  const resolveEventIdentity = useCallback(() => {
+    const userId = profileId;
     const anonId = userId ? null : getOrCreateAnonId();
     return { userId, anonId };
-  };
+  }, [profileId]);
 
   const openCart = () => setIsOpen(true);
   const closeCart = () => setIsOpen(false);
@@ -170,8 +171,8 @@ export function CartProvider({ children }) {
           if (!sameStall) {
             const ok = window.confirm(
               "Your cart currently has items from another stall.\n" +
-                "If you add this item, your cart will be cleared.\n\n" +
-                "Proceed?"
+              "If you add this item, your cart will be cleared.\n\n" +
+              "Proceed?"
             );
 
             if (!ok) {
@@ -244,7 +245,7 @@ export function CartProvider({ children }) {
         return { success: false, error: err };
       }
     },
-    [items]
+    [items, resolveEventIdentity]
   );
 
   const addItemsToCart = useCallback(
@@ -339,7 +340,7 @@ export function CartProvider({ children }) {
         return { success: false, error: err };
       }
     },
-    [items]
+    [items, resolveEventIdentity]
   );
 
   // --- Update qty (PUT /cart/update) ---
