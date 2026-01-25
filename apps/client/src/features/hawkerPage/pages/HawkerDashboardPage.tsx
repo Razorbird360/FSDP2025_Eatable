@@ -3,6 +3,7 @@ import Chart from 'react-apexcharts';
 import { ChevronDown, ChevronUp, ChevronsUpDown, LayoutDashboard, MoreVertical, Pencil, Plus, Salad, Sun, X } from 'lucide-react';
 import api from '../../../lib/api';
 import { formatDate, formatTimeAgo } from '../../../utils/helpers';
+import { toaster } from '../../../components/ui/toaster';
 import '../styles/hawkerDashboard.css';
 
 const CHART_COLORS = ['#A855F7', '#5EBECC', '#EC4899', '#F59E0B', '#6366F1', '#94A3B8'];
@@ -316,6 +317,7 @@ const HawkerDashboardPage = () => {
   const [editForm, setEditForm] = useState<EditDishFormState>(emptyEditForm);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+  const [isActionLoading, setIsActionLoading] = useState(false);
   
   const containerRef = useRef<HTMLDivElement>(null);
   const dashboardBtnRef = useRef<HTMLButtonElement>(null);
@@ -565,6 +567,84 @@ const HawkerDashboardPage = () => {
       setEditError(message);
     } finally {
       setIsSavingEdit(false);
+    }
+  };
+
+  const handleRemoveDish = async (dish: MenuItemData) => {
+    if (isActionLoading) {
+      return;
+    }
+
+    const confirmed = window.confirm(`Remove "${dish.name}" from your menu? You can add it back later.`);
+    if (!confirmed) {
+      return;
+    }
+
+    setIsActionLoading(true);
+
+    try {
+      await api.patch(`/hawker/dashboard/dishes/${dish.id}/remove`);
+      setDishes((prev) => prev.filter((item) => item.id !== dish.id));
+      toaster.create({
+        title: 'Dish removed',
+        description: `${dish.name} was removed from your menu.`,
+        type: 'success',
+        duration: 3000,
+      });
+    } catch (error) {
+      const err = error as { response?: { data?: { message?: string; error?: string } } };
+      const message =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        'Failed to remove dish. Please try again.';
+      toaster.create({
+        title: 'Remove failed',
+        description: message,
+        type: 'error',
+        duration: 4000,
+      });
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
+  const handleDeleteDish = async (dish: MenuItemData) => {
+    if (isActionLoading) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Delete "${dish.name}" permanently? This cannot be undone.`
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    setIsActionLoading(true);
+
+    try {
+      await api.delete(`/hawker/dashboard/dishes/${dish.id}`);
+      setDishes((prev) => prev.filter((item) => item.id !== dish.id));
+      toaster.create({
+        title: 'Dish deleted',
+        description: `${dish.name} was permanently deleted.`,
+        type: 'success',
+        duration: 3000,
+      });
+    } catch (error) {
+      const err = error as { response?: { data?: { message?: string; error?: string } } };
+      const message =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        'Failed to delete dish. Please try again.';
+      toaster.create({
+        title: 'Delete failed',
+        description: message,
+        type: 'error',
+        duration: 4000,
+      });
+    } finally {
+      setIsActionLoading(false);
     }
   };
 
@@ -1093,16 +1173,24 @@ const HawkerDashboardPage = () => {
                                   <button
                                     type="button"
                                     role="menuitem"
-                                    onClick={() => setOpenMenuId(null)}
-                                    className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50"
+                                    onClick={() => {
+                                      setOpenMenuId(null);
+                                      handleRemoveDish(dish);
+                                    }}
+                                    className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+                                    disabled={isActionLoading}
                                   >
                                     Remove dish
                                   </button>
                                   <button
                                     type="button"
                                     role="menuitem"
-                                    onClick={() => setOpenMenuId(null)}
-                                    className="w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 rounded-b-xl"
+                                    onClick={() => {
+                                      setOpenMenuId(null);
+                                      handleDeleteDish(dish);
+                                    }}
+                                    className="w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 rounded-b-xl disabled:opacity-60"
+                                    disabled={isActionLoading}
                                   >
                                     Delete dish
                                   </button>
@@ -1162,16 +1250,24 @@ const HawkerDashboardPage = () => {
                                 <button
                                   type="button"
                                   role="menuitem"
-                                  onClick={() => setOpenMenuId(null)}
-                                  className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50"
+                                  onClick={() => {
+                                    setOpenMenuId(null);
+                                    handleRemoveDish(dish);
+                                  }}
+                                  className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+                                  disabled={isActionLoading}
                                 >
                                   Remove dish
                                 </button>
                                 <button
                                   type="button"
                                   role="menuitem"
-                                  onClick={() => setOpenMenuId(null)}
-                                  className="w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 rounded-b-xl"
+                                  onClick={() => {
+                                    setOpenMenuId(null);
+                                    handleDeleteDish(dish);
+                                  }}
+                                  className="w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 rounded-b-xl disabled:opacity-60"
+                                  disabled={isActionLoading}
                                 >
                                   Delete dish
                                 </button>
