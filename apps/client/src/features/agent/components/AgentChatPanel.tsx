@@ -17,7 +17,13 @@ function ToolBubble({ message }: MessageBubbleProps) {
   const toolName = message.toolName || payload?.toolName || 'tool';
   const output = payload?.output;
   const error = payload?.error;
-  const uploads = output?.uploads ?? [];
+  const uploads = Array.isArray(output)
+    ? output
+    : Array.isArray(output?.uploads)
+      ? output.uploads
+      : [];
+  const showUploads =
+    toolName === 'get_dish_uploads' || toolName === 'get_stall_gallery';
 
   const qrCode =
     output?.nets?.result?.data?.qr_code ||
@@ -41,7 +47,7 @@ function ToolBubble({ message }: MessageBubbleProps) {
         <p className="mt-2 text-sm text-red-600">{error}</p>
       ) : (
         <>
-          {toolName === 'get_dish_uploads' && Array.isArray(uploads) && (
+          {showUploads && (
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
               {uploads.length === 0 ? (
                 <p className="text-xs text-gray-500">No community photos yet.</p>
