@@ -222,7 +222,7 @@ function BadgeRow({ badges, className, reserveSpace = false }) {
   );
 }
 
-function ItemDialog({ open, item, onClose, onAdd }) {
+function ItemDialog({ open, item, onClose, onAdd, onImageError }) {
   const [qty, setQty] = useState(1);
   const [notes, setNotes] = useState("");
 
