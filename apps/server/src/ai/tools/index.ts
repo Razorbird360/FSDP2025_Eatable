@@ -2,6 +2,7 @@ import { DynamicStructuredTool } from '@langchain/core/tools';
 import { createDiscoveryTools } from './discovery.js';
 import { createCartTools } from './cart.js';
 import { createOrderTools } from './order.js';
+import { createNetsTools } from './nets.js';
 import type { ToolContext } from './tool-base.js';
 
 export const createToolRegistry = (
@@ -11,6 +12,7 @@ export const createToolRegistry = (
     ...createDiscoveryTools(context),
     ...createCartTools(context),
     ...createOrderTools(context),
+    ...createNetsTools(context),
   ];
 };
 
