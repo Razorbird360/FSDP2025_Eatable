@@ -1,7 +1,7 @@
 // src/features/hawkers/pages/HawkerCentreDetailPage.jsx
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ChevronRight, Clock, LayoutGrid, List, MapPin, TrendingUp } from 'lucide-react';
+import { ChevronRight, Clock, Heart, LayoutGrid, List, MapPin, TrendingUp } from 'lucide-react';
 import Filters from "../../hawkerCentres/components/Filters";
 import FiltersMobile from "../../hawkerCentres/components/FiltersMobile";
 import api from "@lib/api";
@@ -41,7 +41,7 @@ const buildDishTags = (dish) => {
     .filter(Boolean);
 };
 
-function DishCard({ dish, onClick }) {
+function DishCard({ dish, onClick, liked, likeLoading, onToggleLike }) {
   const navigate = useNavigate();
   const verifiedLabel =
     dish.approvedUploadCount > 0
@@ -56,17 +56,38 @@ function DishCard({ dish, onClick }) {
     navigate(`/stalls/${dish.stallId}`);
   };
 
+  const handleLikeClick = (event) => {
+    event.stopPropagation();
+    onToggleLike?.(dish.id);
+  };
+
   return (
     <div
       onClick={handleClick}
       className="bg-white rounded-xl shadow-[0_2px_12px_rgba(0,0,0,0.08)] overflow-hidden cursor-pointer transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_8px_24px_rgba(0,0,0,0.12)]"
     >
-      <div className="aspect-[4/3] w-full overflow-hidden">
+      <div className="relative aspect-[4/3] w-full overflow-hidden">
         <img
           src={dish.imageUrl || fallbackDishImg}
           alt={dish.name}
           className="w-full h-full object-cover"
         />
+        <button
+          type="button"
+          onClick={handleLikeClick}
+          disabled={likeLoading}
+          aria-pressed={liked}
+          aria-label={liked ? "Unlike dish" : "Like dish"}
+          className={`absolute right-2 top-2 inline-flex h-8 w-8 items-center justify-center rounded-full border bg-white/90 text-slate-500 shadow-sm transition-colors ${
+            liked ? "border-rose-200 text-rose-500" : "border-white/80"
+          } ${likeLoading ? "cursor-not-allowed opacity-60" : "hover:bg-white"}`}
+        >
+          <Heart
+            className="h-4 w-4"
+            fill={liked ? "currentColor" : "none"}
+            aria-hidden="true"
+          />
+        </button>
       </div>
 
       {/* Card content */}
@@ -141,7 +162,7 @@ function StallCard({ stall }) {
 const HawkerCentreDetailPage = () => {
   const { hawkerId } = useParams();
   const navigate = useNavigate(); // 1. Initialize navigate hook
-  const { profile } = useAuth();
+  const { profile, status } = useAuth();
   const [activeTab, setActiveTab] = useState("dishes");
   const viewedDishIdsRef = useRef(new Set());
 
@@ -166,6 +187,8 @@ const HawkerCentreDetailPage = () => {
   const [stalls, setStalls] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [likedDishIds, setLikedDishIds] = useState(() => new Set());
+  const [likeLoadingIds, setLikeLoadingIds] = useState(() => new Set());
   const filters = useFilters();
   const { coords, status: locationStatus } = useUserLocation();
 
@@ -298,6 +321,79 @@ const HawkerCentreDetailPage = () => {
       isCancelled = true;
     };
   }, [hawkerId, profile?.id]);
+
+  useEffect(() => {
+    if (status !== "authenticated" || !profile?.id) {
+      setLikedDishIds(new Set());
+      setLikeLoadingIds(new Set());
+      return;
+    }
+
+    let ignore = false;
+
+    async function loadLikes() {
+      try {
+        const res = await api.get("/menu/likes");
+        if (ignore) return;
+        const ids = new Set(
+          (res.data?.likes || [])
+            .map((like) => like.menuItemId)
+            .filter(Boolean)
+        );
+        setLikedDishIds(ids);
+      } catch (err) {
+        if (!ignore) {
+          console.error("Failed to load dish likes:", err);
+        }
+      }
+    }
+
+    loadLikes();
+    return () => {
+      ignore = true;
+    };
+  }, [status, profile?.id]);
+
+  const handleToggleDishLike = async (dishId) => {
+    if (!dishId) return;
+    if (status !== "authenticated") {
+      navigate("/login");
+      return;
+    }
+
+    if (likeLoadingIds.has(dishId)) return;
+
+    setLikeLoadingIds((prev) => {
+      const next = new Set(prev);
+      next.add(dishId);
+      return next;
+    });
+
+    const isLiked = likedDishIds.has(dishId);
+    try {
+      const res = isLiked
+        ? await api.delete(`/menu/${dishId}/likes`)
+        : await api.post(`/menu/${dishId}/likes`);
+      const nextLiked = Boolean(res.data?.liked ?? !isLiked);
+      setLikedDishIds((prev) => {
+        const next = new Set(prev);
+        if (nextLiked) {
+          next.add(dishId);
+        } else {
+          next.delete(dishId);
+        }
+        return next;
+      });
+    } catch (err) {
+      console.error("Failed to toggle dish like:", err);
+    } finally {
+      setLikeLoadingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(dishId);
+        return next;
+      });
+    }
+  };
 
   const handleDishClick = (dish) => {
     const userId = profile?.id ?? null;
@@ -648,6 +744,9 @@ const HawkerCentreDetailPage = () => {
                       key={dish.id}
                       dish={dish}
                       onClick={handleDishClick}
+                      liked={likedDishIds.has(dish.id)}
+                      likeLoading={likeLoadingIds.has(dish.id)}
+                      onToggleLike={handleToggleDishLike}
                     />
                   ))}
                   {filteredDishes.length === 0 && (

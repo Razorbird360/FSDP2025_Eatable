@@ -192,7 +192,7 @@ export const menuService = {
     try {
       // Get all approved media uploads with their upvote counts
       const uploads = await prisma.mediaUpload.findMany({
-        where: { 
+        where: {
           validationStatus: 'approved',
           menuItem: { isActive: true }
         },
@@ -216,13 +216,13 @@ export const menuService = {
       // Aggregate upvotes by menuItemId
       const upvoteMap = new Map();
       const imageMap = new Map();
-      
+
       for (const upload of uploads) {
         if (!upload.menuItemId) continue;
-        
+
         const current = upvoteMap.get(upload.menuItemId) || 0;
         upvoteMap.set(upload.menuItemId, current + (upload.upvoteCount || 0));
-        
+
         // Store the first image for each menu item (highest upvote will be first if sorted)
         if (!imageMap.has(upload.menuItemId) && upload.imageUrl) {
           imageMap.set(upload.menuItemId, upload.imageUrl);
@@ -253,6 +253,90 @@ export const menuService = {
       console.error('Error in getTopVotedMenuItems:', error);
       throw error;
     }
+  },
+
+  async getLikeStatus(menuItemId, userId) {
+    const [count, like] = await prisma.$transaction([
+      prisma.menuItemLike.count({ where: { menuItemId } }),
+      prisma.menuItemLike.findUnique({
+        where: {
+          userId_menuItemId: {
+            userId,
+            menuItemId,
+          },
+        },
+        select: { userId: true },
+      }),
+    ]);
+
+    return { liked: Boolean(like), count };
+  },
+
+  async getLikedMenuItems(userId) {
+    return await prisma.menuItemLike.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        menuItemId: true,
+        createdAt: true,
+        menuItem: {
+          select: {
+            id: true,
+            name: true,
+            priceCents: true,
+            imageUrl: true,
+            stall: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+            mediaUploads: {
+              where: {
+                validationStatus: 'approved',
+              },
+              orderBy: [{ upvoteCount: 'desc' }, { voteScore: 'desc' }],
+              take: 1,
+              select: {
+                imageUrl: true,
+                upvoteCount: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  },
+
+  async like(menuItemId, userId) {
+    await prisma.menuItemLike.upsert({
+      where: {
+        userId_menuItemId: {
+          userId,
+          menuItemId,
+        },
+      },
+      update: {},
+      create: {
+        userId,
+        menuItemId,
+      },
+    });
+
+    const count = await prisma.menuItemLike.count({ where: { menuItemId } });
+    return { liked: true, count };
+  },
+
+  async unlike(menuItemId, userId) {
+    await prisma.menuItemLike.deleteMany({
+      where: {
+        userId,
+        menuItemId,
+      },
+    });
+
+    const count = await prisma.menuItemLike.count({ where: { menuItemId } });
+    return { liked: false, count };
   },
 };
 

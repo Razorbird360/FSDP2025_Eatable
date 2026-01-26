@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Heart } from 'lucide-react';
 import api from '@lib/api';
 import UpvoteIcon from '../features/stalls/assets/upvote.svg';
 import DownvoteIcon from '../features/stalls/assets/downvote.svg';
@@ -10,6 +11,8 @@ const fallbackUploadImg =
     'https://images.unsplash.com/photo-1544025162-d76694265947?q=80&w=800&auto=format&fit=crop';
 
 const formatCount = (value) => (Number.isFinite(value) ? value : 0);
+const formatPrice = (value) =>
+    Number.isFinite(value) ? `$${(value / 100).toFixed(2)}` : 'Price unavailable';
 
 const StallCard = ({ like }) => {
     const stall = like?.stall;
@@ -94,10 +97,50 @@ const VoteCard = ({ vote, type }) => {
     );
 };
 
+const LikedDishCard = ({ like }) => {
+    const item = like?.menuItem;
+    if (!item) return null;
+
+    const imageUrl =
+        item.mediaUploads?.[0]?.imageUrl || item.imageUrl || fallbackUploadImg;
+
+    return (
+        <Link
+            to={item.stall?.id ? `/stalls/${item.stall.id}` : '/stalls'}
+            className="bg-white rounded-2xl border border-[#E7EEE7] overflow-hidden hover:shadow-xl transition-all duration-300"
+        >
+            <div className="aspect-[4/3] bg-gray-100 overflow-hidden">
+                <img
+                    src={imageUrl}
+                    alt={item.name || 'Menu item'}
+                    className="h-full w-full object-cover"
+                />
+            </div>
+            <div className="p-4 space-y-2">
+                <div className="flex items-start justify-between gap-3">
+                    <h3 className="text-base font-semibold text-gray-900 line-clamp-1">
+                        {item.name || 'Menu item'}
+                    </h3>
+                    <span className="rounded-full bg-rose-50 px-2 py-1 text-[10px] font-semibold text-rose-600">
+                        Liked
+                    </span>
+                </div>
+                <p className="text-xs text-gray-500">
+                    {item.stall?.name || 'Unknown stall'}
+                </p>
+                <div className="text-xs font-semibold text-gray-800">
+                    {formatPrice(item.priceCents)}
+                </div>
+            </div>
+        </Link>
+    );
+};
+
 const FavouritesPage = () => {
     const [tab, setTab] = useState('stalls');
     const [votes, setVotes] = useState([]);
     const [stallLikes, setStallLikes] = useState([]);
+    const [dishLikes, setDishLikes] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
@@ -108,9 +151,10 @@ const FavouritesPage = () => {
             setLoading(true);
             setError(null);
             try {
-                const [votesRes, likesRes] = await Promise.allSettled([
+                const [votesRes, likesRes, dishesRes] = await Promise.allSettled([
                     api.get('/media/getVotes'),
                     api.get('/stalls/likes'),
+                    api.get('/menu/likes'),
                 ]);
 
                 if (ignore) return;
@@ -127,7 +171,20 @@ const FavouritesPage = () => {
                     setStallLikes([]);
                 }
 
-                if (votesRes.status === 'rejected' && likesRes.status === 'rejected') {
+                if (dishesRes.status === 'fulfilled') {
+                    setDishLikes(dishesRes.value?.data?.likes || []);
+                } else {
+                    setDishLikes([]);
+                }
+
+                if (
+                    votesRes.status === 'rejected' &&
+                    likesRes.status === 'rejected' &&
+                    dishesRes.status === 'rejected'
+                ) {
+                    setVotes([]);
+                    setStallLikes([]);
+                    setDishLikes([]);
                     setError('Failed to load favourites.');
                 }
             } catch (err) {
@@ -192,6 +249,19 @@ const FavouritesPage = () => {
             );
         }
 
+        if (tab === 'dishes') {
+            if (dishLikes.length === 0) {
+                return <EmptyState message="No liked dishes yet." />;
+            }
+            return (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                    {dishLikes.map((like) => (
+                        <LikedDishCard key={like.menuItemId || like.createdAt} like={like} />
+                    ))}
+                </div>
+            );
+        }
+
         const list = tab === 'upvotes' ? upvotes : downvotes;
         if (list.length === 0) {
             return (
@@ -222,6 +292,12 @@ const FavouritesPage = () => {
 
                     <div className="flex gap-2 overflow-x-auto no-scrollbar md:overflow-visible">
                         <TabButton value="stalls">Stalls</TabButton>
+                        <TabButton value="dishes">
+                            <span className="flex items-center gap-2">
+                                <Heart className="h-4 w-4 text-rose-500" />
+                                Dishes
+                            </span>
+                        </TabButton>
                         <TabButton value="upvotes">
                             <span className="flex items-center gap-2">
                                 <img src={UpvoteIcon} alt="Upvotes" className="h-4 w-4" />

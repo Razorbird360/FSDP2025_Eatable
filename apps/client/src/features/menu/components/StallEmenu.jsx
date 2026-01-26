@@ -131,7 +131,7 @@ const getTagStyle = (percent = 0) => {
 };
 
 
-function ItemDialog({ open, item, onClose, onAdd }) {
+function ItemDialog({ open, item, onClose, onAdd, liked, likeLoading, onToggleLike }) {
   const [qty, setQty] = useState(1);
   const [notes, setNotes] = useState("");
 
@@ -180,6 +180,18 @@ function ItemDialog({ open, item, onClose, onAdd }) {
             alt={item.name}
             className="w-full h-56 object-cover"
           />
+          <button
+            type="button"
+            onClick={() => onToggleLike?.(item.id)}
+            disabled={likeLoading}
+            aria-pressed={liked}
+            aria-label={liked ? "Unlike dish" : "Like dish"}
+            className={`absolute left-3 top-3 grid place-items-center w-8 h-8 rounded-full border bg-white/90 text-slate-600 transition-colors ${
+              liked ? "border-rose-200 text-rose-500" : "border-white/80"
+            } ${likeLoading ? "cursor-not-allowed opacity-60" : "hover:bg-white"}`}
+          >
+            <Icon.Heart filled={liked} className="h-4 w-4" />
+          </button>
           <button
             onClick={onClose}
             className="absolute right-3 top-3 grid place-items-center w-8 h-8 rounded-full bg-white/90 hover:bg-white"
@@ -290,6 +302,8 @@ export default function StallEmenu() {
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
   const [likeLoading, setLikeLoading] = useState(false);
+  const [likedItemIds, setLikedItemIds] = useState(() => new Set());
+  const [itemLikeLoadingIds, setItemLikeLoadingIds] = useState(() => new Set());
 
   const trackMenuClick = (item, source = "stall-menu") => {
     if (!item?.id) return;
@@ -350,6 +364,38 @@ export default function StallEmenu() {
     };
   }, [stallId, status, profileId]);
 
+  useEffect(() => {
+    if (status !== "authenticated" || !profileId) {
+      setLikedItemIds(new Set());
+      setItemLikeLoadingIds(new Set());
+      return;
+    }
+
+    let ignore = false;
+
+    async function loadLikedItems() {
+      try {
+        const res = await api.get("/menu/likes");
+        if (ignore) return;
+        const ids = new Set(
+          (res.data?.likes || [])
+            .map((like) => like.menuItemId)
+            .filter(Boolean)
+        );
+        setLikedItemIds(ids);
+      } catch (err) {
+        if (!ignore) {
+          console.error("Failed to load dish likes:", err);
+        }
+      }
+    }
+
+    loadLikedItems();
+    return () => {
+      ignore = true;
+    };
+  }, [status, profileId]);
+
   const handleToggleLike = async () => {
     if (!stallId) return;
     if (status !== "authenticated") {
@@ -369,6 +415,47 @@ export default function StallEmenu() {
       console.error("Failed to toggle stall like:", err);
     } finally {
       setLikeLoading(false);
+    }
+  };
+
+  const handleToggleItemLike = async (itemId) => {
+    if (!itemId) return;
+    if (status !== "authenticated") {
+      navigate("/login");
+      return;
+    }
+
+    if (itemLikeLoadingIds.has(itemId)) return;
+
+    setItemLikeLoadingIds((prev) => {
+      const next = new Set(prev);
+      next.add(itemId);
+      return next;
+    });
+
+    const isLiked = likedItemIds.has(itemId);
+    try {
+      const res = isLiked
+        ? await api.delete(`/menu/${itemId}/likes`)
+        : await api.post(`/menu/${itemId}/likes`);
+      const nextLiked = Boolean(res.data?.liked ?? !isLiked);
+      setLikedItemIds((prev) => {
+        const next = new Set(prev);
+        if (nextLiked) {
+          next.add(itemId);
+        } else {
+          next.delete(itemId);
+        }
+        return next;
+      });
+    } catch (err) {
+      console.error("Failed to toggle dish like:", err);
+    } finally {
+      setItemLikeLoadingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(itemId);
+        return next;
+      });
     }
   };
 
@@ -850,53 +937,81 @@ export default function StallEmenu() {
                         {section}
                       </h2>
                       <ul className="-mt-1 space-y-2">
-                        {items.map((item) => (
-                          <li
-                            key={`${item.id}-${item.name}`}
-                            className="flex cursor-pointer items-center gap-2.5 rounded-xl border bg-white p-2.5 md:p-4"
-                            onClick={() => {
-                              trackMenuClick(item);
-                              setSelected(item);
-                              setShowItem(true);
-                            }}
-                          >
-                            <img
-                              src={item.img}
-                              alt={item.name}
-                              className="h-14 w-14 rounded-lg border object-cover sm:h-20 sm:w-20"
-                            />
-                            <div className="flex-1">
-                              <div className="text-[15px] font-semibold">
-                                {item.name}
-                              </div>
-                              <div className="mt-0.5 flex items-center gap-2 text-[13px] text-gray-800">
-                                <span>${item.price.toFixed(2)}</span>
-                                {typeof item.votes === "number" && (
-                                  <span className="flex items-center gap-1 text-[11px] text-gray-500">
-                                    <Icon.TrendUp className="h-3 w-3" />
-                                    {item.votes}
-                                  </span>
-                                )}
-                              </div>
+                        {items.map((item) => {
+                          const itemLiked = likedItemIds.has(item.id);
+                          const itemLikeLoading = itemLikeLoadingIds.has(item.id);
 
-                              <p className="mt-0.5 line-clamp-2 text-[12px] text-gray-600">
-                                {item.desc}
-                              </p>
-                            </div>
-                            <button
-                              className="ml-2 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#21421B] text-white hover:bg-[#21421B]/90"
-                              aria-label={`Add ${item.name}`}
-                              onClick={(e) => {
-                                e.stopPropagation();
+                          return (
+                            <li
+                              key={`${item.id}-${item.name}`}
+                              className="flex cursor-pointer items-center gap-2.5 rounded-xl border bg-white p-2.5 md:p-4"
+                              onClick={() => {
                                 trackMenuClick(item);
                                 setSelected(item);
                                 setShowItem(true);
                               }}
                             >
-                              <Icon.Plus className="h-4 w-4" />
-                            </button>
-                          </li>
-                        ))}
+                              <img
+                                src={item.img}
+                                alt={item.name}
+                                className="h-14 w-14 rounded-lg border object-cover sm:h-20 sm:w-20"
+                              />
+                              <div className="flex-1">
+                                <div className="text-[15px] font-semibold">
+                                  {item.name}
+                                </div>
+                                <div className="mt-0.5 flex items-center gap-2 text-[13px] text-gray-800">
+                                  <span>${item.price.toFixed(2)}</span>
+                                  {typeof item.votes === "number" && (
+                                    <span className="flex items-center gap-1 text-[11px] text-gray-500">
+                                      <Icon.TrendUp className="h-3 w-3" />
+                                      {item.votes}
+                                    </span>
+                                  )}
+                                </div>
+
+                                <p className="mt-0.5 line-clamp-2 text-[12px] text-gray-600">
+                                  {item.desc}
+                                </p>
+                              </div>
+                              <div className="ml-2 flex shrink-0 items-center gap-2">
+                                <button
+                                  type="button"
+                                  className={`grid h-8 w-8 place-items-center rounded-full border text-gray-500 transition-colors ${
+                                    itemLiked
+                                      ? "border-rose-200 bg-rose-50 text-rose-500"
+                                      : "border-gray-200 bg-white hover:text-gray-700"
+                                  } ${itemLikeLoading ? "cursor-not-allowed opacity-60" : ""}`}
+                                  aria-label={itemLiked ? `Unlike ${item.name}` : `Like ${item.name}`}
+                                  aria-pressed={itemLiked}
+                                  disabled={itemLikeLoading}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleToggleItemLike(item.id);
+                                  }}
+                                >
+                                  <Icon.Heart
+                                    filled={itemLiked}
+                                    className="h-4 w-4"
+                                    aria-hidden="true"
+                                  />
+                                </button>
+                                <button
+                                  className="grid h-8 w-8 place-items-center rounded-full bg-[#21421B] text-white hover:bg-[#21421B]/90"
+                                  aria-label={`Add ${item.name}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    trackMenuClick(item);
+                                    setSelected(item);
+                                    setShowItem(true);
+                                  }}
+                                >
+                                  <Icon.Plus className="h-4 w-4" />
+                                </button>
+                              </div>
+                            </li>
+                          );
+                        })}
                       </ul>
                     </div>
                   ))}
@@ -949,6 +1064,9 @@ export default function StallEmenu() {
         open={showItem}
         item={selected}
         onClose={() => setShowItem(false)}
+        liked={selected ? likedItemIds.has(selected.id) : false}
+        likeLoading={selected ? itemLikeLoadingIds.has(selected.id) : false}
+        onToggleLike={handleToggleItemLike}
         onAdd={({ item, qty, notes }) => {
           addToCart(
             {
