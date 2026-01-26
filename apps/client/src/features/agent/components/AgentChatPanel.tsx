@@ -17,6 +17,7 @@ function ToolBubble({ message }: MessageBubbleProps) {
   const toolName = message.toolName || payload?.toolName || 'tool';
   const output = payload?.output;
   const error = payload?.error;
+  const uploads = output?.uploads ?? [];
 
   const qrCode =
     output?.nets?.result?.data?.qr_code ||
@@ -40,6 +41,43 @@ function ToolBubble({ message }: MessageBubbleProps) {
         <p className="mt-2 text-sm text-red-600">{error}</p>
       ) : (
         <>
+          {toolName === 'get_dish_uploads' && Array.isArray(uploads) && (
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              {uploads.length === 0 ? (
+                <p className="text-xs text-gray-500">No community photos yet.</p>
+              ) : (
+                uploads.map((upload: any) => (
+                  <div
+                    key={upload.id}
+                    className="rounded-xl border border-gray-200 bg-white p-2"
+                  >
+                    {upload.imageUrl ? (
+                      <img
+                        src={upload.imageUrl}
+                        alt={upload.caption || 'Community upload'}
+                        className="h-32 w-full rounded-lg object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-32 items-center justify-center rounded-lg bg-gray-100 text-xs text-gray-500">
+                        No image
+                      </div>
+                    )}
+                    <div className="mt-2 space-y-1">
+                      <p className="text-xs font-semibold text-gray-700">
+                        {upload.user?.displayName || 'Community member'}
+                      </p>
+                      {upload.caption && (
+                        <p className="text-xs text-gray-500">{upload.caption}</p>
+                      )}
+                      <p className="text-[11px] text-gray-400">
+                        {upload.upvoteCount ?? 0} upvotes • {upload.downvoteCount ?? 0} downvotes
+                      </p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
           {qrImage && (
             <div className="mt-3 flex justify-center">
               <img
