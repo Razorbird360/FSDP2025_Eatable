@@ -1,5 +1,6 @@
 import { AIMessage, HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
+import { createToolRegistry } from './tools/index.js';
 
 export type AgentMessage = {
   role: 'user' | 'assistant' | 'system';
@@ -21,19 +22,23 @@ const SYSTEM_PROMPT = [
   'Tool usage will be added; for now, respond directly based on user messages.',
 ].join(' ');
 
-export const createToolRegistry = () => [];
-
-const createAgentModel = () => {
+const createAgentModel = ({ tools = [] } = {}) => {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     throw new Error('GEMINI_API_KEY is not set');
   }
 
-  return new ChatGoogleGenerativeAI({
+  const model = new ChatGoogleGenerativeAI({
     apiKey,
     model: DEFAULT_MODEL,
     temperature: DEFAULT_TEMPERATURE,
   });
+
+  if (tools.length > 0 && typeof model.bindTools === 'function') {
+    return model.bindTools(tools);
+  }
+
+  return model;
 };
 
 const toLangChainMessage = (message: AgentMessage) => {
@@ -69,8 +74,11 @@ const normalizeChunkContent = (content: unknown) => {
 
 export async function* streamAgentResponse({
   messages,
+  userId,
+  sessionId,
 }: AgentRequest): AsyncGenerator<string> {
-  const model = createAgentModel();
+  const tools = createToolRegistry({ userId, sessionId });
+  const model = createAgentModel({ tools });
   const userMessages = messages.filter((message) => message.role !== 'system');
   const payload = [
     new SystemMessage(SYSTEM_PROMPT),
