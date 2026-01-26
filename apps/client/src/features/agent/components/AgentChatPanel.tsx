@@ -24,6 +24,14 @@ function ToolBubble({ message }: MessageBubbleProps) {
       : [];
   const showUploads =
     toolName === 'get_dish_uploads' || toolName === 'get_stall_gallery';
+  const searchResults =
+    toolName === 'search_entities' && output
+      ? {
+          hawkerCentres: output.hawkerCentres ?? [],
+          stalls: output.stalls ?? [],
+          dishes: output.dishes ?? [],
+        }
+      : null;
 
   const qrCode =
     output?.nets?.result?.data?.qr_code ||
@@ -47,6 +55,80 @@ function ToolBubble({ message }: MessageBubbleProps) {
         <p className="mt-2 text-sm text-red-600">{error}</p>
       ) : (
         <>
+          {searchResults && (
+            <div className="mt-3 space-y-4">
+              {['hawkerCentres', 'stalls', 'dishes'].every(
+                (key) => searchResults[key as keyof typeof searchResults].length === 0
+              ) ? (
+                <p className="text-xs text-gray-500">No results found.</p>
+              ) : (
+                ([
+                  {
+                    title: 'Hawker Centres',
+                    items: searchResults.hawkerCentres,
+                    subtitleKey: 'address',
+                  },
+                  {
+                    title: 'Stalls',
+                    items: searchResults.stalls,
+                    subtitleKey: 'hawkerCentre',
+                  },
+                  {
+                    title: 'Dishes',
+                    items: searchResults.dishes,
+                    subtitleKey: null,
+                  },
+                ] as const).map((section) => (
+                  <div key={section.title} className="space-y-2">
+                    <p className="text-xs font-semibold text-gray-500">{section.title}</p>
+                    {section.items.length === 0 ? (
+                      <p className="text-xs text-gray-400">No matches.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {section.items.map((item: any) => {
+                          const imageUrl = item.imageUrl || item.image_url || null;
+                          const subtitle =
+                            section.subtitleKey === 'address'
+                              ? item.address
+                              : section.subtitleKey === 'hawkerCentre'
+                                ? item.hawkerCentre?.name
+                                : null;
+                          const initials = item.name?.slice(0, 1)?.toUpperCase() ?? '?';
+
+                          return (
+                            <div
+                              key={item.id}
+                              className="flex items-center gap-3 rounded-xl border border-gray-100 bg-white p-2"
+                            >
+                              {imageUrl ? (
+                                <img
+                                  src={imageUrl}
+                                  alt={item.name}
+                                  className="h-10 w-10 rounded-lg object-cover"
+                                />
+                              ) : (
+                                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 text-xs font-semibold text-gray-500">
+                                  {initials}
+                                </div>
+                              )}
+                              <div className="flex-1">
+                                <p className="text-xs font-semibold text-gray-700">
+                                  {item.name}
+                                </p>
+                                {subtitle && (
+                                  <p className="text-[11px] text-gray-500">{subtitle}</p>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          )}
           {showUploads && (
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
               {uploads.length === 0 ? (
