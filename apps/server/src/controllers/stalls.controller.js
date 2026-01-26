@@ -71,4 +71,31 @@ export const stallsController = {
       next(error);
     }
   },
+
+  async getLikes(req, res, next) {
+    try {
+      const likes = await stallsService.getUserFavoriteStalls(req.user.id);
+      res.json({ likes });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async likeStall(req, res, next) {
+    try {
+      await stallsService.addFavoriteStall(req.user.id, req.params.id);
+      res.status(201).json({ liked: true });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async unlikeStall(req, res, next) {
+    try {
+      await stallsService.removeFavoriteStall(req.user.id, req.params.id);
+      res.json({ liked: false });
+    } catch (error) {
+      next(error);
+    }
+  },
 };

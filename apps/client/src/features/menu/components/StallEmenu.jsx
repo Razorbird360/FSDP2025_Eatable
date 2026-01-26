@@ -1,5 +1,6 @@
 import { useMemo, useState, useRef, useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
+import { Heart } from "lucide-react";
 import foodStallIcon from "./Assets/FoodStall_Icon.png";
 import StallGallery from "../../stalls/components/StallGallery";
 import { useCart } from "../../orders/components/CartContext";
@@ -280,6 +281,38 @@ export default function StallEmenu() {
   const { profile } = useAuth();
   const [toast, setToast] = useState(null);
   const navigate = useNavigate();
+  const [favoriteStall, setFavoriteStall] = useState(false);
+  const [favoriteStallBusy, setFavoriteStallBusy] = useState(false);
+  const [favoriteStallCount, setFavoriteStallCount] = useState(0);
+  const [favoriteDishIds, setFavoriteDishIds] = useState(() => new Set());
+  const [favoriteDishBusyIds, setFavoriteDishBusyIds] = useState(
+    () => new Set()
+  );
+
+  const pushToast = (message) => {
+    setToast({ message });
+    setTimeout(() => setToast(null), 1800);
+  };
+
+  const ensureAuthed = () => {
+    if (!profile?.id) {
+      pushToast("Log in to save favourites.");
+      return false;
+    }
+    return true;
+  };
+
+  const setDishBusy = (menuItemId, isBusy) => {
+    setFavoriteDishBusyIds((prev) => {
+      const next = new Set(prev);
+      if (isBusy) {
+        next.add(menuItemId);
+      } else {
+        next.delete(menuItemId);
+      }
+      return next;
+    });
+  };
 
   const trackMenuClick = (item, source = "stall-menu") => {
     if (!item?.id) return;
@@ -321,6 +354,80 @@ export default function StallEmenu() {
       })
     );
   };
+
+  const handleToggleStallFavorite = async (event) => {
+    event?.stopPropagation();
+    if (!ensureAuthed() || !stallId) return;
+    if (favoriteStallBusy) return;
+
+    const nextLiked = !favoriteStall;
+    setFavoriteStall(nextLiked);
+    setFavoriteStallCount((prev) => {
+      const next = nextLiked ? prev + 1 : Math.max(0, prev - 1);
+      return Number.isFinite(next) ? next : 0;
+    });
+    setFavoriteStallBusy(true);
+
+    try {
+      if (nextLiked) {
+        await api.post(`/stalls/${stallId}/like`);
+      } else {
+        await api.delete(`/stalls/${stallId}/like`);
+      }
+    } catch (err) {
+      console.error("Failed to update stall favourite", err);
+      setFavoriteStall(!nextLiked);
+      setFavoriteStallCount((prev) => {
+        const next = nextLiked ? Math.max(0, prev - 1) : prev + 1;
+        return Number.isFinite(next) ? next : 0;
+      });
+      pushToast("Failed to update favourites.");
+    } finally {
+      setFavoriteStallBusy(false);
+    }
+  };
+
+  const handleToggleDishFavorite = async (menuItemId, event) => {
+    event?.stopPropagation();
+    if (!ensureAuthed() || !menuItemId) return;
+    if (favoriteDishBusyIds.has(menuItemId)) return;
+
+    const isLiked = favoriteDishIds.has(menuItemId);
+    const nextLiked = !isLiked;
+
+    setFavoriteDishIds((prev) => {
+      const next = new Set(prev);
+      if (nextLiked) {
+        next.add(menuItemId);
+      } else {
+        next.delete(menuItemId);
+      }
+      return next;
+    });
+    setDishBusy(menuItemId, true);
+
+    try {
+      if (nextLiked) {
+        await api.post(`/menu/${menuItemId}/like`);
+      } else {
+        await api.delete(`/menu/${menuItemId}/like`);
+      }
+    } catch (err) {
+      console.error("Failed to update dish favourite", err);
+      setFavoriteDishIds((prev) => {
+        const next = new Set(prev);
+        if (isLiked) {
+          next.add(menuItemId);
+        } else {
+          next.delete(menuItemId);
+        }
+        return next;
+      });
+      pushToast("Failed to update favourites.");
+    } finally {
+      setDishBusy(menuItemId, false);
+    }
+  };
   // Fetch stall from API
   useEffect(() => {
     let cancelled = false;
@@ -336,6 +443,9 @@ export default function StallEmenu() {
         setStallPfp(data.image_url || null);
 
         setStall(data);
+        setFavoriteStallCount(
+          Number.isFinite(data.likeCount) ? data.likeCount : 0
+        );
         console.log("Fetched stall data:", data);
 
         // Map menuItems -> UI menu items
@@ -410,6 +520,54 @@ export default function StallEmenu() {
       cancelled = true;
     };
   }, [stallId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const userId = profile?.id;
+
+    if (!userId || !stallId) {
+      setFavoriteStall(false);
+      setFavoriteDishIds(new Set());
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const loadFavorites = async () => {
+      const [stallLikesRes, dishLikesRes] = await Promise.allSettled([
+        api.get("/stalls/likes"),
+        api.get("/menu/likes"),
+      ]);
+
+      if (cancelled) return;
+
+      if (stallLikesRes.status === "fulfilled") {
+        const likes = stallLikesRes.value?.data?.likes || [];
+        const isLiked = likes.some(
+          (like) => like?.stallId === stallId || like?.stall?.id === stallId
+        );
+        setFavoriteStall(isLiked);
+      } else {
+        setFavoriteStall(false);
+      }
+
+      if (dishLikesRes.status === "fulfilled") {
+        const likes = dishLikesRes.value?.data?.likes || [];
+        const ids = likes
+          .map((like) => like?.menuItemId || like?.menuItem?.id)
+          .filter(Boolean);
+        setFavoriteDishIds(new Set(ids));
+      } else {
+        setFavoriteDishIds(new Set());
+      }
+    };
+
+    loadFavorites();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [profile?.id, stallId]);
 
   // Build STALL-like meta so JSX doesn’t change much
   const STALL_META = useMemo(() => {
@@ -555,6 +713,30 @@ export default function StallEmenu() {
           
           {/* White background for desktop */}
           <div className="hidden md:block absolute inset-0 bg-white" />
+
+          <div className="absolute right-4 top-4 z-20 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleToggleStallFavorite}
+              disabled={favoriteStallBusy}
+              aria-pressed={favoriteStall}
+              aria-label={
+                favoriteStall ? "Remove from favourites" : "Add to favourites"
+              }
+              className={`inline-flex h-9 w-9 items-center justify-center rounded-full border bg-white/90 transition ${favoriteStall
+                  ? "text-rose-600 border-rose-200"
+                  : "text-gray-400 border-white/80"
+                } ${favoriteStallBusy ? "cursor-not-allowed opacity-70" : "hover:bg-white"}`}
+            >
+              <Heart
+                className="h-4 w-4"
+                fill={favoriteStall ? "currentColor" : "none"}
+              />
+            </button>
+            <span className="rounded-full border border-white/80 bg-white/90 px-2 py-0.5 text-xs font-semibold text-gray-700">
+              {favoriteStallCount}
+            </span>
+          </div>
 
           <div className="hidden md:block w-52 h-52 flex-shrink-0 rounded-xl overflow-hidden relative z-10 border">
             <img
@@ -829,18 +1011,48 @@ export default function StallEmenu() {
                                 {item.desc}
                               </p>
                             </div>
-                            <button
-                              className="ml-2 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#21421B] text-white hover:bg-[#21421B]/90"
-                              aria-label={`Add ${item.name}`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                trackMenuClick(item);
-                                setSelected(item);
-                                setShowItem(true);
-                              }}
-                            >
-                              <Icon.Plus className="h-4 w-4" />
-                            </button>
+                            <div className="ml-2 flex items-center gap-2">
+                              <button
+                                type="button"
+                                className={`grid h-8 w-8 shrink-0 place-items-center rounded-full border bg-white transition ${favoriteDishIds.has(item.id)
+                                    ? "text-rose-600 border-rose-200"
+                                    : "text-gray-400 border-gray-200"
+                                  } ${favoriteDishBusyIds.has(item.id)
+                                    ? "cursor-not-allowed opacity-70"
+                                    : "hover:bg-rose-50"
+                                  }`}
+                                aria-pressed={favoriteDishIds.has(item.id)}
+                                aria-label={
+                                  favoriteDishIds.has(item.id)
+                                    ? `Remove ${item.name} from favourites`
+                                    : `Add ${item.name} to favourites`
+                                }
+                                onClick={(e) => handleToggleDishFavorite(item.id, e)}
+                                disabled={favoriteDishBusyIds.has(item.id)}
+                              >
+                                <Heart
+                                  className="h-4 w-4"
+                                  fill={
+                                    favoriteDishIds.has(item.id)
+                                      ? "currentColor"
+                                      : "none"
+                                  }
+                                />
+                              </button>
+                              <button
+                                type="button"
+                                className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#21421B] text-white hover:bg-[#21421B]/90"
+                                aria-label={`Add ${item.name}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  trackMenuClick(item);
+                                  setSelected(item);
+                                  setShowItem(true);
+                                }}
+                              >
+                                <Icon.Plus className="h-4 w-4" />
+                              </button>
+                            </div>
                           </li>
                         ))}
                       </ul>
@@ -908,8 +1120,7 @@ export default function StallEmenu() {
             notes
           );
           console.log("Added to cart:", stall.id);
-          setToast({ message: `Added ${item.name} x${qty} to cart` });
-          setTimeout(() => setToast(null), 1800);
+          pushToast(`Added ${item.name} x${qty} to cart`);
         }}
       />
 
