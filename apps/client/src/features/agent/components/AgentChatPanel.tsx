@@ -36,6 +36,8 @@ function ToolBubble({ message }: MessageBubbleProps) {
   const orderSummary =
     toolName === 'create_order_from_cart' && output ? output : null;
   const orderDetails = toolName === 'get_order_by_id' && output ? output : null;
+  const topVoted = toolName === 'get_top_voted_menu_items' && output ? output : null;
+  const featured = toolName === 'get_featured_menu_items_by_cuisine' && output ? output : null;
 
   const qrCode =
     output?.nets?.result?.data?.qr_code ||
@@ -239,6 +241,99 @@ function ToolBubble({ message }: MessageBubbleProps) {
                     </div>
                   ))}
                 </div>
+              )}
+            </div>
+          )}
+          {topVoted && (
+            <div className="mt-3 space-y-3">
+              <p className="text-xs font-semibold text-gray-500">Top voted</p>
+              {Array.isArray(topVoted) && topVoted.length > 0 ? (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {topVoted.map((item: any) => (
+                    <div
+                      key={item.id}
+                      className="rounded-xl border border-gray-100 bg-white p-2"
+                    >
+                      {item.imageUrl ? (
+                        <img
+                          src={item.imageUrl}
+                          alt={item.name}
+                          className="h-28 w-full rounded-lg object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-28 items-center justify-center rounded-lg bg-gray-100 text-xs text-gray-500">
+                          No image
+                        </div>
+                      )}
+                      <div className="mt-2">
+                        <p className="text-xs font-semibold text-gray-700">{item.name}</p>
+                        {item.priceCents != null && (
+                          <p className="text-[11px] text-gray-500">
+                            ${(item.priceCents / 100).toFixed(2)}
+                          </p>
+                        )}
+                        {item.stall?.name && (
+                          <p className="text-[11px] text-gray-400">{item.stall.name}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-gray-500">No top picks yet.</p>
+              )}
+            </div>
+          )}
+          {featured && (
+            <div className="mt-3 space-y-3">
+              <p className="text-xs font-semibold text-gray-500">Featured by cuisine</p>
+              {Array.isArray(featured) && featured.length > 0 ? (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {featured.map((item: any) => (
+                    <div
+                      key={item.cuisineType}
+                      className="rounded-xl border border-gray-100 bg-white p-2"
+                    >
+                      <p className="text-[11px] font-semibold text-gray-500">
+                        {item.cuisineType}
+                      </p>
+                      {item.menuItem ? (
+                        <>
+                          {item.menuItem.imageUrl ? (
+                            <img
+                              src={item.menuItem.imageUrl}
+                              alt={item.menuItem.name}
+                              className="mt-2 h-24 w-full rounded-lg object-cover"
+                            />
+                          ) : (
+                            <div className="mt-2 flex h-24 items-center justify-center rounded-lg bg-gray-100 text-xs text-gray-500">
+                              No image
+                            </div>
+                          )}
+                          <div className="mt-2">
+                            <p className="text-xs font-semibold text-gray-700">
+                              {item.menuItem.name}
+                            </p>
+                            {item.menuItem.priceCents != null && (
+                              <p className="text-[11px] text-gray-500">
+                                ${(item.menuItem.priceCents / 100).toFixed(2)}
+                              </p>
+                            )}
+                            {item.stall?.name && (
+                              <p className="text-[11px] text-gray-400">
+                                {item.stall.name}
+                              </p>
+                            )}
+                          </div>
+                        </>
+                      ) : (
+                        <p className="mt-2 text-xs text-gray-500">No match yet.</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-gray-500">No featured dishes yet.</p>
               )}
             </div>
           )}
