@@ -2,6 +2,8 @@ import { createContext, useContext, useState, useEffect, ReactNode, useRef } fro
 import { getSessionAccessToken } from '../../auth/sessionCache';
 
 const CHAT_ENABLED_KEY = 'eatable:agentChatEnabled';
+const CHAT_HISTORY_KEY = 'eatable:agentChatHistory';
+const CHAT_SESSION_KEY = 'eatable:agentChatSessionId';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
 
 export type MessageKind = 'text' | 'tool';
@@ -29,6 +31,7 @@ interface AgentChatContextType {
   setEnabled: (enabled: boolean) => void;
   sendMessage: (content: string) => Promise<void>;
   setPendingAttachment: (file: File | null) => void;
+  clearHistory: () => void;
 }
 
 const initialMessages: Message[] = [
@@ -64,8 +67,28 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
       return true;
     }
   });
-  const [messages, setMessages] = useState<Message[]>(initialMessages);
-  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<Message[]>(() => {
+    try {
+      const raw = localStorage.getItem(CHAT_HISTORY_KEY);
+      if (!raw) return initialMessages;
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return initialMessages;
+      return parsed.map((message) => ({
+        ...message,
+        role: message.role === 'bot' ? 'assistant' : message.role,
+        kind: message.kind ?? 'text',
+      }));
+    } catch {
+      return initialMessages;
+    }
+  });
+  const [sessionId, setSessionId] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem(CHAT_SESSION_KEY);
+    } catch {
+      return null;
+    }
+  });
   const [isStreaming, setIsStreaming] = useState(false);
   const [pendingAttachment, setPendingAttachment] = useState<File | null>(null);
   const messagesRef = useRef<Message[]>(initialMessages);
@@ -80,7 +103,24 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
 
   useEffect(() => {
     messagesRef.current = messages;
+    try {
+      localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(messages));
+    } catch {
+      // ignore
+    }
   }, [messages]);
+
+  useEffect(() => {
+    try {
+      if (sessionId) {
+        localStorage.setItem(CHAT_SESSION_KEY, sessionId);
+      } else {
+        localStorage.removeItem(CHAT_SESSION_KEY);
+      }
+    } catch {
+      // ignore
+    }
+  }, [sessionId]);
 
   const openChat = () => setIsOpen(true);
   const closeChat = () => setIsOpen(false);
@@ -326,6 +366,18 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
     }
   };
 
+  const clearHistory = () => {
+    setMessages(initialMessages);
+    setSessionId(null);
+    setPendingAttachment(null);
+    try {
+      localStorage.removeItem(CHAT_HISTORY_KEY);
+      localStorage.removeItem(CHAT_SESSION_KEY);
+    } catch {
+      // ignore
+    }
+  };
+
   return (
     <AgentChatContext.Provider
       value={{
@@ -340,6 +392,7 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
         setEnabled,
         sendMessage,
         setPendingAttachment,
+        clearHistory,
       }}
     >
       {children}

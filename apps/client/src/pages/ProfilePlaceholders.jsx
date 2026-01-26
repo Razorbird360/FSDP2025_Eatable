@@ -350,11 +350,16 @@ export const SettingsPage = () => {
     const [promotions, setPromotions] = useState(false);
     const [darkMode, setDarkMode] = useState(false);
     const [erasingHistory, setErasingHistory] = useState(false);
-    const { isEnabled: aiAssistantEnabled, setEnabled: setAiAssistantEnabled } = useAgentChat();
+    const {
+        isEnabled: aiAssistantEnabled,
+        setEnabled: setAiAssistantEnabled,
+        clearHistory: clearAgentHistory,
+    } = useAgentChat();
 
     const handleEraseChatHistory = () => {
         if (erasingHistory) return;
         setErasingHistory(true);
+        clearAgentHistory();
         // Simulate erasing - just show spinner for 2 seconds
         setTimeout(() => {
             setErasingHistory(false);
