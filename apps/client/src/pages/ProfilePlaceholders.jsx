@@ -11,11 +11,13 @@ import {
   Gift,
   Globe,
   HelpCircle,
+  Loader2,
   Lock,
   Mail,
   MessageCircle,
   MessageSquareMore,
   Moon,
+  Trash2,
 } from 'lucide-react';
 
 // ==========================================================================
@@ -347,7 +349,17 @@ export const SettingsPage = () => {
     const [orderUpdates, setOrderUpdates] = useState(true);
     const [promotions, setPromotions] = useState(false);
     const [darkMode, setDarkMode] = useState(false);
+    const [erasingHistory, setErasingHistory] = useState(false);
     const { isEnabled: aiAssistantEnabled, setEnabled: setAiAssistantEnabled } = useAgentChat();
+
+    const handleEraseChatHistory = () => {
+        if (erasingHistory) return;
+        setErasingHistory(true);
+        // Simulate erasing - just show spinner for 2 seconds
+        setTimeout(() => {
+            setErasingHistory(false);
+        }, 2000);
+    };
 
     return (
         <div className="space-y-4">
@@ -391,6 +403,20 @@ export const SettingsPage = () => {
 
                 <SettingItem icon={Lock} label="Change Password" description="Update your password">
                     <ChevronRight className="w-5 h-5 text-gray-400" />
+                </SettingItem>
+
+                <SettingItem icon={Trash2} label="Erase Chat History" description="Clear all AI assistant conversations">
+                    <button
+                        onClick={handleEraseChatHistory}
+                        disabled={erasingHistory}
+                        className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors disabled:opacity-50"
+                    >
+                        {erasingHistory ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                            'Erase'
+                        )}
+                    </button>
                 </SettingItem>
             </div>
 
