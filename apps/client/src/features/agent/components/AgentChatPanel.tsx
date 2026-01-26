@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect, KeyboardEvent } from 'react';
+import { useState, useRef, useEffect, KeyboardEvent, ChangeEvent } from 'react';
 import { Input, Box } from '@chakra-ui/react';
-import { X, Send } from 'lucide-react';
+import { X, Send, Paperclip, XCircle } from 'lucide-react';
 import { useAgentChat, Message } from './AgentChatContext';
 
 const logoLight = new URL(
@@ -12,13 +12,75 @@ interface MessageBubbleProps {
   message: Message;
 }
 
-function MessageBubble({ message }: MessageBubbleProps) {
-  const isBot = message.role === 'bot';
+function ToolBubble({ message }: MessageBubbleProps) {
+  const payload = message.toolPayload as any;
+  const toolName = message.toolName || payload?.toolName || 'tool';
+  const output = payload?.output;
+  const error = payload?.error;
+
+  const qrCode =
+    output?.nets?.result?.data?.qr_code ||
+    output?.nets?.qr_code ||
+    output?.nets?.result?.data?.qrCode ||
+    null;
+
+  const qrImage = qrCode ? `data:image/png;base64,${qrCode}` : null;
 
   return (
-    <div className={`flex items-start gap-3 ${isBot ? '' : 'flex-row-reverse'}`}>
+    <div className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-800 shadow-sm">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+          Tool
+        </span>
+        <span className="rounded-full bg-[#21421B]/10 px-2 py-1 text-xs font-semibold text-[#21421B]">
+          {toolName}
+        </span>
+      </div>
+      {error ? (
+        <p className="mt-2 text-sm text-red-600">{error}</p>
+      ) : (
+        <>
+          {qrImage && (
+            <div className="mt-3 flex justify-center">
+              <img
+                src={qrImage}
+                alt="NETS QR code"
+                className="h-40 w-40 rounded-lg border border-gray-200 bg-white p-2"
+              />
+            </div>
+          )}
+          <details className="mt-3 text-xs text-gray-500">
+            <summary className="cursor-pointer select-none text-gray-600">
+              View details
+            </summary>
+            <pre className="mt-2 whitespace-pre-wrap break-words rounded-lg bg-gray-50 p-2 text-[11px] text-gray-600">
+              {JSON.stringify(payload, null, 2)}
+            </pre>
+          </details>
+        </>
+      )}
+    </div>
+  );
+}
+
+function MessageBubble({ message }: MessageBubbleProps) {
+  const isAssistant = message.role === 'assistant';
+
+  if (message.kind === 'tool') {
+    return (
+      <div className="flex items-start gap-3">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#21421B]">
+          <img src={logoLight} alt="At-Table" className="h-7 w-7 object-contain" />
+        </div>
+        <ToolBubble message={message} />
+      </div>
+    );
+  }
+
+  return (
+    <div className={`flex items-start gap-3 ${isAssistant ? '' : 'flex-row-reverse'}`}>
       {/* Avatar */}
-      {isBot ? (
+      {isAssistant ? (
         <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#21421B]">
           <img src={logoLight} alt="At-Table" className="h-7 w-7 object-contain" />
         </div>
@@ -40,35 +102,54 @@ function MessageBubble({ message }: MessageBubbleProps) {
         `}
       >
         {message.content}
+        {message.attachmentName && (
+          <div className="mt-2 rounded-lg border border-gray-200 bg-gray-50 px-2 py-1 text-xs text-gray-600">
+            Attachment: {message.attachmentName}
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
 export default function AgentChatPanel() {
-  const { isOpen, messages, closeChat, addMessage } = useAgentChat();
+  const {
+    isOpen,
+    messages,
+    closeChat,
+    sendMessage,
+    isStreaming,
+    pendingAttachment,
+    setPendingAttachment,
+  } = useAgentChat();
   const [inputValue, setInputValue] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     const trimmed = inputValue.trim();
-    if (!trimmed) return;
+    if (!trimmed && !pendingAttachment) return;
 
-    addMessage({ role: 'user', content: trimmed });
+    const message = trimmed || 'Please upload this photo.';
     setInputValue('');
+    await sendMessage(message);
+  };
 
-    // Simulate bot response after a delay
-    setTimeout(() => {
-      addMessage({
-        role: 'bot',
-        content: "I'm looking into that for you! This is a demo response.",
-      });
-    }, 1000);
+  const handleAttachClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleAttachmentChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    setPendingAttachment(file);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -129,6 +210,7 @@ export default function AgentChatPanel() {
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={handleKeyDown}
+            isDisabled={isStreaming}
             borderRadius="xl"
             border="1px solid"
             borderColor="#E7EEE7"
@@ -142,15 +224,45 @@ export default function AgentChatPanel() {
             _focus={{ borderColor: '#21421B', boxShadow: 'none', bg: 'white' }}
           />
         </Box>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleAttachmentChange}
+          className="hidden"
+        />
+        <button
+          type="button"
+          onClick={handleAttachClick}
+          aria-label="Attach photo"
+          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-600 transition-colors hover:bg-gray-50"
+          disabled={isStreaming}
+        >
+          <Paperclip className="h-5 w-5" />
+        </button>
         <button
           type="button"
           onClick={handleSend}
           aria-label="Send message"
-          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#21421B] text-white transition-colors hover:bg-[#2d5a24]"
+          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#21421B] text-white transition-colors hover:bg-[#2d5a24] disabled:opacity-60"
+          disabled={isStreaming}
         >
           <Send className="h-5 w-5" />
         </button>
       </div>
+      {pendingAttachment && (
+        <div className="flex items-center justify-between gap-2 border-t border-gray-200 bg-white px-4 py-2 text-xs text-gray-600">
+          <span className="truncate">Ready to upload: {pendingAttachment.name}</span>
+          <button
+            type="button"
+            onClick={() => setPendingAttachment(null)}
+            className="flex items-center gap-1 text-gray-500 hover:text-gray-700"
+          >
+            <XCircle className="h-4 w-4" />
+            Remove
+          </button>
+        </div>
+      )}
     </div>
   );
 }
