@@ -33,6 +33,9 @@ function ToolBubble({ message }: MessageBubbleProps) {
         }
       : null;
   const cartData = toolName === 'get_cart' && output ? output : null;
+  const orderSummary =
+    toolName === 'create_order_from_cart' && output ? output : null;
+  const orderDetails = toolName === 'get_order_by_id' && output ? output : null;
 
   const qrCode =
     output?.nets?.result?.data?.qr_code ||
@@ -167,6 +170,75 @@ function ToolBubble({ message }: MessageBubbleProps) {
                 ))
               ) : (
                 <p className="text-xs text-gray-500">Your cart is empty.</p>
+              )}
+            </div>
+          )}
+          {orderSummary && (
+            <div className="mt-3 space-y-2 rounded-xl border border-gray-100 bg-white p-3">
+              <p className="text-xs font-semibold text-gray-500">Order created</p>
+              <p className="text-sm font-semibold text-gray-700">
+                Order #{orderSummary.order?.orderCode || orderSummary.orderId}
+              </p>
+              {orderSummary.order?.totalCents != null && (
+                <p className="text-xs text-gray-500">
+                  Total: ${(orderSummary.order.totalCents / 100).toFixed(2)}
+                </p>
+              )}
+            </div>
+          )}
+          {orderDetails && (
+            <div className="mt-3 space-y-3">
+              <div className="rounded-xl border border-gray-100 bg-white p-3">
+                <p className="text-xs font-semibold text-gray-500">Order details</p>
+                <p className="text-sm font-semibold text-gray-700">
+                  {orderDetails.stall?.name || 'Order'}
+                </p>
+                {orderDetails.info?.orderCode && (
+                  <p className="text-xs text-gray-500">
+                    Code: {orderDetails.info.orderCode}
+                  </p>
+                )}
+                {orderDetails.info?.status && (
+                  <span className="mt-2 inline-flex rounded-full bg-[#21421B]/10 px-2 py-1 text-[11px] font-semibold text-[#21421B]">
+                    {orderDetails.info.status}
+                  </span>
+                )}
+              </div>
+              {Array.isArray(orderDetails.items) && orderDetails.items.length > 0 && (
+                <div className="space-y-2">
+                  {orderDetails.items.map((item: any) => (
+                    <div
+                      key={item.id}
+                      className="flex items-start gap-3 rounded-xl border border-gray-100 bg-white p-2"
+                    >
+                      {item.menuItem?.imageUrl ? (
+                        <img
+                          src={item.menuItem.imageUrl}
+                          alt={item.menuItem.name}
+                          className="h-12 w-12 rounded-lg object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-gray-100 text-xs font-semibold text-gray-500">
+                          {(item.menuItem?.name || '?').slice(0, 1).toUpperCase()}
+                        </div>
+                      )}
+                      <div className="flex-1">
+                        <p className="text-xs font-semibold text-gray-700">
+                          {item.menuItem?.name || 'Item'}
+                        </p>
+                        <p className="text-[11px] text-gray-500">
+                          Qty: {item.quantity}
+                          {item.unitCents != null && (
+                            <> • ${(item.unitCents / 100).toFixed(2)}</>
+                          )}
+                        </p>
+                        {item.request && (
+                          <p className="text-[11px] text-gray-400">Note: {item.request}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
           )}
