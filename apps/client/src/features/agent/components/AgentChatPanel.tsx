@@ -32,6 +32,7 @@ function ToolBubble({ message }: MessageBubbleProps) {
           dishes: output.dishes ?? [],
         }
       : null;
+  const cartData = toolName === 'get_cart' && output ? output : null;
 
   const qrCode =
     output?.nets?.result?.data?.qr_code ||
@@ -126,6 +127,46 @@ function ToolBubble({ message }: MessageBubbleProps) {
                     )}
                   </div>
                 ))
+              )}
+            </div>
+          )}
+          {cartData && (
+            <div className="mt-3 space-y-3">
+              {Array.isArray(cartData.cart) && cartData.cart.length > 0 ? (
+                cartData.cart.map((item: any) => (
+                  <div
+                    key={item.id}
+                    className="flex items-start gap-3 rounded-xl border border-gray-100 bg-white p-2"
+                  >
+                    {item.menuItem?.imageUrl ? (
+                      <img
+                        src={item.menuItem.imageUrl}
+                        alt={item.menuItem.name}
+                        className="h-12 w-12 rounded-lg object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-gray-100 text-xs font-semibold text-gray-500">
+                        {(item.menuItem?.name || '?').slice(0, 1).toUpperCase()}
+                      </div>
+                    )}
+                    <div className="flex-1">
+                      <p className="text-xs font-semibold text-gray-700">
+                        {item.menuItem?.name || 'Unknown item'}
+                      </p>
+                      <p className="text-[11px] text-gray-500">
+                        Qty: {item.quantity ?? 1}
+                        {item.menuItem?.priceCents != null && (
+                          <> • ${(item.menuItem.priceCents / 100).toFixed(2)}</>
+                        )}
+                      </p>
+                      {item.request && (
+                        <p className="text-[11px] text-gray-400">Note: {item.request}</p>
+                      )}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-xs text-gray-500">Your cart is empty.</p>
               )}
             </div>
           )}
