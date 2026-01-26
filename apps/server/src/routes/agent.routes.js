@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { authMiddleware } from '../middleware/auth.middleware.js';
-import { streamAgentResponse } from '../ai/agent.ts';
+import { streamAgentResponse } from '../agent/agent.ts';
 
 const router = Router();
 
