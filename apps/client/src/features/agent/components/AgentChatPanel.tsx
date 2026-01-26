@@ -570,11 +570,7 @@ function MessageBubble({ message }: MessageBubbleProps) {
       <div
         className={`
           max-w-[75%] rounded-2xl px-4 py-3 text-[15px] leading-relaxed
-          ${
-            isBot
-              ? 'bg-white border border-gray-200 text-gray-800 shadow-sm'
-              : 'bg-white border border-gray-200 text-gray-800 shadow-sm'
-          }
+          bg-white border border-gray-200 text-gray-800 shadow-sm
         `}
       >
         {message.content}
@@ -686,7 +682,7 @@ export default function AgentChatPanel() {
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={handleKeyDown}
-            isDisabled={isStreaming}
+            disabled={isStreaming}
             borderRadius="xl"
             border="1px solid"
             borderColor="#E7EEE7"

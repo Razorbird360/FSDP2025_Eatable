@@ -136,7 +136,7 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
     }
 
     if (path.startsWith('/api')) {
-      return `${API_BASE_URL}${path.replace(/^\\/api/, '')}`;
+      return `${API_BASE_URL}${path.replace(/^\/api/, '')}`;
     }
 
     return `${API_BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`;
