@@ -17,6 +17,7 @@ import achievementRoutes from './achievement.routes.js';
 import adminRoutes from './admin.routes.js';
 import searchRoutes from './search.routes.js';
 import eventsRoutes from './events.routes.js';
+import agentRoutes from './agent.routes.js';
 
 const router = Router();
 
@@ -42,5 +43,6 @@ router.use('/achievements', achievementRoutes);
 router.use('/admin', adminRoutes);
 router.use('/search', searchRoutes);
 router.use('/events', eventsRoutes);
+router.use('/agent', agentRoutes);
 
 export default router;

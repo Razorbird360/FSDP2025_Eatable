@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "nodemon src/server.js",
-    "start": "node src/server.js",
+    "dev": "nodemon --exec tsx src/server.js",
+    "start": "node --loader tsx src/server.js",
     "lint": "eslint \"src/**/*.js\" --max-warnings 0 --no-error-on-unmatched-pattern",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
