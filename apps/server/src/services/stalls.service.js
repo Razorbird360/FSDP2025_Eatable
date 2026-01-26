@@ -32,6 +32,11 @@ export const stallsService = {
             displayName: true,
           },
         },
+        _count: {
+          select: {
+            favoriteStalls: true,
+          },
+        },
         menuItems: {
           where: { isActive: true },
           include: {
@@ -128,8 +133,11 @@ export const stallsService = {
       uploadRecency.map((row) => [row.menuItemId, row._max?.createdAt ?? null])
     );
 
+    const { _count, ...stallData } = stall;
+
     return {
-      ...stall,
+      ...stallData,
+      likeCount: _count?.favoriteStalls ?? 0,
       menuItems: menuItems.map((item) => ({
         ...item,
         approvedUploadCount: uploadCountsByMenuItem.get(item.id) || 0,
@@ -140,6 +148,95 @@ export const stallsService = {
         avgPriceCents
       })),
     };
+  },
+
+  async addFavoriteStall(userId, stallId) {
+    if (!userId || !stallId) {
+      throw new Error('userId and stallId are required');
+    }
+
+    return await prisma.favoriteStall.upsert({
+      where: {
+        userId_stallId: {
+          userId,
+          stallId,
+        },
+      },
+      update: {},
+      create: {
+        userId,
+        stallId,
+      },
+    });
+  },
+
+  async removeFavoriteStall(userId, stallId) {
+    if (!userId || !stallId) {
+      throw new Error('userId and stallId are required');
+    }
+
+    await prisma.favoriteStall.deleteMany({
+      where: {
+        userId,
+        stallId,
+      },
+    });
+  },
+
+  async getUserFavoriteStalls(userId) {
+    if (!userId) {
+      throw new Error('userId is required');
+    }
+
+    const favorites = await prisma.favoriteStall.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        stall: {
+          select: {
+            id: true,
+            name: true,
+            cuisineType: true,
+            location: true,
+            image_url: true,
+            _count: {
+              select: {
+                menuItems: true,
+                favoriteStalls: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return favorites.map((favorite) => {
+      const stall = favorite.stall;
+      if (!stall) {
+        return {
+          id: favorite.id,
+          userId: favorite.userId,
+          stallId: favorite.stallId,
+          createdAt: favorite.createdAt,
+          likedAt: favorite.createdAt,
+          stall: null,
+        };
+      }
+
+      const { _count, ...stallData } = stall;
+      return {
+        id: favorite.id,
+        userId: favorite.userId,
+        stallId: favorite.stallId,
+        createdAt: favorite.createdAt,
+        likedAt: favorite.createdAt,
+        stall: {
+          ...stallData,
+          menuItemCount: _count?.menuItems ?? 0,
+          likeCount: _count?.favoriteStalls ?? 0,
+        },
+      };
+    });
   },
 
 

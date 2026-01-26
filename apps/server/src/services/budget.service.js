@@ -1,9 +1,9 @@
-import prisma from '../lib/prisma.js';
+import prisma from "../lib/prisma.js";
 
 export const budgetService = {
   async getMonthlyBudget(userId, year, month) {
     const budget = await prisma.userMonthlyBudget.findFirst({
-      where: { userId, year, month }
+      where: { userId, year, month },
     });
 
     if (budget) return budget;
@@ -15,31 +15,36 @@ export const budgetService = {
         year,
         month,
         budgetCents: 200000, // $2000 default
-        alertAtPercent: 80
-      }
+        alertAtPercent: 80,
+        notifiedThresholdAlready: false,
+        notifiedLimitAlready: false,
+      },
     });
   },
 
   async upsertMonthlyBudget(userId, year, month, budgetCents, alertAtPercent) {
     const existing = await prisma.userMonthlyBudget.findFirst({
-      where: { userId, year, month }
+      where: { userId, year, month },
     });
 
     if (existing) {
-      // Check if budget or alert percent changed
       const budgetChanged = existing.budgetCents !== budgetCents;
       const alertChanged = existing.alertAtPercent !== alertAtPercent;
-      
-      // If settings changed, reset notification status to allow new alerts
-      const shouldResetNotification = budgetChanged || alertChanged;
+
+      const shouldReset = budgetChanged || alertChanged;
 
       return prisma.userMonthlyBudget.update({
         where: { id: existing.id },
         data: {
           budgetCents,
           alertAtPercent,
-          ...(shouldResetNotification ? { notifiedAlready: false } : {})
-        }
+          ...(shouldReset
+            ? {
+                notifiedThresholdAlready: false,
+                notifiedLimitAlready: false,
+              }
+            : {}),
+        },
       });
     }
 
@@ -50,22 +55,28 @@ export const budgetService = {
         month,
         budgetCents,
         alertAtPercent,
-        notifiedAlready: false
-      }
+        notifiedThresholdAlready: false,
+        notifiedLimitAlready: false,
+      },
     });
   },
 
-  async setNotified(userId, year, month) {
+  // level: "threshold" | "limit"
+  async setNotifiedLevel(userId, year, month, level) {
     const existing = await prisma.userMonthlyBudget.findFirst({
-      where: { userId, year, month }
+      where: { userId, year, month },
     });
 
     if (!existing) return null;
 
+    const data =
+      level === "limit"
+        ? { notifiedLimitAlready: true }
+        : { notifiedThresholdAlready: true };
+
     return prisma.userMonthlyBudget.update({
       where: { id: existing.id },
-      data: { notifiedAlready: true }
+      data,
     });
   },
-
 };

@@ -42,6 +42,83 @@ export const menuService = {
     });
   },
 
+  async getUserFavoriteDishes(userId) {
+    if (!userId) {
+      throw new Error('userId is required');
+    }
+
+    const favorites = await prisma.favoriteDish.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        menuItem: {
+          select: {
+            id: true,
+            name: true,
+            priceCents: true,
+            imageUrl: true,
+            stall: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+            mediaUploads: {
+              where: { validationStatus: 'approved' },
+              orderBy: { upvoteCount: 'desc' },
+              take: 1,
+              select: {
+                imageUrl: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return favorites.map((favorite) => ({
+      id: favorite.id,
+      userId: favorite.userId,
+      menuItemId: favorite.menuItemId,
+      createdAt: favorite.createdAt,
+      likedAt: favorite.createdAt,
+      menuItem: favorite.menuItem ?? null,
+    }));
+  },
+
+  async addFavoriteDish(userId, menuItemId) {
+    if (!userId || !menuItemId) {
+      throw new Error('userId and menuItemId are required');
+    }
+
+    return await prisma.favoriteDish.upsert({
+      where: {
+        userId_menuItemId: {
+          userId,
+          menuItemId,
+        },
+      },
+      update: {},
+      create: {
+        userId,
+        menuItemId,
+      },
+    });
+  },
+
+  async removeFavoriteDish(userId, menuItemId) {
+    if (!userId || !menuItemId) {
+      throw new Error('userId and menuItemId are required');
+    }
+
+    await prisma.favoriteDish.deleteMany({
+      where: {
+        userId,
+        menuItemId,
+      },
+    });
+  },
+
   async create(data) {
     return await prisma.menuItem.create({
       data,

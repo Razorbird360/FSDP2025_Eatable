@@ -6,7 +6,7 @@ import ProfileLayout from "../layouts/ProfileLayout";
 import AboutPage from "../pages/AboutPage";
 import CommunityPage from "../pages/CommunityPage";
 import HawkerCentresPage from "../features/hawkerCentres/components/HawkerCentresPage";
-import HawkerPage from "../features/hawkerPage/components/hawkerpage.jsx";
+import HawkerPage from "../features/hawkerPage/components/hawkerpage";
 import StallEmenu from "../features/menu/components/StallEmenu";
 import SignupPage from "../features/auth/SignupPage";
 import LoginPage from "../features/auth/LoginPage";
@@ -18,7 +18,6 @@ import OrdersPage from "../pages/OrdersPage";
 import SpendingsPage from "../pages/SpendingsPage";
 import VouchersPage from "../pages/VouchersPage";
 import AchievementsPage from "../pages/AchievementsPage";
-import AdminHomePage from "../pages/AdminHomePage";
 import AdminVouchersPage from "../pages/AdminVouchersPage";
 import AdminAchievementsPage from "../pages/AdminAchievementsPage";
 import AdminModerationUsersPage from "../pages/AdminModerationUsersPage";
@@ -40,9 +39,8 @@ import Onboarding from "../features/photos/components/Onboarding";
 import PhotoUpload from "../features/photos/components/PhotoUpload";
 import UploadDetails from "../features/photos/components/UploadDetails";
 import PhotoUploadLayout from "../features/photos/layouts/PhotoUploadLayout";
-
 import HawkerDashboardPage from '../features/hawkerPage/pages/HawkerDashboardPage';
-
+import HawkerOrdersPage from "../features/hawkerPage/pages/HawkerOrdersPage";
 
 import HawkerMap from "../features/hawkerMap/components/hawkerMap";
 
@@ -52,11 +50,13 @@ const Stalls = () => (
     <h1 className="text-3xl font-bold">Stalls</h1>
   </div>
 );
+
 const Cart = () => (
   <div className="p-8">
     <h1 className="text-3xl font-bold">Cart</h1>
   </div>
 );
+
 const NotFound = () => (
   <div className="p-8">
     <h1 className="text-3xl font-bold">404 - Not Found</h1>
@@ -114,6 +114,7 @@ function AppRoutes() {
               </RequireRole>
             }
           />
+
           <Route
             path="/stall/manage/:stallId"
             element={
@@ -127,8 +128,18 @@ function AppRoutes() {
           <Route
             path="/hawker/dashboard"
             element={
-              <RequireRole role="hawker">
+              <RequireRole role="hawker" verified={true}>
                 <HawkerDashboardPage />
+              </RequireRole>
+            }
+          />
+
+          {/* Hawker Orders route */}
+          <Route
+            path="/hawker/orders"
+            element={
+              <RequireRole role="hawker">
+                <HawkerOrdersPage />
               </RequireRole>
             }
           />
@@ -140,7 +151,6 @@ function AppRoutes() {
             <Route path="/upload-details" element={<UploadDetails />} />
           </Route>
         </Route>
-
       </Route>
 
       <Route element={<ProtectedLayout />}>
@@ -152,7 +162,7 @@ function AppRoutes() {
             </RequireRole>
           }
         >
-          <Route index element={<AdminHomePage />} />
+          <Route index element={<Navigate to="/admin/moderation/reports" replace />} />
           <Route path="vouchers" element={<AdminVouchersPage />} />
           <Route path="achievements" element={<AdminAchievementsPage />} />
           <Route path="rewards" element={<Navigate to="/admin/vouchers" replace />} />

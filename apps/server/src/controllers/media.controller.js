@@ -13,7 +13,7 @@ export const mediaController = {
    * Validate if image contains food (generic check)
    * POST /api/media/validate-generic
    */
-  async validateGeneric(req, res, next) {
+  async validateGeneric(req, res, _next) {
     try {
       // 1. Validate file exists (from Multer)
       if (!req.file) {
@@ -46,7 +46,7 @@ export const mediaController = {
       }
 
       // 2. Validate required fields
-      const { menuItemId, caption, aspectRatio: requestedAspect } = req.body;
+      const { menuItemId, caption, aspectRatio: requestedAspect, setAsMenuItemImage } = req.body;
       if (!menuItemId) {
         return res.status(400).json({ error: 'menuItemId is required' });
       }
@@ -55,6 +55,20 @@ export const mediaController = {
       const menuItem = await menuService.getById(menuItemId);
       if (!menuItem) {
         return res.status(404).json({ error: 'Menu item not found' });
+      }
+
+      const shouldUpdateMenuItemImage =
+        setAsMenuItemImage === true ||
+        setAsMenuItemImage === 'true' ||
+        setAsMenuItemImage === '1';
+
+      if (shouldUpdateMenuItemImage) {
+        const ownerId = menuItem?.stall?.ownerId || null;
+        if (!ownerId || ownerId !== req.user.id) {
+          return res.status(403).json({
+            error: 'Only the stall owner can set the dish primary image.',
+          });
+        }
       }
 
       // 4. AI Validation - Verify dish matches the menu item
@@ -123,6 +137,11 @@ export const mediaController = {
         validationStatus,
       });
 
+      // 9a. Optionally set as the menu item's primary image (stall owner only)
+      if (shouldUpdateMenuItemImage) {
+        await menuService.update(menuItemId, { imageUrl: image_url });
+      }
+
       // 9b. AI tagging (non-blocking to upload success if it fails)
       let tags = [];
       try {
@@ -157,6 +176,7 @@ export const mediaController = {
         message: 'Image uploaded successfully',
         upload,
         tags,
+        menuItemImageUrl: shouldUpdateMenuItemImage ? image_url : null,
       });
     } catch (error) {
       next(error);
@@ -398,9 +418,9 @@ export const mediaController = {
       if (!user) {
         return res.status(404).json({ error: 'User not found' });
       }
-      return user.skipOnboarding === true ? res.json({ skipOnboarding: true }) : res.json({ skipOnboarding: false });
-
-      return res.json({ skipOnboarding: user.skipOnboarding === true });
+      return user.skipOnboarding === true
+        ? res.json({ skipOnboarding: true })
+        : res.json({ skipOnboarding: false });
     } catch (error) {
       next(error);
     }

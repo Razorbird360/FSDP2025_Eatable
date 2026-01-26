@@ -165,7 +165,10 @@ const requestTags = async ({
     throw new Error('imageUrl is required for AI tagging');
   }
 
-  const safeCaption = typeof caption === 'string' ? caption : '';
+  const safeCaption =
+    typeof caption === 'string'
+      ? caption.replace(/[\r\n]+/g, ' ').trim()
+      : '';
   const historyText = JSON.stringify(previousTagStats || []);
 
   const response = await axios.post(

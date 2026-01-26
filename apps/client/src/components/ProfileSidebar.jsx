@@ -6,7 +6,6 @@ import {
   Clock,
   DollarSign,
   Gift,
-  Heart,
   HelpCircle,
   Settings,
   Shield,
@@ -57,7 +56,6 @@ export default function ProfileSidebar() {
             label="Uploads History"
             to="/my-collection"
           />
-          <SidebarItem icon={Heart} label="Favourites" to="/favourites" />
           <SidebarItem icon={Gift} label="Vouchers" to="/vouchers" />
           <SidebarItem icon={Award} label="Achievements" to="/achievements" />
           <SidebarItem
@@ -69,7 +67,12 @@ export default function ProfileSidebar() {
 
         <div className="flex flex-row md:flex-col md:px-3 md:mt-6 md:pt-6 border-l md:border-l-0 md:border-t border-gray-100 space-x-2 md:space-x-0 md:space-y-1 ml-2 md:ml-0 pl-2 md:pl-0">
           {profile?.role === "admin" && (
-            <SidebarItem icon={Shield} label="Admin" to="/admin" match="/admin" />
+            <SidebarItem
+              icon={Shield}
+              label="Admin"
+              to="/admin/moderation/reports"
+              match="/admin"
+            />
           )}
           <SidebarItem icon={Settings} label="Settings" to="/settings" />
           <SidebarItem icon={Briefcase} label="For Business" to="/business" />

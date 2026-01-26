@@ -36,6 +36,83 @@ function buildTagList(map, limit = 3) {
     .slice(0, limit);
 }
 
+const RECOMMENDATION_WINDOW_DAYS = 30;
+const MAX_SIMILARITY_SEEDS = 5;
+const POPULARITY_WEIGHTS = {
+  views: 0.5,
+  clicks: 2,
+  adds: 3,
+  orders: 5,
+};
+const CATEGORY_WEIGHT = 2.5;
+const TAG_WEIGHT = 1.5;
+const SIMILARITY_WEIGHT = 2;
+
+function normalizeScoreMap(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  return raw;
+}
+
+function getScoreValue(scores, key) {
+  if (!key || !scores || typeof scores !== 'object' || Array.isArray(scores)) {
+    return 0;
+  }
+  if (Object.prototype.hasOwnProperty.call(scores, key)) {
+    const value = Number(scores[key]);
+    return Number.isFinite(value) ? value : 0;
+  }
+  const normalizedKey = String(key).toLowerCase();
+  if (
+    normalizedKey !== key &&
+    Object.prototype.hasOwnProperty.call(scores, normalizedKey)
+  ) {
+    const value = Number(scores[normalizedKey]);
+    return Number.isFinite(value) ? value : 0;
+  }
+  return 0;
+}
+
+function collectDishTags(dish) {
+  const tags = new Set();
+  const tagAggs = Array.isArray(dish.menuItemTagAggs)
+    ? dish.menuItemTagAggs
+    : [];
+
+  tagAggs.forEach((agg) => {
+    const label = agg?.tag?.displayLabel || agg?.tag?.normalized;
+    if (label) {
+      tags.add(label);
+    }
+  });
+
+  const tagGroups = dish.tagGroups || {};
+  const captionGroups = Array.isArray(tagGroups.caption) ? tagGroups.caption : [];
+  const imageGroups = Array.isArray(tagGroups.image) ? tagGroups.image : [];
+
+  captionGroups.forEach((group) => {
+    if (group?.label) tags.add(group.label);
+  });
+  imageGroups.forEach((group) => {
+    if (group?.label) tags.add(group.label);
+  });
+
+  return Array.from(tags);
+}
+
+function computePopularityScore(stats) {
+  const views = stats?.views ?? 0;
+  const clicks = stats?.clicks ?? 0;
+  const adds = stats?.adds ?? 0;
+  const orders = stats?.orders ?? 0;
+
+  return (
+    views * POPULARITY_WEIGHTS.views +
+    clicks * POPULARITY_WEIGHTS.clicks +
+    adds * POPULARITY_WEIGHTS.adds +
+    orders * POPULARITY_WEIGHTS.orders
+  );
+}
+
 /**
  * Convert degrees to radians
  */
@@ -152,12 +229,7 @@ async function getRandomStallsBySlug(slug, limit = 3) {
 
   // Format stalls with image URL
   const formattedStalls = randomStalls.map(stall => {
-    // Try to get image from first menu item's top media upload
-    let imageUrl = stall.image_url;
-
-    if (stall.menuItems.length > 0 && stall.menuItems[0].mediaUploads.length > 0) {
-      imageUrl = stall.menuItems[0].mediaUploads[0].imageUrl;
-    }
+    const topUpload = stall.menuItems?.[0]?.mediaUploads?.[0]?.imageUrl ?? null;
     const prepTimes = stall.menuItems
       .map((item) => item.prepTimeMins)
       .filter((value) => typeof value === 'number');
@@ -174,7 +246,7 @@ async function getRandomStallsBySlug(slug, limit = 3) {
       name: stall.name,
       cuisineType: stall.cuisineType,
       dietaryTags: stall.dietaryTags ?? [],
-      imageUrl: stall.image_url,
+      imageUrl: topUpload ?? stall.image_url ?? null,
       maxPrepTimeMins,
       maxPriceCents,
       menuItemCount: stall._count.menuItems
@@ -373,6 +445,112 @@ async function getHawkerDishesById(hawkerId) {
   }
 }
 
+async function getHawkerRecommendedDishesById(hawkerId, options = {}) {
+  const { userId = null, anonId = null } = options;
+  const dishes = await getHawkerDishesById(hawkerId);
+
+  if (dishes.length === 0) {
+    return dishes;
+  }
+
+  const dishIds = dishes.map((dish) => dish.id);
+  const windowStart = new Date();
+  windowStart.setDate(windowStart.getDate() - RECOMMENDATION_WINDOW_DAYS);
+
+  const [statsRows, profile] = await Promise.all([
+    prisma.itemStatsDaily.groupBy({
+      by: ['itemId'],
+      where: {
+        itemId: { in: dishIds },
+        date: { gte: windowStart },
+      },
+      _sum: {
+        views: true,
+        clicks: true,
+        adds: true,
+        orders: true,
+      },
+    }),
+    userId
+      ? prisma.userProfile.findUnique({ where: { userId } })
+      : anonId
+        ? prisma.userProfile.findUnique({ where: { anonId } })
+        : null,
+  ]);
+
+  const statsByItemId = new Map(
+    statsRows.map((row) => [
+      row.itemId,
+      {
+        views: row._sum.views ?? 0,
+        clicks: row._sum.clicks ?? 0,
+        adds: row._sum.adds ?? 0,
+        orders: row._sum.orders ?? 0,
+      },
+    ])
+  );
+
+  const similarityByItemId = new Map();
+  const recentItems = Array.isArray(profile?.recentItems)
+    ? profile.recentItems.filter(Boolean).slice(0, MAX_SIMILARITY_SEEDS)
+    : [];
+
+  if (recentItems.length > 0) {
+    const recencyWeights = new Map();
+    recentItems.forEach((itemId, index) => {
+      recencyWeights.set(itemId, Math.max(1, recentItems.length - index));
+    });
+
+    const similarityRows = await prisma.itemSimilarity.findMany({
+      where: {
+        itemId: { in: recentItems },
+        similarItemId: { in: dishIds },
+      },
+    });
+
+    similarityRows.forEach((row) => {
+      const weight = recencyWeights.get(row.itemId) ?? 1;
+      const existing = similarityByItemId.get(row.similarItemId) ?? 0;
+      similarityByItemId.set(row.similarItemId, existing + row.score * weight);
+    });
+  }
+
+  const categoryScores = normalizeScoreMap(profile?.categoryScores);
+  const tagScores = normalizeScoreMap(profile?.tagScores);
+
+  const ranked = dishes.map((dish, index) => {
+    const popularityScore = computePopularityScore(
+      statsByItemId.get(dish.id)
+    );
+    const categoryScore = getScoreValue(categoryScores, dish.category);
+    const dishTags = collectDishTags(dish);
+    const tagScore = dishTags.reduce(
+      (sum, tag) => sum + getScoreValue(tagScores, tag),
+      0
+    );
+    const similarityScore = similarityByItemId.get(dish.id) ?? 0;
+    const recommendationScore =
+      popularityScore +
+      categoryScore * CATEGORY_WEIGHT +
+      tagScore * TAG_WEIGHT +
+      similarityScore * SIMILARITY_WEIGHT;
+
+    return {
+      ...dish,
+      recommendationScore,
+      _rankIndex: index,
+    };
+  });
+
+  return ranked
+    .sort((a, b) => {
+      const scoreDiff = b.recommendationScore - a.recommendationScore;
+      if (scoreDiff !== 0) return scoreDiff;
+      return a._rankIndex - b._rankIndex;
+    })
+    .map(({ _rankIndex, ...dish }) => dish);
+}
+
 async function getHawkerInfoById(hawkerId) {
   // Implementation for fetching hawker centre info by hawkerId
   try {
@@ -393,5 +571,6 @@ export default {
   getRandomStallsBySlug,
   getHawkerStallsById,
   getHawkerDishesById,
+  getHawkerRecommendedDishesById,
   getHawkerInfoById
 };

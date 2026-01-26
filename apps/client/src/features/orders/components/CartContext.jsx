@@ -8,8 +8,27 @@ import {
   useEffect,
 } from "react";
 import api from "@lib/api"; // adjust path if needed
+import { useAuth } from "../../auth/useAuth";
+import { getOrCreateAnonId, trackEvent, trackEvents } from "@lib/events";
 
 const CartContext = createContext(null);
+
+const resolveCategoryId = (menuItem) =>
+  menuItem?.categoryId || menuItem?.category_id || menuItem?.category || null;
+
+const resolvePriceCents = (menuItem) => {
+  if (typeof menuItem?.priceCents === "number") return menuItem.priceCents;
+  if (typeof menuItem?.price_cents === "number") return menuItem.price_cents;
+  if (typeof menuItem?.price === "number") return Math.round(menuItem.price * 100);
+  return null;
+};
+
+const resolveTags = (menuItem) => {
+  if (!Array.isArray(menuItem?.tags)) return [];
+  return menuItem.tags
+    .map((tag) => (typeof tag === "string" ? tag : tag?.label))
+    .filter(Boolean);
+};
 
 // Helper: map API row -> frontend item shape
 function mapCartRow(row) {
@@ -26,13 +45,13 @@ function mapCartRow(row) {
         ? mi.priceCents / 100
         : mi.price ?? 0,
 
-    // 🔹 image from the top-voted media upload
+    // ðŸ”¹ image from the top-voted media upload
     img: topUpload?.imageUrl || topUpload?.image_url || null,
 
-    // 🔹 special instructions from DB (user_cart.request)
+    // ðŸ”¹ special instructions from DB (user_cart.request)
     notes: row.request || "",
 
-    // 🔹 stall details
+    // ðŸ”¹ stall details
     stallId: stall.id || stall.stallId || stall.stall_id || null,
     stallName: stall.name || null,
     stallDescription: stall.description || null,
@@ -84,16 +103,24 @@ function isSameStall(incoming, existing) {
   const existingName = existing?.name;
   return Boolean(
     !incomingId &&
-      !existingId &&
-      incomingName &&
-      existingName &&
-      incomingName === existingName
+    !existingId &&
+    incomingName &&
+    existingName &&
+    incomingName === existingName
   );
 }
 
 export function CartProvider({ children }) {
   const [items, setItems] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
+  const { status, profile } = useAuth();
+  const profileId = profile?.id ?? null;
+
+  const resolveEventIdentity = useCallback(() => {
+    const userId = profileId;
+    const anonId = userId ? null : getOrCreateAnonId();
+    return { userId, anonId };
+  }, [profileId]);
 
   const openCart = () => setIsOpen(true);
   const closeCart = () => setIsOpen(false);
@@ -101,6 +128,11 @@ export function CartProvider({ children }) {
 
   // --- Load cart from backend on mount ---
   useEffect(() => {
+    if (status !== "authenticated") {
+      setItems([]);
+      return;
+    }
+
     let ignore = false;
 
     async function loadCart() {
@@ -119,7 +151,7 @@ export function CartProvider({ children }) {
     return () => {
       ignore = true;
     };
-  }, []);
+  }, [status]);
 
   const addToCart = useCallback(
     async (menuItem, qty = 1, notes = "") => {
@@ -135,16 +167,16 @@ export function CartProvider({ children }) {
           const existingStall = resolveExistingStall(existingFirst);
           const sameStall = isSameStall(incomingStall, existingStall);
 
-          // 🔹 If different stall, ask for confirmation & clear cart if proceed
+          // ðŸ”¹ If different stall, ask for confirmation & clear cart if proceed
           if (!sameStall) {
             const ok = window.confirm(
               "Your cart currently has items from another stall.\n" +
-                "If you add this item, your cart will be cleared.\n\n" +
-                "Proceed?"
+              "If you add this item, your cart will be cleared.\n\n" +
+              "Proceed?"
             );
 
             if (!ok) {
-              // user cancelled – do nothing
+              // user cancelled â€“ do nothing
               return { success: false, cancelled: true };
             }
 
@@ -173,13 +205,32 @@ export function CartProvider({ children }) {
         const res = await api.post("/cart/add", payload);
         console.log("Add to cart response:", res.data);
 
-        // ✅ After successful add, re-fetch full cart from backend
+        // âœ… After successful add, re-fetch full cart from backend
         const getRes = await api.get("/cart/get");
         const rows = Array.isArray(getRes.data)
           ? getRes.data
           : getRes.data.items ?? [];
 
         setItems(rows.map(mapCartRow));
+        const { userId, anonId } = resolveEventIdentity();
+        if (menuItem?.id && (userId || anonId)) {
+          const tags = resolveTags(menuItem);
+          trackEvent({
+            userId,
+            anonId,
+            eventType: "add_to_cart",
+            itemId: menuItem.id,
+            categoryId: resolveCategoryId(menuItem),
+            metadata: {
+              source: "cart",
+              qty,
+              priceCents: resolvePriceCents(menuItem),
+              stallId: incomingStall?.id ?? null,
+              stallName: incomingStall?.name ?? null,
+              ...(tags.length > 0 ? { tags } : {}),
+            },
+          });
+        }
 
         return { success: true };
       } catch (err) {
@@ -194,7 +245,7 @@ export function CartProvider({ children }) {
         return { success: false, error: err };
       }
     },
-    [items]
+    [items, resolveEventIdentity]
   );
 
   const addItemsToCart = useCallback(
@@ -248,6 +299,40 @@ export function CartProvider({ children }) {
           : getRes.data.items ?? [];
 
         setItems(rows.map(mapCartRow));
+        const { userId, anonId } = resolveEventIdentity();
+        if (userId || anonId) {
+          const events = list
+            .map((entry) => {
+              const menuItem = entry.menuItem || entry.item || entry;
+              const menuItemId = menuItem?.id;
+              if (!menuItemId) return null;
+              const rawQty = Number(entry.qty ?? entry.quantity ?? 1);
+              const qty = Number.isFinite(rawQty) && rawQty > 0 ? rawQty : 1;
+              const tags = resolveTags(menuItem);
+              const stall = resolveStallInfo(menuItem, entry);
+
+              return {
+                userId,
+                anonId,
+                eventType: "add_to_cart",
+                itemId: menuItemId,
+                categoryId: resolveCategoryId(menuItem),
+                metadata: {
+                  source: "cart",
+                  qty,
+                  priceCents: resolvePriceCents(menuItem),
+                  stallId: stall.id || null,
+                  stallName: stall.name || null,
+                  ...(tags.length > 0 ? { tags } : {}),
+                },
+              };
+            })
+            .filter(Boolean);
+
+          if (events.length > 0) {
+            trackEvents(events);
+          }
+        }
 
         return { success: true };
       } catch (err) {
@@ -255,7 +340,7 @@ export function CartProvider({ children }) {
         return { success: false, error: err };
       }
     },
-    [items]
+    [items, resolveEventIdentity]
   );
 
   // --- Update qty (PUT /cart/update) ---

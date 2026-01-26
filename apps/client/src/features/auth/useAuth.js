@@ -135,6 +135,7 @@ export const useAuth = () => {
     signup,
     login,
     logout,
+    refreshProfile,
     getSession,
     getCurrentUser,
     loading,
