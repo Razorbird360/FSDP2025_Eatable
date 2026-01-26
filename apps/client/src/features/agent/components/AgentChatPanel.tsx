@@ -42,6 +42,13 @@ function ToolBubble({ message }: MessageBubbleProps) {
   const hawkerStalls = toolName === 'get_hawker_stalls' && output ? output : null;
   const hawkerDishes = toolName === 'get_hawker_dishes' && output ? output : null;
   const stallDetails = toolName === 'get_stall_details' && output ? output : null;
+  const budgetInfo =
+    (toolName === 'get_monthly_budget' ||
+      toolName === 'update_monthly_budget' ||
+      toolName === 'set_budget_notified') &&
+    output
+      ? output.budget ?? output
+      : null;
 
   const qrCode =
     output?.nets?.result?.data?.qr_code ||
@@ -459,6 +466,17 @@ function ToolBubble({ message }: MessageBubbleProps) {
                   ))}
                 </div>
               )}
+            </div>
+          )}
+          {budgetInfo && (
+            <div className="mt-3 space-y-2 rounded-xl border border-gray-100 bg-white p-3">
+              <p className="text-xs font-semibold text-gray-500">Monthly budget</p>
+              <p className="text-sm font-semibold text-gray-700">
+                ${(budgetInfo.budgetCents / 100).toFixed(2)}
+              </p>
+              <p className="text-[11px] text-gray-500">
+                Alert at {budgetInfo.alertAtPercent ?? 80}%
+              </p>
             </div>
           )}
           {showUploads && (
