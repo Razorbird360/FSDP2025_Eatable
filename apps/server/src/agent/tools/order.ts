@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import axios from 'axios';
 import { orderService } from '../../services/order.service.js';
 import { cartService } from '../../services/cart.service.js';
 import { createTool, ToolContext } from './tool-base.js';
@@ -6,6 +7,16 @@ import { createTool, ToolContext } from './tool-base.js';
 const orderIdSchema = z.object({
   orderId: z.string().min(1),
 });
+
+const checkoutSchema = z.object({}).strict();
+
+const NETS_BASE_URL =
+  process.env.NETS_BASE_URL || 'https://sandbox.nets.openapipaas.com/api/v1';
+
+const NETS_HEADERS = {
+  'api-key': process.env.NETS_SANDBOX_API_KEY,
+  'project-id': process.env.NETS_SANDBOX_PROJECT_ID,
+};
 
 const mapUploads = (uploads = []) =>
   uploads.map((upload) => ({
@@ -43,6 +54,31 @@ const mapOrderSummary = (order) => ({
   createdAt: order.createdAt,
   updatedAt: order.updatedAt,
 });
+
+const requestNetsQr = async (order) => {
+  if (!order.totalCents || order.totalCents <= 0) {
+    throw new Error('Invalid order amount.');
+  }
+
+  if (!NETS_HEADERS['api-key'] || !NETS_HEADERS['project-id']) {
+    throw new Error('NETS credentials are not configured.');
+  }
+
+  const amountDollars = (order.totalCents / 100).toFixed(2);
+  const body = {
+    txn_id: order.netsTxnId,
+    amt_in_dollars: amountDollars,
+    notify_mobile: 88286909,
+  };
+
+  const response = await axios.post(
+    `${NETS_BASE_URL}/common/payments/nets-qr/request`,
+    body,
+    { headers: NETS_HEADERS }
+  );
+
+  return response.data?.result?.data ?? null;
+};
 
 const mapOrderDetails = (orderData) => {
   if (!Array.isArray(orderData) || orderData.length < 3) {
@@ -183,6 +219,45 @@ export const createOrderTools = (context: ToolContext) => [
         return {
           orderId: order.id,
           order: mapOrderSummary(order),
+        };
+      },
+    },
+    context
+  ),
+  createTool(
+    {
+      name: 'checkout_and_pay',
+      description:
+        'Create an order from the cart and return a NETS QR payload for payment.',
+      schema: checkoutSchema,
+      handler: async () => {
+        const cart = await cartService.getCartByUserId(context.userId);
+        if (!cart || cart.length === 0) {
+          throw new Error('Your cart is empty. Add items before checking out.');
+        }
+
+        const order = await orderService.createOrderFromCart(context.userId);
+        const qrData = await requestNetsQr(order);
+        if (!qrData) {
+          throw new Error('Failed to request NETS QR.');
+        }
+
+        return {
+          order: mapOrderSummary(order),
+          payment: {
+            orderId: order.id,
+            txnRetrievalRef: qrData.txn_retrieval_ref ?? null,
+            qrCode: qrData.qr_code ?? null,
+            responseCode: qrData.response_code ?? null,
+            networkStatus: qrData.network_status ?? null,
+            txnStatus: qrData.txn_status ?? null,
+            instruction: qrData.instruction ?? null,
+            polling: {
+              url: `/api/nets-qr/query/${order.id}`,
+              intervalMs: 5000,
+              timeoutSeconds: 300,
+            },
+          },
         };
       },
     },
