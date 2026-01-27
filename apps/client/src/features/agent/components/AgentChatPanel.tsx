@@ -542,6 +542,105 @@ function ToolBubble({ message }: MessageBubbleProps) {
 function MessageBubble({ message }: MessageBubbleProps) {
   const isAssistant = message.role === 'assistant';
 
+  const renderInline = (text: string) => {
+    const parts = text.split('**');
+    if (parts.length === 1) {
+      return text;
+    }
+    return parts.map((part, index) =>
+      index % 2 === 1 ? (
+        <strong key={`bold-${index}`} className="font-semibold text-gray-900">
+          {part}
+        </strong>
+      ) : (
+        part
+      )
+    );
+  };
+
+  const formatMessageContent = (text: string) => {
+    const normalized = text.replace(/\r\n/g, '\n');
+    const lines = normalized.split('\n');
+    const blocks: Array<{ type: 'p'; text: string } | { type: 'list'; items: string[] }> =
+      [];
+    let paragraph: string[] = [];
+    let listItems: string[] | null = null;
+
+    const flushParagraph = () => {
+      if (paragraph.length) {
+        blocks.push({ type: 'p', text: paragraph.join(' ') });
+        paragraph = [];
+      }
+    };
+
+    const flushList = () => {
+      if (listItems && listItems.length) {
+        blocks.push({ type: 'list', items: listItems });
+      }
+      listItems = null;
+    };
+
+    lines.forEach((line) => {
+      const trimmed = line.trim();
+      if (!trimmed) {
+        flushParagraph();
+        flushList();
+        return;
+      }
+
+      const bulletMatch = /^[-*]\s+(.*)/.exec(trimmed);
+      if (bulletMatch) {
+        flushParagraph();
+        if (!listItems) {
+          listItems = [];
+        }
+        listItems.push(bulletMatch[1]);
+        return;
+      }
+
+      if (listItems) {
+        flushList();
+      }
+      paragraph.push(trimmed);
+    });
+
+    flushParagraph();
+    flushList();
+
+    const hasList = blocks.some((block) => block.type === 'list');
+    if (!hasList && normalized.includes(' * ')) {
+      const parts = normalized.split(/\s\*\s+/);
+      if (parts.length > 1) {
+        const prefix = parts.shift()?.trim();
+        const items = parts.map((item) => item.trim()).filter(Boolean);
+        blocks.length = 0;
+        if (prefix) {
+          blocks.push({ type: 'p', text: prefix });
+        }
+        if (items.length) {
+          blocks.push({ type: 'list', items });
+        }
+      }
+    }
+
+    return (
+      <div className="space-y-2">
+        {blocks.map((block, index) => {
+          if (block.type === 'list') {
+            return (
+              <ul key={`list-${index}`} className="list-disc space-y-1 pl-5">
+                {block.items.map((item, itemIndex) => (
+                  <li key={`item-${index}-${itemIndex}`}>{renderInline(item)}</li>
+                ))}
+              </ul>
+            );
+          }
+          return <p key={`p-${index}`}>{renderInline(block.text)}</p>;
+        })}
+      </div>
+    );
+  };
+
   if (message.kind === 'tool') {
     return (
       <div className="flex items-start gap-3">
@@ -573,7 +672,7 @@ function MessageBubble({ message }: MessageBubbleProps) {
           bg-white border border-gray-200 text-gray-800 shadow-sm
         `}
       >
-        {message.content}
+        {formatMessageContent(message.content)}
         {message.attachmentName && (
           <div className="mt-2 rounded-lg border border-gray-200 bg-gray-50 px-2 py-1 text-xs text-gray-600">
             Attachment: {message.attachmentName}

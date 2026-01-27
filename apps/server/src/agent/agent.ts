@@ -24,7 +24,7 @@ export type AgentStreamEvent =
   | { type: 'tool'; payload: unknown }
   | { type: 'error'; error: string };
 
-const DEFAULT_MODEL = process.env.GEMINI_MODEL ?? 'gemini-1.5-flash';
+const DEFAULT_MODEL = process.env.GEMINI_MODEL ?? 'gemini-2.5-flash';
 const DEFAULT_TEMPERATURE = 0.4;
 const MAX_TOOL_ITERATIONS = Number(process.env.AGENT_MAX_TOOL_ITERATIONS ?? 4);
 const DELTA_CHUNK_SIZE = 160;
