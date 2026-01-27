@@ -9,6 +9,45 @@ const logoLight = new URL(
   import.meta.url
 ).href;
 
+const TOOL_LABELS: Record<string, string> = {
+  search_entities: 'Search',
+  get_hawker_info: 'Hawker centre info',
+  get_hawker_stalls: 'Hawker centre stalls',
+  get_hawker_dishes: 'Hawker centre dishes',
+  get_stall_details: 'Stall details',
+  get_stall_gallery: 'Stall gallery',
+  get_top_voted_menu_items: 'Top voted items',
+  get_featured_menu_items_by_cuisine: 'Featured items by cuisine',
+  get_cart: 'View cart',
+  add_to_cart: 'Add to cart',
+  update_cart_item: 'Update cart item',
+  remove_cart_item: 'Remove cart item',
+  clear_cart: 'Clear cart',
+  request_nets_qr: 'Request NETS QR',
+  query_nets_qr_status: 'Check NETS payment',
+  get_dish_uploads: 'Dish uploads',
+  upvote_upload: 'Upvote upload',
+  downvote_upload: 'Downvote upload',
+  remove_upload_upvote: 'Remove upload upvote',
+  remove_upload_downvote: 'Remove upload downvote',
+  prepare_upload_photo: 'Prepare photo upload',
+  create_order_from_cart: 'Create order',
+  checkout_and_pay: 'Checkout & pay',
+  get_order_by_id: 'Order details',
+  get_my_orders: 'Order history',
+};
+
+const formatToolLabel = (name: string) => {
+  if (!name) return 'Tool';
+  if (TOOL_LABELS[name]) return TOOL_LABELS[name];
+  return name
+    .split('_')
+    .map((segment) =>
+      segment ? segment[0].toUpperCase() + segment.slice(1) : segment
+    )
+    .join(' ');
+};
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
 
 const buildApiUrl = (path: string) => {
@@ -269,6 +308,7 @@ function NetsCheckoutCard({
 function ToolBubble({ message }: MessageBubbleProps) {
   const payload = message.toolPayload as any;
   const toolName = message.toolName || payload?.toolName || 'tool';
+  const toolLabel = formatToolLabel(toolName);
   const output = payload?.output;
   const error = payload?.error;
   const uploads = Array.isArray(output)
@@ -322,7 +362,7 @@ function ToolBubble({ message }: MessageBubbleProps) {
           Tool
         </span>
         <span className="rounded-full bg-[#21421B]/10 px-2 py-1 text-xs font-semibold text-[#21421B]">
-          {toolName}
+          {toolLabel}
         </span>
       </div>
       {error ? (
