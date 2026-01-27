@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
 import { getSessionAccessToken } from '../../auth/sessionCache';
+import { useCart } from '../../orders/components/CartContext.jsx';
 
 const CHAT_ENABLED_KEY = 'eatable:agentChatEnabled';
 const CHAT_HISTORY_KEY = 'eatable:agentChatHistory';
@@ -56,6 +57,7 @@ interface AgentChatProviderProps {
 }
 
 export function AgentChatProvider({ children }: AgentChatProviderProps) {
+  const { refreshCart } = useCart();
   const [isOpen, setIsOpen] = useState(false);
   const [isEnabled, setIsEnabled] = useState(() => {
     try {
@@ -250,6 +252,16 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
 
   const handleToolEvent = async (payload: any) => {
     queueToolEvent(payload);
+    const toolName = payload?.toolName;
+    if (
+      toolName === 'get_cart' ||
+      toolName === 'add_to_cart' ||
+      toolName === 'update_cart_item' ||
+      toolName === 'remove_cart_item' ||
+      toolName === 'clear_cart'
+    ) {
+      void refreshCart();
+    }
   };
 
   const streamAgent = async ({

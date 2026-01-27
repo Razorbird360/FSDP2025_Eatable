@@ -326,7 +326,12 @@ function ToolBubble({ message }: MessageBubbleProps) {
           dishes: output.dishes ?? [],
         }
       : null;
-  const cartData = toolName === 'get_cart' && output ? output : null;
+  const cartData =
+    ['get_cart', 'add_to_cart', 'update_cart_item', 'remove_cart_item', 'clear_cart'].includes(
+      toolName
+    ) && output
+      ? output
+      : null;
   const orderSummary =
     toolName === 'create_order_from_cart' && output ? output : null;
   const orderDetails = toolName === 'get_order_by_id' && output ? output : null;

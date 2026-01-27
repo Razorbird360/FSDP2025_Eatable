@@ -7,8 +7,11 @@ const cartIdSchema = z.object({
 });
 
 const addItemSchema = z.object({
-  itemId: z.string().min(1),
-  qty: z.number().int().min(1).max(99),
+  itemId: z.string().min(1).optional(),
+  menuItemId: z.string().min(1).optional(),
+  dishId: z.string().min(1).optional(),
+  id: z.string().min(1).optional(),
+  qty: z.coerce.number().int().min(1).max(99).optional().default(1),
   request: z.string().max(500).optional(),
 });
 
@@ -90,10 +93,14 @@ export const createCartTools = (context: ToolContext) => [
       name: 'add_to_cart',
       description: 'Add a menu item to the cart.',
       schema: addItemSchema,
-      handler: async ({ itemId, qty, request }) => {
+      handler: async ({ itemId, menuItemId, dishId, id, qty, request }) => {
+        const resolvedItemId = itemId ?? menuItemId ?? dishId ?? id;
+        if (!resolvedItemId) {
+          throw new Error('Missing menu item id for cart add.');
+        }
         const result = await cartService.addItemToCart({
           userId: context.userId,
-          itemId,
+          itemId: resolvedItemId,
           qty,
           request,
         });
