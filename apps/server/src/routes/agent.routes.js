@@ -51,11 +51,17 @@ router.post('/', authMiddleware, agentRateLimit, async (req, res, next) => {
       sessionId: sessionId ?? null,
     });
 
-    for await (const delta of stream) {
+    for await (const event of stream) {
       if (closed) {
         break;
       }
-      res.write(`event: delta\ndata: ${JSON.stringify({ delta })}\n\n`);
+      if (event.type === 'delta') {
+        res.write(`event: delta\ndata: ${JSON.stringify({ delta: event.delta })}\n\n`);
+      } else if (event.type === 'tool') {
+        res.write(`event: tool\ndata: ${JSON.stringify(event.payload)}\n\n`);
+      } else if (event.type === 'error') {
+        res.write(`event: error\ndata: ${JSON.stringify({ error: event.error })}\n\n`);
+      }
     }
 
     if (!closed) {
