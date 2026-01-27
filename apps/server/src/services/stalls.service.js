@@ -83,9 +83,14 @@ export const stallsService = {
       ? Math.round(prices.reduce((sum, value) => sum + value, 0) / prices.length)
       : null;
 
+    const { _count, ...stallData } = stall;
     const menuItems = stall.menuItems || [];
     if (menuItems.length === 0) {
-      return stall;
+      return {
+        ...stallData,
+        likeCount: _count?.favoriteStalls ?? 0,
+        menuItems: [],
+      };
     }
 
     const menuItemIds = menuItems.map((item) => item.id);
@@ -132,8 +137,6 @@ export const stallsService = {
     const uploadRecencyByMenuItem = new Map(
       uploadRecency.map((row) => [row.menuItemId, row._max?.createdAt ?? null])
     );
-
-    const { _count, ...stallData } = stall;
 
     return {
       ...stallData,

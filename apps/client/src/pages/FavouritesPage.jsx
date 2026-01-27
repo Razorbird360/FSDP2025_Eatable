@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Heart } from 'lucide-react';
 import api from '@lib/api';
 import UpvoteIcon from '../features/stalls/assets/upvote.svg';
 import DownvoteIcon from '../features/stalls/assets/downvote.svg';
@@ -292,12 +291,7 @@ const FavouritesPage = () => {
 
                     <div className="flex gap-2 overflow-x-auto no-scrollbar md:overflow-visible">
                         <TabButton value="stalls">Stalls</TabButton>
-                        <TabButton value="dishes">
-                            <span className="flex items-center gap-2">
-                                <Heart className="h-4 w-4 text-rose-500" />
-                                Dishes
-                            </span>
-                        </TabButton>
+                        <TabButton value="dishes">Dishes</TabButton>
                         <TabButton value="upvotes">
                             <span className="flex items-center gap-2">
                                 <img src={UpvoteIcon} alt="Upvotes" className="h-4 w-4" />
