@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Camera, ChevronRight, CircleCheck, Dot, MapPin, TrendingUp } from 'lucide-react';
+import { Camera, ChevronRight, CircleCheck, ClipboardList, Dot, MapPin, TrendingUp } from 'lucide-react';
 import CuisineBox from "../ui/CuisineBox";
 import HeroAdvertisement from "../ui/HeroAdvertisement";
 import { Button } from "@chakra-ui/react";
@@ -287,27 +287,52 @@ function HomePage() {
                 />
               )}
 
-              <Button
-                height="44px"
-                rounded="10px"
-                width="16vw"
-                maxW="280px"
-                px={6}
-                bg="#F6FBF2"
-                borderWidth="2px"
-                borderColor="#21421B"
-                color="#21421B"
-                fontWeight="semibold"
-                fontSize="md"
-                gap="12px"
-                justifyContent="center"
-                boxShadow="0 3px 10px rgba(33, 66, 27, 0.14)"
-                _hover={{ bg: "#ECF5E7" }}
-                onClick={handleUploadClick}
-              >
-                <Camera className="h-6 w-6 text-[#21421B]" aria-hidden="true" />
-                Upload a dish photo
-              </Button>
+              {profile?.role === 'hawker' ? (
+                <Link to="/hawker/orders" className="w-full">
+                  <Button
+                    height="44px"
+                    rounded="10px"
+                    width="16vw"
+                    maxW="280px"
+                    px={6}
+                    bg="#F6FBF2"
+                    borderWidth="2px"
+                    borderColor="#21421B"
+                    color="#21421B"
+                    fontWeight="semibold"
+                    fontSize="md"
+                    gap="12px"
+                    justifyContent="center"
+                    boxShadow="0 3px 10px rgba(33, 66, 27, 0.14)"
+                    _hover={{ bg: "#ECF5E7" }}
+                  >
+                    <ClipboardList className="h-5 w-5 text-[#21421B]" aria-hidden="true" />
+                    View Orders
+                  </Button>
+                </Link>
+              ) : (
+                <Button
+                  height="44px"
+                  rounded="10px"
+                  width="16vw"
+                  maxW="280px"
+                  px={6}
+                  bg="#F6FBF2"
+                  borderWidth="2px"
+                  borderColor="#21421B"
+                  color="#21421B"
+                  fontWeight="semibold"
+                  fontSize="md"
+                  gap="12px"
+                  justifyContent="center"
+                  boxShadow="0 3px 10px rgba(33, 66, 27, 0.14)"
+                  _hover={{ bg: "#ECF5E7" }}
+                  onClick={handleUploadClick}
+                >
+                  <Camera className="h-6 w-6 text-[#21421B]" aria-hidden="true" />
+                  Upload a dish photo
+                </Button>
+              )}
             </div>
           </div>
 
@@ -434,26 +459,50 @@ function HomePage() {
                 />
               )}
 
-              <Button
-                height="56px"
-                rounded="10px"
-                w="full"
-                px={6}
-                bg="#F6FBF2"
-                borderWidth="2px"
-                borderColor="#21421B"
-                color="#21421B"
-                fontWeight="semibold"
-                fontSize="md"
-                gap="12px"
-                justifyContent="center"
-                boxShadow="0 3px 10px rgba(33, 66, 27, 0.14)"
-                _hover={{ bg: "#ECF5E7" }}
-                onClick={handleUploadClick}
-              >
-                <Camera className="h-6 w-6 text-[#21421B]" aria-hidden="true" />
-                Upload a dish photo
-              </Button>
+              {profile?.role === 'hawker' ? (
+                <Link to="/hawker/orders" className="w-full">
+                  <Button
+                    height="56px"
+                    rounded="10px"
+                    w="full"
+                    px={6}
+                    bg="#F6FBF2"
+                    borderWidth="2px"
+                    borderColor="#21421B"
+                    color="#21421B"
+                    fontWeight="semibold"
+                    fontSize="md"
+                    gap="12px"
+                    justifyContent="center"
+                    boxShadow="0 3px 10px rgba(33, 66, 27, 0.14)"
+                    _hover={{ bg: "#ECF5E7" }}
+                  >
+                    <ClipboardList className="h-5 w-5 text-[#21421B]" aria-hidden="true" />
+                    View Orders
+                  </Button>
+                </Link>
+              ) : (
+                <Button
+                  height="56px"
+                  rounded="10px"
+                  w="full"
+                  px={6}
+                  bg="#F6FBF2"
+                  borderWidth="2px"
+                  borderColor="#21421B"
+                  color="#21421B"
+                  fontWeight="semibold"
+                  fontSize="md"
+                  gap="12px"
+                  justifyContent="center"
+                  boxShadow="0 3px 10px rgba(33, 66, 27, 0.14)"
+                  _hover={{ bg: "#ECF5E7" }}
+                  onClick={handleUploadClick}
+                >
+                  <Camera className="h-6 w-6 text-[#21421B]" aria-hidden="true" />
+                  Upload a dish photo
+                </Button>
+              )}
             </div>
           </div>
 
