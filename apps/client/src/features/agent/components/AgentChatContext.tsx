@@ -15,7 +15,6 @@ export interface Message {
   content: string;
   toolName?: string;
   toolPayload?: unknown;
-  attachmentName?: string | null;
   status?: 'streaming' | 'done' | 'error';
 }
 
@@ -24,13 +23,12 @@ interface AgentChatContextType {
   isEnabled: boolean;
   isStreaming: boolean;
   messages: Message[];
-  pendingAttachment: File | null;
   openChat: () => void;
   closeChat: () => void;
   toggleChat: () => void;
   setEnabled: (enabled: boolean) => void;
   sendMessage: (content: string) => Promise<void>;
-  setPendingAttachment: (file: File | null) => void;
+  uploadPhoto: (uploadInfo: any, file: File) => Promise<boolean>;
   clearHistory: () => void;
 }
 
@@ -90,8 +88,8 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
     }
   });
   const [isStreaming, setIsStreaming] = useState(false);
-  const [pendingAttachment, setPendingAttachment] = useState<File | null>(null);
   const messagesRef = useRef<Message[]>(initialMessages);
+  const pendingToolEventsRef = useRef<any[]>([]);
 
   useEffect(() => {
     try {
@@ -229,23 +227,29 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
     return true;
   };
 
-  const handleToolEvent = async (payload: any) => {
-    const toolMessageId = appendMessage({
-      role: 'assistant',
-      kind: 'tool',
-      content: '',
-      toolName: payload?.toolName,
-      toolPayload: payload,
-      status: payload?.error ? 'error' : 'done',
-    });
+  const queueToolEvent = (payload: any) => {
+    pendingToolEventsRef.current.push(payload);
+  };
 
-    if (payload?.toolName === 'prepare_upload_photo' && pendingAttachment) {
-      const uploaded = await uploadAttachment(payload?.output?.upload, pendingAttachment);
-      if (uploaded) {
-        setPendingAttachment(null);
-      }
-      updateMessage(toolMessageId, { status: 'done' });
+  const flushToolEvents = () => {
+    if (pendingToolEventsRef.current.length === 0) {
+      return;
     }
+    pendingToolEventsRef.current.forEach((payload) => {
+      appendMessage({
+        role: 'assistant',
+        kind: 'tool',
+        content: '',
+        toolName: payload?.toolName,
+        toolPayload: payload,
+        status: payload?.error ? 'error' : 'done',
+      });
+    });
+    pendingToolEventsRef.current = [];
+  };
+
+  const handleToolEvent = async (payload: any) => {
+    queueToolEvent(payload);
   };
 
   const streamAgent = async ({
@@ -327,13 +331,11 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
     const trimmed = content.trim();
     if (!trimmed) return;
 
-    const attachmentName = pendingAttachment?.name ?? null;
     const userMessage: Message = {
       id: createMessageId(),
       role: 'user',
       kind: 'text',
       content: trimmed,
-      attachmentName,
       status: 'done',
     };
 
@@ -362,6 +364,7 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
         status: 'error',
       });
     } finally {
+      flushToolEvents();
       setIsStreaming(false);
     }
   };
@@ -369,7 +372,7 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
   const clearHistory = () => {
     setMessages(initialMessages);
     setSessionId(null);
-    setPendingAttachment(null);
+    pendingToolEventsRef.current = [];
     try {
       localStorage.removeItem(CHAT_HISTORY_KEY);
       localStorage.removeItem(CHAT_SESSION_KEY);
@@ -385,13 +388,12 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
         isEnabled,
         isStreaming,
         messages,
-        pendingAttachment,
         openChat,
         closeChat,
         toggleChat,
         setEnabled,
         sendMessage,
-        setPendingAttachment,
+        uploadPhoto: uploadAttachment,
         clearHistory,
       }}
     >

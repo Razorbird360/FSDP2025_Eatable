@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, KeyboardEvent, ChangeEvent } from 'react';
 import { Input, Box } from '@chakra-ui/react';
-import { X, Send, Paperclip, XCircle } from 'lucide-react';
+import { X, Send } from 'lucide-react';
 import { useAgentChat, Message } from './AgentChatContext';
 
 const logoLight = new URL(
@@ -10,6 +10,113 @@ const logoLight = new URL(
 
 interface MessageBubbleProps {
   message: Message;
+}
+
+function TypingDots() {
+  return (
+    <div className="flex items-center gap-1 text-gray-500">
+      <span
+        className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400"
+        style={{ animationDelay: '0ms' }}
+      />
+      <span
+        className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400"
+        style={{ animationDelay: '120ms' }}
+      />
+      <span
+        className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400"
+        style={{ animationDelay: '240ms' }}
+      />
+    </div>
+  );
+}
+
+function UploadToolCard({ uploadInfo }: { uploadInfo: any }) {
+  const { uploadPhoto } = useAgentChat();
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [status, setStatus] = useState<'idle' | 'uploading' | 'done' | 'error'>('idle');
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!selectedFile) {
+      setPreviewUrl(null);
+      return;
+    }
+
+    const nextUrl = URL.createObjectURL(selectedFile);
+    setPreviewUrl(nextUrl);
+    return () => {
+      URL.revokeObjectURL(nextUrl);
+    };
+  }, [selectedFile]);
+
+  const handleChoose = () => {
+    if (status === 'uploading') return;
+    inputRef.current?.click();
+  };
+
+  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    setSelectedFile(file);
+    setStatus('idle');
+    if (inputRef.current) {
+      inputRef.current.value = '';
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!selectedFile || !uploadInfo || status === 'uploading') return;
+    setStatus('uploading');
+    const success = await uploadPhoto(uploadInfo, selectedFile);
+    setStatus(success ? 'done' : 'error');
+  };
+
+  return (
+    <div className="mt-3 space-y-3 rounded-xl border border-gray-100 bg-white p-3">
+      <p className="text-xs font-semibold text-gray-500">Upload a dish photo</p>
+      <div className="overflow-hidden rounded-xl border border-dashed border-gray-200 bg-gray-50">
+        {previewUrl ? (
+          <img src={previewUrl} alt="Selected upload" className="h-40 w-full object-cover" />
+        ) : (
+          <div className="flex h-40 items-center justify-center text-xs text-gray-400">
+            No photo selected
+          </div>
+        )}
+      </div>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleFileChange}
+        className="hidden"
+      />
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={handleChoose}
+          className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={status === 'uploading'}
+        >
+          Choose photo
+        </button>
+        <button
+          type="button"
+          onClick={handleUpload}
+          className="flex-1 rounded-lg bg-[#21421B] px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#2d5a24] disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={!selectedFile || status === 'uploading'}
+        >
+          {status === 'uploading' ? 'Uploading…' : 'Upload photo'}
+        </button>
+      </div>
+      {status === 'done' && (
+        <p className="text-xs font-semibold text-emerald-600">Upload complete.</p>
+      )}
+      {status === 'error' && (
+        <p className="text-xs font-semibold text-red-600">Upload failed. Try again.</p>
+      )}
+    </div>
+  );
 }
 
 function ToolBubble({ message }: MessageBubbleProps) {
@@ -57,6 +164,7 @@ function ToolBubble({ message }: MessageBubbleProps) {
     null;
 
   const qrImage = qrCode ? `data:image/png;base64,${qrCode}` : null;
+  const uploadInfo = toolName === 'prepare_upload_photo' ? output?.upload : null;
 
   return (
     <div className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-800 shadow-sm">
@@ -146,6 +254,7 @@ function ToolBubble({ message }: MessageBubbleProps) {
               )}
             </div>
           )}
+          {uploadInfo && <UploadToolCard uploadInfo={uploadInfo} />}
           {cartData && (
             <div className="mt-3 space-y-3">
               {Array.isArray(cartData.cart) && cartData.cart.length > 0 ? (
@@ -672,11 +781,10 @@ function MessageBubble({ message }: MessageBubbleProps) {
           bg-white border border-gray-200 text-gray-800 shadow-sm
         `}
       >
-        {formatMessageContent(message.content)}
-        {message.attachmentName && (
-          <div className="mt-2 rounded-lg border border-gray-200 bg-gray-50 px-2 py-1 text-xs text-gray-600">
-            Attachment: {message.attachmentName}
-          </div>
+        {message.status === 'streaming' && !message.content ? (
+          <TypingDots />
+        ) : (
+          formatMessageContent(message.content)
         )}
       </div>
     </div>
@@ -690,12 +798,9 @@ export default function AgentChatPanel() {
     closeChat,
     sendMessage,
     isStreaming,
-    pendingAttachment,
-    setPendingAttachment,
   } = useAgentChat();
   const [inputValue, setInputValue] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -704,23 +809,10 @@ export default function AgentChatPanel() {
 
   const handleSend = async () => {
     const trimmed = inputValue.trim();
-    if (!trimmed && !pendingAttachment) return;
+    if (!trimmed) return;
 
-    const message = trimmed || 'Please upload this photo.';
     setInputValue('');
-    await sendMessage(message);
-  };
-
-  const handleAttachClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleAttachmentChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0] ?? null;
-    setPendingAttachment(file);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
+    await sendMessage(trimmed);
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -795,22 +887,6 @@ export default function AgentChatPanel() {
             _focus={{ borderColor: '#21421B', boxShadow: 'none', bg: 'white' }}
           />
         </Box>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          onChange={handleAttachmentChange}
-          className="hidden"
-        />
-        <button
-          type="button"
-          onClick={handleAttachClick}
-          aria-label="Attach photo"
-          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-600 transition-colors hover:bg-gray-50"
-          disabled={isStreaming}
-        >
-          <Paperclip className="h-5 w-5" />
-        </button>
         <button
           type="button"
           onClick={handleSend}
@@ -821,19 +897,6 @@ export default function AgentChatPanel() {
           <Send className="h-5 w-5" />
         </button>
       </div>
-      {pendingAttachment && (
-        <div className="flex items-center justify-between gap-2 border-t border-gray-200 bg-white px-4 py-2 text-xs text-gray-600">
-          <span className="truncate">Ready to upload: {pendingAttachment.name}</span>
-          <button
-            type="button"
-            onClick={() => setPendingAttachment(null)}
-            className="flex items-center gap-1 text-gray-500 hover:text-gray-700"
-          >
-            <XCircle className="h-4 w-4" />
-            Remove
-          </button>
-        </div>
-      )}
     </div>
   );
 }
