@@ -25,6 +25,7 @@ const buildApiUrl = (path: string) => {
 
 interface MessageBubbleProps {
   message: Message;
+  introTyping?: boolean;
 }
 
 function TypingDots() {
@@ -793,8 +794,10 @@ function ToolBubble({ message }: MessageBubbleProps) {
   );
 }
 
-function MessageBubble({ message }: MessageBubbleProps) {
+function MessageBubble({ message, introTyping = false }: MessageBubbleProps) {
   const isAssistant = message.role === 'assistant';
+  const isTyping =
+    introTyping || (message.status === 'streaming' && !message.content);
 
   const renderInline = (text: string) => {
     const parts = text.split('**');
@@ -906,8 +909,6 @@ function MessageBubble({ message }: MessageBubbleProps) {
     );
   }
 
-  const isTyping = message.status === 'streaming' && !message.content;
-
   return (
     <div className={`flex items-start gap-3 ${isAssistant ? '' : 'flex-row-reverse'}`}>
       {/* Avatar */}
@@ -948,12 +949,41 @@ export default function AgentChatPanel() {
     isStreaming,
   } = useAgentChat();
   const [inputValue, setInputValue] = useState('');
+  const [introPhase, setIntroPhase] = useState<'idle' | 'typing' | 'reveal'>(
+    'idle'
+  );
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setIntroPhase('idle');
+      return;
+    }
+
+    const introMessage =
+      messages.length === 1 &&
+      messages[0]?.role === 'assistant' &&
+      messages[0]?.content === 'Hello! 👋 What are you hungry for today?';
+
+    if (!introMessage) {
+      setIntroPhase('idle');
+      return;
+    }
+
+    setIntroPhase('typing');
+    const timer = window.setTimeout(() => {
+      setIntroPhase('reveal');
+    }, 700);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [isOpen, messages]);
 
   const handleSend = async () => {
     const trimmed = inputValue.trim();
@@ -1007,8 +1037,12 @@ export default function AgentChatPanel() {
 
       {/* Messages area */}
       <div className="h-[400px] overflow-y-auto px-4 py-4 space-y-4 bg-gray-50">
-        {messages.map((msg) => (
-          <MessageBubble key={msg.id} message={msg} />
+        {messages.map((msg, index) => (
+          <MessageBubble
+            key={msg.id}
+            message={msg}
+            introTyping={introPhase === 'typing' && index === 0}
+          />
         ))}
         <div ref={messagesEndRef} />
       </div>
