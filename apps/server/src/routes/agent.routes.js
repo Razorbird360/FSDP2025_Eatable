@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { authMiddleware } from '../middleware/auth.middleware.js';
 import { streamAgentResponse } from '../agent/agent.ts';
+import { agentRateLimit } from '../middleware/agent-rate-limit.ts';
 
 const router = Router();
 
@@ -10,7 +11,7 @@ const isValidMessage = (message) =>
   typeof message.role === 'string' &&
   typeof message.content === 'string';
 
-router.post('/', authMiddleware, async (req, res, next) => {
+router.post('/', authMiddleware, agentRateLimit, async (req, res, next) => {
   try {
     const { messages, sessionId } = req.body || {};
 
@@ -62,7 +63,12 @@ router.post('/', authMiddleware, async (req, res, next) => {
       res.end();
     }
   } catch (error) {
-    res.write(`event: error\ndata: ${JSON.stringify({ error: error.message })}\n\n`);
+    console.error('Agent stream failed:', error);
+    res.write(
+      `event: error\ndata: ${JSON.stringify({
+        error: 'Agent request failed. Please try again.',
+      })}\n\n`
+    );
     res.end();
     if (!res.headersSent) {
       next(error);
