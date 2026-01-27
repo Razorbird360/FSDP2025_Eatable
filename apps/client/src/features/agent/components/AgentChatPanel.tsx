@@ -761,6 +761,8 @@ function MessageBubble({ message }: MessageBubbleProps) {
     );
   }
 
+  const isTyping = message.status === 'streaming' && !message.content;
+
   return (
     <div className={`flex items-start gap-3 ${isAssistant ? '' : 'flex-row-reverse'}`}>
       {/* Avatar */}
@@ -779,9 +781,10 @@ function MessageBubble({ message }: MessageBubbleProps) {
         className={`
           max-w-[75%] rounded-2xl px-4 py-3 text-[15px] leading-relaxed
           bg-white border border-gray-200 text-gray-800 shadow-sm
+          ${isTyping ? 'h-12 py-0 flex items-center' : ''}
         `}
       >
-        {message.status === 'streaming' && !message.content ? (
+        {isTyping ? (
           <TypingDots />
         ) : (
           formatMessageContent(message.content)
