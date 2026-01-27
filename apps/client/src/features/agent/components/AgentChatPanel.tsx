@@ -449,9 +449,11 @@ function ToolBubble({ message }: MessageBubbleProps) {
           {orderSummary && (
             <div className="mt-3 space-y-2 rounded-xl border border-gray-100 bg-white p-3">
               <p className="text-xs font-semibold text-gray-500">Order created</p>
-              <p className="text-sm font-semibold text-gray-700">
-                Order #{orderSummary.order?.orderCode || orderSummary.orderId}
-              </p>
+              {orderSummary.order?.orderCode && (
+                <p className="text-sm font-semibold text-gray-700">
+                  Order #{orderSummary.order.orderCode}
+                </p>
+              )}
               {orderSummary.order?.totalCents != null && (
                 <p className="text-xs text-gray-500">
                   Total: ${(orderSummary.order.totalCents / 100).toFixed(2)}
