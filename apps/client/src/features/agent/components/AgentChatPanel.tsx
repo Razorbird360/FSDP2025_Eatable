@@ -634,14 +634,6 @@ function ToolBubble({ message }: MessageBubbleProps) {
               />
             </div>
           )}
-          <details className="mt-3 text-xs text-gray-500">
-            <summary className="cursor-pointer select-none text-gray-600">
-              View details
-            </summary>
-            <pre className="mt-2 whitespace-pre-wrap break-words rounded-lg bg-gray-50 p-2 text-[11px] text-gray-600">
-              {JSON.stringify(payload, null, 2)}
-            </pre>
-          </details>
         </>
       )}
     </div>
