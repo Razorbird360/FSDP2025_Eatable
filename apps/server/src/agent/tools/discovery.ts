@@ -64,6 +64,9 @@ const mapMenuItemTagAggs = (aggs = []) =>
       : null,
   }));
 
+const resolveMenuItemImage = (item) =>
+  item.imageUrl ?? item.mediaUploads?.[0]?.imageUrl ?? null;
+
 export const createDiscoveryTools = (context: ToolContext) => [
   createTool(
     {
@@ -167,7 +170,7 @@ export const createDiscoveryTools = (context: ToolContext) => [
           category: dish.category ?? null,
           prepTimeMins: dish.prepTimeMins ?? null,
           isActive: dish.isActive,
-          imageUrl: dish.imageUrl ?? null,
+          imageUrl: resolveMenuItemImage(dish),
           createdAt: dish.createdAt,
           updatedAt: dish.updatedAt,
           mediaUploads: mapUploads(dish.mediaUploads),
@@ -217,7 +220,7 @@ export const createDiscoveryTools = (context: ToolContext) => [
             isActive: item.isActive,
             createdAt: item.createdAt,
             updatedAt: item.updatedAt,
-            imageUrl: item.imageUrl ?? null,
+            imageUrl: resolveMenuItemImage(item),
             mediaUploads: mapUploads(item.mediaUploads),
             menuItemTagAggs: mapMenuItemTagAggs(item.menuItemTagAggs),
           })),
