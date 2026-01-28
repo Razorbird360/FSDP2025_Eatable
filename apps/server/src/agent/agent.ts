@@ -29,8 +29,8 @@ const DEFAULT_TEMPERATURE = 0.4;
 const MAX_TOOL_ITERATIONS = Number(process.env.AGENT_MAX_TOOL_ITERATIONS ?? 4);
 const DELTA_CHUNK_SIZE = 160;
 const UPLOAD_TOOL_NAMES = new Set(['get_stall_gallery', 'get_dish_uploads']);
-const UPLOAD_TOOL_FALLBACK =
-  'Here are the community uploads below.';
+const UPLOAD_TOOL_FALLBACK = 'Here are the community uploads below.';
+const UPLOAD_TOOL_EMPTY_FALLBACK = 'No community uploads yet.';
 
 const BASE_SYSTEM_PROMPT = [
   'You are the Eatable assistant.',
@@ -219,6 +219,7 @@ export async function* streamAgentResponse({
     ...userMessages.map(toLangChainMessage).filter(Boolean),
   ];
   let forceUploadResponse = false;
+  let lastUploadHadResults: boolean | null = null;
 
   for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration += 1) {
     const response = await model.invoke(conversation);
@@ -227,7 +228,10 @@ export async function* streamAgentResponse({
     if (!toolCalls.length) {
       let responseText = normalizeMessageContent(response);
       if (forceUploadResponse) {
-        responseText = UPLOAD_TOOL_FALLBACK;
+        responseText =
+          lastUploadHadResults === false
+            ? UPLOAD_TOOL_EMPTY_FALLBACK
+            : UPLOAD_TOOL_FALLBACK;
       } else {
         const stripped = stripExternalUrls(responseText);
         responseText = stripped || responseText;
@@ -291,6 +295,16 @@ export async function* streamAgentResponse({
       }
       if (UPLOAD_TOOL_NAMES.has(call.name)) {
         forceUploadResponse = true;
+        if (output && typeof output === 'object') {
+          const resultArray = Array.isArray(output)
+            ? output
+            : Array.isArray(output.uploads)
+              ? output.uploads
+              : [];
+          lastUploadHadResults = resultArray.length > 0;
+        } else {
+          lastUploadHadResults = false;
+        }
       }
       conversation.push(
         new ToolMessage({
