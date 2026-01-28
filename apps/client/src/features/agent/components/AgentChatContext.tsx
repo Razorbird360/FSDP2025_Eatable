@@ -93,7 +93,7 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
   });
   const [isStreaming, setIsStreaming] = useState(false);
   const messagesRef = useRef<Message[]>(initialMessages);
-  const pendingToolEventsRef = useRef<any[]>([]);
+  const streamingAssistantRef = useRef<string | null>(null);
   const isCustomer =
     status === 'authenticated' && profile?.role === 'user' && Boolean(profile?.id);
   const isEnabledEffective = isCustomer && isEnabled;
@@ -246,29 +246,34 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
     return true;
   };
 
-  const queueToolEvent = (payload: any) => {
-    pendingToolEventsRef.current.push(payload);
-  };
+  const insertToolMessage = (payload: any, assistantId?: string | null) => {
+    const toolMessage: Message = {
+      id: createMessageId(),
+      role: 'assistant',
+      kind: 'tool',
+      content: '',
+      toolName: payload?.toolName,
+      toolPayload: payload,
+      status: payload?.error ? 'error' : 'done',
+    };
 
-  const flushToolEvents = () => {
-    if (pendingToolEventsRef.current.length === 0) {
-      return;
-    }
-    pendingToolEventsRef.current.forEach((payload) => {
-      appendMessage({
-        role: 'assistant',
-        kind: 'tool',
-        content: '',
-        toolName: payload?.toolName,
-        toolPayload: payload,
-        status: payload?.error ? 'error' : 'done',
-      });
+    setMessages((prev) => {
+      const anchorId = assistantId ?? streamingAssistantRef.current;
+      if (!anchorId) {
+        return [...prev, toolMessage];
+      }
+      const assistantIndex = prev.findIndex((message) => message.id === anchorId);
+      if (assistantIndex === -1) {
+        return [...prev, toolMessage];
+      }
+      const next = [...prev];
+      next.splice(assistantIndex, 0, toolMessage);
+      return next;
     });
-    pendingToolEventsRef.current = [];
   };
 
-  const handleToolEvent = async (payload: any) => {
-    queueToolEvent(payload);
+  const handleToolEvent = async (payload: any, assistantId?: string) => {
+    insertToolMessage(payload, assistantId);
     const toolName = payload?.toolName;
     if (
       toolName === 'get_cart' ||
@@ -359,7 +364,7 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
           } else if (eventType === 'delta') {
             appendDelta(assistantId, payload?.delta ?? payload?.content ?? '');
           } else if (eventType === 'tool' || eventType === 'tool_result') {
-            void handleToolEvent(payload);
+            void handleToolEvent(payload, assistantId);
           } else if (eventType === 'error') {
             updateMessage(assistantId, {
               content: payload?.error || 'Something went wrong.',
@@ -400,6 +405,7 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
     const nextMessages = [...messagesRef.current, userMessage];
     setMessages([...nextMessages, assistantMessage]);
     setIsStreaming(true);
+    streamingAssistantRef.current = assistantId;
 
     try {
       await streamAgent({
@@ -413,15 +419,15 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
         status: 'error',
       });
     } finally {
-      flushToolEvents();
       setIsStreaming(false);
+      streamingAssistantRef.current = null;
     }
   };
 
   const clearHistory = () => {
     setMessages(initialMessages);
     setSessionId(null);
-    pendingToolEventsRef.current = [];
+    streamingAssistantRef.current = null;
     try {
       localStorage.removeItem(CHAT_HISTORY_KEY);
       localStorage.removeItem(CHAT_SESSION_KEY);

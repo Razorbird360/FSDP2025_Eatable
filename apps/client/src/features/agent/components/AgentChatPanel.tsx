@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, KeyboardEvent, ChangeEvent } from 'react';
 import { Input, Box } from '@chakra-ui/react';
-import { X, Send } from 'lucide-react';
+import { X, Send, ChevronDown } from 'lucide-react';
 import { useAgentChat, Message } from './AgentChatContext';
 import { getSessionAccessToken } from '../../auth/sessionCache';
 
@@ -307,6 +307,7 @@ function NetsCheckoutCard({
 }
 
 function ToolBubble({ message }: MessageBubbleProps) {
+  const [showDetails, setShowDetails] = useState(false);
   const payload = message.toolPayload as any;
   const toolName = message.toolName || payload?.toolName || 'tool';
   const toolLabel = formatToolLabel(toolName);
@@ -363,6 +364,7 @@ function ToolBubble({ message }: MessageBubbleProps) {
   const uploadInfo = toolName === 'prepare_upload_photo' ? output?.upload : null;
   const checkoutOrder = toolName === 'checkout_and_pay' ? output?.order : null;
   const checkoutPayment = toolName === 'checkout_and_pay' ? output?.payment : null;
+  const canToggleDetails = !error;
 
   return (
     <div className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-800 shadow-sm">
@@ -370,14 +372,36 @@ function ToolBubble({ message }: MessageBubbleProps) {
         <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
           Tool
         </span>
-        <span className="rounded-full bg-[#21421B]/10 px-2 py-1 text-xs font-semibold text-[#21421B]">
-          {toolLabel}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="rounded-full bg-[#21421B]/10 px-2 py-1 text-xs font-semibold text-[#21421B]">
+            {toolLabel}
+          </span>
+        </div>
       </div>
+      {canToggleDetails && (
+        <button
+          type="button"
+          className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-gray-500 transition-colors hover:text-gray-700"
+          onClick={() => setShowDetails((prev) => !prev)}
+        >
+          {showDetails ? 'Hide details' : 'Show details'}
+          <ChevronDown
+            className={`h-3.5 w-3.5 transition-transform duration-200 ${
+              showDetails ? 'rotate-180' : ''
+            }`}
+          />
+        </button>
+      )}
       {error ? (
         <p className="mt-2 text-sm text-red-600">{error}</p>
       ) : (
-        <>
+        <div
+          className={`overflow-hidden transition-all duration-300 ease-out ${
+            showDetails ? 'max-h-[2200px] opacity-100' : 'max-h-0 opacity-0'
+          }`}
+          aria-hidden={!showDetails}
+        >
+          <div className={showDetails ? 'mt-2' : ''}>
           {searchResults && (
             <div className="mt-3 space-y-4">
               {['hawkerCentres', 'stalls', 'dishes'].every(
@@ -837,7 +861,8 @@ function ToolBubble({ message }: MessageBubbleProps) {
               />
             </div>
           )}
-        </>
+          </div>
+        </div>
       )}
     </div>
   );
