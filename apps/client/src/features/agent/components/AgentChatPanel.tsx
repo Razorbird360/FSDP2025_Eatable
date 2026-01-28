@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, KeyboardEvent, ChangeEvent } from 'react';
+import { useState, useRef, useEffect, useMemo, KeyboardEvent, ChangeEvent } from 'react';
 import { Input, Box } from '@chakra-ui/react';
 import { X, Send, ChevronDown, ImagePlus } from 'lucide-react';
 import { useAgentChat, Message } from './AgentChatContext';
@@ -1063,7 +1063,10 @@ export default function AgentChatPanel() {
     sendMessage,
     isStreaming,
   } = useAgentChat();
-  const visibleMessages = messages.filter((message) => !message.hidden);
+  const visibleMessages = useMemo(
+    () => messages.filter((message) => !message.hidden),
+    [messages]
+  );
   const [inputValue, setInputValue] = useState('');
   const [introPhase, setIntroPhase] = useState<'idle' | 'typing' | 'reveal'>(
     'idle'
@@ -1081,10 +1084,11 @@ export default function AgentChatPanel() {
       return;
     }
 
+    const firstMessage = visibleMessages[0];
     const introMessage =
       visibleMessages.length === 1 &&
-      visibleMessages[0]?.role === 'assistant' &&
-      visibleMessages[0]?.content === 'Hello! 👋 What are you hungry for today?';
+      firstMessage?.role === 'assistant' &&
+      firstMessage?.content === 'Hello! 👋 What are you hungry for today?';
 
     if (!introMessage) {
       setIntroPhase('idle');
@@ -1099,7 +1103,12 @@ export default function AgentChatPanel() {
     return () => {
       window.clearTimeout(timer);
     };
-  }, [isOpen, visibleMessages]);
+  }, [
+    isOpen,
+    visibleMessages.length,
+    visibleMessages[0]?.role,
+    visibleMessages[0]?.content,
+  ]);
 
   const handleSend = async () => {
     const trimmed = inputValue.trim();

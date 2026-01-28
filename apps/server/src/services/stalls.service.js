@@ -114,6 +114,23 @@ export const stallsService = {
     };
   },
 
+  async findByNameOrLocation(query) {
+    if (!query) return null;
+    return await prisma.stall.findFirst({
+      where: {
+        OR: [
+          { name: { contains: query, mode: 'insensitive' } },
+          { location: { contains: query, mode: 'insensitive' } },
+        ],
+      },
+      select: {
+        id: true,
+        name: true,
+        location: true,
+      },
+    });
+  },
+
 
   async create(data) {
     return await prisma.stall.create({

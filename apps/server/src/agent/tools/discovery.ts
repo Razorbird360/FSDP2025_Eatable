@@ -71,6 +71,40 @@ const mapMenuItemTagAggs = (aggs = []) =>
 const resolveMenuItemImage = (item) =>
   item.imageUrl ?? item.mediaUploads?.[0]?.imageUrl ?? null;
 
+const isUuid = (value: string) => z.string().uuid().safeParse(value).success;
+
+const normalizeStallQuery = (value: string) => {
+  const trimmed = value.trim();
+  if (!trimmed) return trimmed;
+  const withoutParen = trimmed.replace(/\s*\([^)]*\)\s*/g, ' ').trim();
+  const withoutDash = withoutParen.split(' - ')[0]?.trim() ?? withoutParen;
+  return withoutDash;
+};
+
+const resolveStallId = async (stallIdOrName: string) => {
+  if (!stallIdOrName || typeof stallIdOrName !== 'string') return null;
+  if (isUuid(stallIdOrName)) return stallIdOrName;
+
+  const candidates = Array.from(
+    new Set([normalizeStallQuery(stallIdOrName), stallIdOrName].filter(Boolean))
+  );
+
+  for (const candidate of candidates) {
+    const results = await searchService.search(candidate, 5);
+    const lowered = candidate.toLowerCase();
+    const exact = results.stalls.find(
+      (stall) => stall.name?.toLowerCase() === lowered
+    );
+    const match = (exact ?? results.stalls[0])?.id ?? null;
+    if (match) return match;
+
+    const fallback = await stallsService.findByNameOrLocation(candidate);
+    if (fallback?.id) return fallback.id;
+  }
+
+  return null;
+};
+
 export const createDiscoveryTools = (context: ToolContext) => [
   createTool(
     {
@@ -216,7 +250,11 @@ export const createDiscoveryTools = (context: ToolContext) => [
       description: 'Fetch a stall and its active menu items.',
       schema: stallSchema,
       handler: async ({ stallId }) => {
-        const stall = await stallsService.getById(stallId);
+        const resolvedId = await resolveStallId(stallId);
+        if (!resolvedId) {
+          throw new Error('Stall not found.');
+        }
+        const stall = await stallsService.getById(resolvedId);
         if (!stall) {
           return null;
         }
@@ -265,7 +303,11 @@ export const createDiscoveryTools = (context: ToolContext) => [
       description: 'Fetch approved community uploads for a stall.',
       schema: stallSchema,
       handler: async ({ stallId }) => {
-        const uploads = await stallsService.getApprovedMediaByStallId(stallId);
+        const resolvedId = await resolveStallId(stallId);
+        if (!resolvedId) {
+          throw new Error('Stall not found.');
+        }
+        const uploads = await stallsService.getApprovedMediaByStallId(resolvedId);
         return uploads.map((upload) => ({
           id: upload.id,
           menuItemId: upload.menuItemId,
