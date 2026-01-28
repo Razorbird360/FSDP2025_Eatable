@@ -28,6 +28,9 @@ const DEFAULT_MODEL = process.env.GEMINI_MODEL ?? 'gemini-2.5-flash';
 const DEFAULT_TEMPERATURE = 0.4;
 const MAX_TOOL_ITERATIONS = Number(process.env.AGENT_MAX_TOOL_ITERATIONS ?? 4);
 const DELTA_CHUNK_SIZE = 160;
+const UPLOAD_TOOL_NAMES = new Set(['get_stall_gallery', 'get_dish_uploads']);
+const UPLOAD_TOOL_FALLBACK =
+  'Here are the community uploads below.';
 
 const BASE_SYSTEM_PROMPT = [
   'You are the Eatable assistant.',
@@ -37,6 +40,7 @@ const BASE_SYSTEM_PROMPT = [
   'If the user asks for popular stalls, use get_popular_stalls.',
   'If the user asks for stalls from top-voted dishes, prefer get_popular_stalls over listing dishes.',
   'When using prepare_upload_photo, do not list raw upload fields. Ask the user to upload via the UI card.',
+  'When using get_dish_uploads or get_stall_gallery, do not say you cannot show images. Tell the user to see the uploads below.',
   'When a user wants to checkout or pay, use checkout_and_pay to create the order and show payment QR.',
   'After tool responses, summarize in a friendly, structured reply.',
 ].join(' ');
@@ -116,6 +120,9 @@ const normalizeChunkContent = (content: unknown) => {
 const normalizeMessageContent = (message: AIMessage) => {
   return normalizeChunkContent(message.content);
 };
+
+const stripExternalUrls = (text: string) =>
+  text.replace(/https?:\/\/\S+/gi, '').replace(/\s{2,}/g, ' ').trim();
 
 const extractToolCalls = (message: AIMessage) => {
   const direct = (message as AIMessage & { tool_calls?: unknown }).tool_calls;
@@ -211,13 +218,23 @@ export async function* streamAgentResponse({
     new SystemMessage(buildSystemPrompt(capabilities)),
     ...userMessages.map(toLangChainMessage).filter(Boolean),
   ];
+  let forceUploadResponse = false;
 
   for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration += 1) {
     const response = await model.invoke(conversation);
     const toolCalls = extractToolCalls(response);
 
     if (!toolCalls.length) {
-      const responseText = normalizeMessageContent(response);
+      let responseText = normalizeMessageContent(response);
+      if (forceUploadResponse) {
+        responseText = UPLOAD_TOOL_FALLBACK;
+      } else {
+        const stripped = stripExternalUrls(responseText);
+        responseText = stripped || responseText;
+        if (!responseText.trim()) {
+          responseText = UPLOAD_TOOL_FALLBACK;
+        }
+      }
       const chunks = chunkText(responseText);
       if (chunks.length === 0) {
         yield { type: 'delta', delta: '' };
@@ -271,6 +288,9 @@ export async function* streamAgentResponse({
         );
         yield { type: 'tool', payload };
         continue;
+      }
+      if (UPLOAD_TOOL_NAMES.has(call.name)) {
+        forceUploadResponse = true;
       }
       conversation.push(
         new ToolMessage({

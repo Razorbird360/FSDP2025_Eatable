@@ -19,6 +19,7 @@ export interface Message {
   toolPayload?: unknown;
   status?: 'streaming' | 'done' | 'error';
   hidden?: boolean;
+  displayContent?: string;
 }
 
 interface AgentChatContextType {
@@ -95,6 +96,10 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
   const [isStreaming, setIsStreaming] = useState(false);
   const messagesRef = useRef<Message[]>(initialMessages);
   const streamingAssistantRef = useRef<string | null>(null);
+  const lastSelectionRef = useRef<{
+    type: 'stall';
+    items: Array<{ id: string; label: string }>;
+  } | null>(null);
   const isCustomer =
     status === 'authenticated' && profile?.role === 'user' && Boolean(profile?.id);
   const isEnabledEffective = isCustomer && isEnabled;
@@ -267,8 +272,53 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
     });
   };
 
+  const buildStallOptions = (items: any[]) =>
+    items
+      .map((stall) => {
+        if (!stall?.id || !stall?.name) return null;
+        const parts = [stall.name];
+        if (stall.location) {
+          parts.push(stall.location);
+        } else if (stall.hawkerCentre?.name) {
+          parts.push(stall.hawkerCentre.name);
+        }
+        return {
+          id: stall.id,
+          label: parts.filter(Boolean).join(' • '),
+        };
+      })
+      .filter(Boolean) as Array<{ id: string; label: string }>;
+
+  const updateSelectionContext = (payload: any) => {
+    if (!payload || payload?.error) return;
+    const toolName = payload?.toolName;
+    const output = payload?.output;
+
+    if (toolName === 'search_entities' && output?.stalls) {
+      const options = buildStallOptions(output.stalls);
+      if (options.length) {
+        lastSelectionRef.current = { type: 'stall', items: options };
+      }
+      return;
+    }
+
+    if (
+      toolName === 'list_stalls' ||
+      toolName === 'get_hawker_stalls' ||
+      toolName === 'get_popular_stalls'
+    ) {
+      if (Array.isArray(output)) {
+        const options = buildStallOptions(output);
+        if (options.length) {
+          lastSelectionRef.current = { type: 'stall', items: options };
+        }
+      }
+    }
+  };
+
   const handleToolEvent = async (payload: any, assistantId?: string) => {
     insertToolMessage(payload, assistantId);
+    updateSelectionContext(payload);
     const toolName = payload?.toolName;
     if (
       toolName === 'get_cart' ||
@@ -380,13 +430,26 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
     const trimmed = content.trim();
     if (!trimmed) return;
 
+    let payloadContent = trimmed;
+    let displayContent: string | undefined;
+    const selection = lastSelectionRef.current;
+    if (/^\d+$/.test(trimmed) && selection?.items?.length) {
+      const index = Number(trimmed) - 1;
+      const selected = selection.items[index];
+      if (selected) {
+        payloadContent = `Selected stall: ${selected.label} (stallId: ${selected.id}).`;
+        displayContent = trimmed;
+      }
+    }
+
     const userMessage: Message = {
       id: createMessageId(),
       role: 'user',
       kind: 'text',
-      content: trimmed,
+      content: payloadContent,
       status: 'done',
       hidden: options?.silent ?? false,
+      displayContent,
     };
 
     const assistantId = createMessageId();

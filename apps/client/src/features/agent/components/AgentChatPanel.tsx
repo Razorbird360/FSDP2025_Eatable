@@ -315,9 +315,11 @@ function NetsCheckoutCard({
 }
 
 function ToolBubble({ message }: MessageBubbleProps) {
-  const [showDetails, setShowDetails] = useState(false);
   const payload = message.toolPayload as any;
   const toolName = message.toolName || payload?.toolName || 'tool';
+  const isUploadTool =
+    toolName === 'get_dish_uploads' || toolName === 'get_stall_gallery';
+  const [showDetails, setShowDetails] = useState(isUploadTool);
   const toolLabel = formatToolLabel(toolName);
   const output = payload?.output;
   const error = payload?.error;
@@ -1048,7 +1050,7 @@ function MessageBubble({ message, introTyping = false }: MessageBubbleProps) {
         {isTyping ? (
           <TypingDots />
         ) : (
-          formatMessageContent(message.content)
+          formatMessageContent(message.displayContent ?? message.content)
         )}
       </div>
     </div>
@@ -1189,6 +1191,7 @@ export default function AgentChatPanel() {
             fontSize="sm"
             height="48px"
             paddingLeft="1rem"
+            paddingRight="1rem"
             _placeholder={{ color: '#6d7f68' }}
             _hover={{ bg: 'white', borderColor: '#21421B' }}
             _focus={{ borderColor: '#21421B', boxShadow: 'none', bg: 'white' }}
