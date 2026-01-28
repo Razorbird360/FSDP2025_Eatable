@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
 import { getSessionAccessToken } from '../../auth/sessionCache';
 import { useCart } from '../../orders/components/CartContext.jsx';
+import { useAuth } from '../../auth/useAuth';
 
 const CHAT_ENABLED_KEY = 'eatable:agentChatEnabled';
 const CHAT_HISTORY_KEY = 'eatable:agentChatHistory';
@@ -57,6 +58,7 @@ interface AgentChatProviderProps {
 }
 
 export function AgentChatProvider({ children }: AgentChatProviderProps) {
+  const { profile, status } = useAuth();
   const { refreshCart } = useCart();
   const [isOpen, setIsOpen] = useState(false);
   const [isEnabled, setIsEnabled] = useState(() => {
@@ -92,6 +94,15 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
   const [isStreaming, setIsStreaming] = useState(false);
   const messagesRef = useRef<Message[]>(initialMessages);
   const pendingToolEventsRef = useRef<any[]>([]);
+  const isCustomer =
+    status === 'authenticated' && profile?.role === 'user' && Boolean(profile?.id);
+  const isEnabledEffective = isCustomer && isEnabled;
+
+  useEffect(() => {
+    if (!isCustomer && isOpen) {
+      setIsOpen(false);
+    }
+  }, [isCustomer, isOpen]);
 
   useEffect(() => {
     try {
@@ -122,9 +133,15 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
     }
   }, [sessionId]);
 
-  const openChat = () => setIsOpen(true);
+  const openChat = () => {
+    if (!isCustomer) return;
+    setIsOpen(true);
+  };
   const closeChat = () => setIsOpen(false);
-  const toggleChat = () => setIsOpen((prev) => !prev);
+  const toggleChat = () => {
+    if (!isCustomer) return;
+    setIsOpen((prev) => !prev);
+  };
 
   const setEnabled = (enabled: boolean) => {
     setIsEnabled(enabled);
@@ -358,6 +375,7 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
 
   const sendMessage = async (content: string) => {
     if (isStreaming) return;
+    if (!isCustomer) return;
 
     const trimmed = content.trim();
     if (!trimmed) return;
@@ -416,7 +434,7 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
     <AgentChatContext.Provider
       value={{
         isOpen,
-        isEnabled,
+        isEnabled: isEnabledEffective,
         isStreaming,
         messages,
         openChat,

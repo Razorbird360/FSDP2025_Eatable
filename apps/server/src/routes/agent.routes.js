@@ -3,6 +3,7 @@ import { authMiddleware } from '../middleware/auth.middleware.js';
 import { getAgentCapabilities, streamAgentResponse } from '../agent/agent.ts';
 import { agentRateLimit } from '../middleware/agent-rate-limit.ts';
 import { createToolRegistry } from '../agent/tools/index.ts';
+import { customerMiddleware } from '../middleware/customer.middleware.js';
 
 const router = Router();
 
@@ -12,7 +13,12 @@ const isValidMessage = (message) =>
   typeof message.role === 'string' &&
   typeof message.content === 'string';
 
-router.post('/', authMiddleware, agentRateLimit, async (req, res, next) => {
+router.post(
+  '/',
+  authMiddleware,
+  customerMiddleware,
+  agentRateLimit,
+  async (req, res, next) => {
   try {
     const { messages, sessionId } = req.body || {};
 
@@ -81,9 +87,10 @@ router.post('/', authMiddleware, agentRateLimit, async (req, res, next) => {
       next(error);
     }
   }
-});
+  }
+);
 
-router.get('/health', authMiddleware, (req, res) => {
+router.get('/health', authMiddleware, customerMiddleware, (req, res) => {
   const capabilities = getAgentCapabilities();
   const tools = createToolRegistry(
     { userId: req.user.id, sessionId: null },
