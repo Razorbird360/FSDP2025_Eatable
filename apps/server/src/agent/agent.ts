@@ -29,13 +29,35 @@ const DEFAULT_TEMPERATURE = 0.4;
 const MAX_TOOL_ITERATIONS = Number(process.env.AGENT_MAX_TOOL_ITERATIONS ?? 4);
 const DELTA_CHUNK_SIZE = 160;
 
-const SYSTEM_PROMPT = [
+const BASE_SYSTEM_PROMPT = [
   'You are the Eatable assistant.',
   'Keep responses concise and ask clarifying questions when needed.',
   'Use available tools to fetch up-to-date menu, stall, cart, and order data.',
   'When a user wants to checkout or pay, use checkout_and_pay to create the order and show payment QR.',
   'After tool responses, summarize in a friendly, structured reply.',
 ].join(' ');
+
+export type AgentCapabilities = {
+  geminiConfigured: boolean;
+  netsEnabled: boolean;
+};
+
+export const getAgentCapabilities = (): AgentCapabilities => ({
+  geminiConfigured: Boolean(process.env.GEMINI_API_KEY),
+  netsEnabled: Boolean(
+    process.env.NETS_SANDBOX_API_KEY && process.env.NETS_SANDBOX_PROJECT_ID
+  ),
+});
+
+const buildSystemPrompt = (capabilities: AgentCapabilities) => {
+  const lines = [BASE_SYSTEM_PROMPT];
+  if (!capabilities.netsEnabled) {
+    lines.push(
+      'NETS payment is currently unavailable. Inform the user and avoid payment tools.'
+    );
+  }
+  return lines.join(' ');
+};
 
 const createAgentModel = ({ tools = [] } = {}) => {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -146,12 +168,24 @@ export async function* streamAgentResponse({
   userId,
   sessionId,
 }: AgentRequest): AsyncGenerator<AgentStreamEvent> {
-  const tools = createToolRegistry({ userId, sessionId });
+  const capabilities = getAgentCapabilities();
+  if (!capabilities.geminiConfigured) {
+    yield {
+      type: 'error',
+      error: 'AI service is not configured. Please set GEMINI_API_KEY.',
+    };
+    return;
+  }
+
+  const tools = createToolRegistry(
+    { userId, sessionId },
+    { netsEnabled: capabilities.netsEnabled }
+  );
   const model = createAgentModel({ tools });
   const toolMap = new Map(tools.map((tool) => [tool.name, tool]));
   const userMessages = messages.filter((message) => message.role !== 'system');
   const conversation = [
-    new SystemMessage(SYSTEM_PROMPT),
+    new SystemMessage(buildSystemPrompt(capabilities)),
     ...userMessages.map(toLangChainMessage).filter(Boolean),
   ];
 

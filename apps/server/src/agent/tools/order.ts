@@ -3,6 +3,7 @@ import axios from 'axios';
 import { orderService } from '../../services/order.service.js';
 import { cartService } from '../../services/cart.service.js';
 import { createTool, ToolContext } from './tool-base.js';
+import type { ToolRegistryOptions } from './index.js';
 
 const orderIdSchema = z.object({
   orderId: z.string().min(1),
@@ -203,7 +204,12 @@ const fetchOrders = async (userId) => {
   }));
 };
 
-export const createOrderTools = (context: ToolContext) => [
+const NETS_DISABLED_MESSAGE = 'NETS payment is currently unavailable.';
+
+export const createOrderTools = (
+  context: ToolContext,
+  options: ToolRegistryOptions = {}
+) => [
   createTool(
     {
       name: 'create_order_from_cart',
@@ -231,6 +237,9 @@ export const createOrderTools = (context: ToolContext) => [
         'Create an order from the cart and return a NETS QR payload for payment.',
       schema: checkoutSchema,
       handler: async () => {
+        if (options.netsEnabled === false) {
+          throw new Error(NETS_DISABLED_MESSAGE);
+        }
         const cart = await cartService.getCartByUserId(context.userId);
         if (!cart || cart.length === 0) {
           throw new Error('Your cart is empty. Add items before checking out.');

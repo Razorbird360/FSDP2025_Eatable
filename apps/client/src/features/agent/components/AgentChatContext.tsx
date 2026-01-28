@@ -285,8 +285,27 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
     });
 
     if (!response.ok || !response.body) {
-      const text = await response.text();
-      throw new Error(text || 'Agent request failed.');
+      let message = 'Agent request failed.';
+      const contentType = response.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        try {
+          const data = await response.json();
+          message = data?.error || data?.message || message;
+        } catch {
+          // ignore JSON parse errors
+        }
+      } else {
+        const text = await response.text();
+        message = text || message;
+      }
+
+      if (response.status === 401) {
+        message = 'Please log in to use the assistant.';
+      } else if (response.status === 503) {
+        message = message || 'Service temporarily unavailable.';
+      }
+
+      throw new Error(message);
     }
 
     const reader = response.body.getReader();

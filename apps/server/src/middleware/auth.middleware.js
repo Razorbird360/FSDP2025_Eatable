@@ -81,6 +81,16 @@ export async function authMiddleware(req, res, next) {
     req.user = user;
     next();
   } catch (error) {
+    const cause = error?.cause ?? error;
+    const code = cause?.code;
+    const networkCodes = ['ENOTFOUND', 'ECONNREFUSED', 'ETIMEDOUT', 'EAI_AGAIN'];
+    if (code && networkCodes.includes(code)) {
+      console.error('Auth service unavailable:', cause);
+      return res.status(503).json({
+        error: 'Auth service unavailable. Check Supabase connection.',
+      });
+    }
+
     console.error('Auth middleware error:', error);
     return res.status(500).json({ error: 'Authentication failed' });
   }

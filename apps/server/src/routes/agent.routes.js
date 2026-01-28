@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { authMiddleware } from '../middleware/auth.middleware.js';
-import { streamAgentResponse } from '../agent/agent.ts';
+import { getAgentCapabilities, streamAgentResponse } from '../agent/agent.ts';
 import { agentRateLimit } from '../middleware/agent-rate-limit.ts';
+import { createToolRegistry } from '../agent/tools/index.ts';
 
 const router = Router();
 
@@ -80,6 +81,24 @@ router.post('/', authMiddleware, agentRateLimit, async (req, res, next) => {
       next(error);
     }
   }
+});
+
+router.get('/health', authMiddleware, (req, res) => {
+  const capabilities = getAgentCapabilities();
+  const tools = createToolRegistry(
+    { userId: req.user.id, sessionId: null },
+    { netsEnabled: capabilities.netsEnabled }
+  );
+
+  res.json({
+    ok: capabilities.geminiConfigured,
+    capabilities,
+    tools: tools.map((tool) => tool.name),
+    warnings: [
+      ...(capabilities.geminiConfigured ? [] : ['GEMINI_API_KEY missing']),
+      ...(capabilities.netsEnabled ? [] : ['NETS credentials missing']),
+    ],
+  });
 });
 
 export default router;
