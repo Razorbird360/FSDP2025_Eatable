@@ -100,6 +100,10 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
     items: Array<{ id: string; label: string; name: string }>;
     updatedAt: number;
   } | null>(null);
+  const lastHawkerSelectionRef = useRef<{
+    items: Array<{ id: string; label: string; name: string }>;
+    updatedAt: number;
+  } | null>(null);
   const lastMenuItemSelectionRef = useRef<{
     items: Array<{ id: string; label: string; name: string }>;
     updatedAt: number;
@@ -311,6 +315,22 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
       })
       .filter(Boolean) as Array<{ id: string; label: string; name: string }>;
 
+  const buildHawkerOptions = (items: any[]) =>
+    items
+      .map((centre) => {
+        if (!centre?.id || !centre?.name) return null;
+        const parts = [centre.name];
+        if (centre.address) {
+          parts.push(centre.address);
+        }
+        return {
+          id: centre.id,
+          name: centre.name,
+          label: parts.filter(Boolean).join(' • '),
+        };
+      })
+      .filter(Boolean) as Array<{ id: string; label: string; name: string }>;
+
   const normalizeSelectionText = (value: string) =>
     value
       .toLowerCase()
@@ -328,6 +348,13 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
       const options = buildStallOptions(output.stalls);
       if (options.length) {
         lastStallSelectionRef.current = { items: options, updatedAt: now };
+      }
+    }
+
+    if (toolName === 'search_entities' && output?.hawkerCentres) {
+      const options = buildHawkerOptions(output.hawkerCentres);
+      if (options.length) {
+        lastHawkerSelectionRef.current = { items: options, updatedAt: now };
       }
     }
 
@@ -517,6 +544,8 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
     const normalizedInput = normalizeSelectionText(trimmed);
     const yesTokens = new Set(['yes', 'y', 'yeah', 'yep', 'correct', 'that one']);
     const preferMenuItem = /\b(add|cart|order|buy)\b/i.test(trimmed);
+    const preferHawker = /\b(hawker|centre|center)\b/i.test(trimmed);
+    const preferStall = /\bstall\b/i.test(trimmed);
 
     const pickByText = (
       items: Array<{ id: string; label: string; name: string }>
@@ -555,25 +584,33 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
 
     const menuSelection = selectFrom(lastMenuItemSelectionRef.current);
     const stallSelection = selectFrom(lastStallSelectionRef.current);
+    const hawkerSelection = selectFrom(lastHawkerSelectionRef.current);
 
-    let selectedType: 'menuItem' | 'stall' | null = null;
+    let selectedType: 'menuItem' | 'stall' | 'hawker' | null = null;
     let selectedItem: { id: string; label: string; name: string } | null = null;
 
     if (preferMenuItem && menuSelection) {
       selectedType = 'menuItem';
       selectedItem = menuSelection;
-    } else if (!preferMenuItem && stallSelection) {
+    } else if (preferHawker && hawkerSelection) {
+      selectedType = 'hawker';
+      selectedItem = hawkerSelection;
+    } else if (preferStall && stallSelection) {
       selectedType = 'stall';
       selectedItem = stallSelection;
-    } else if (menuSelection && stallSelection) {
+    } else if (menuSelection || stallSelection || hawkerSelection) {
       const menuUpdated = lastMenuItemSelectionRef.current?.updatedAt ?? 0;
       const stallUpdated = lastStallSelectionRef.current?.updatedAt ?? 0;
-      if (menuUpdated >= stallUpdated) {
+      const hawkerUpdated = lastHawkerSelectionRef.current?.updatedAt ?? 0;
+      if (menuUpdated >= stallUpdated && menuUpdated >= hawkerUpdated && menuSelection) {
         selectedType = 'menuItem';
         selectedItem = menuSelection;
-      } else {
+      } else if (stallUpdated >= hawkerUpdated && stallSelection) {
         selectedType = 'stall';
         selectedItem = stallSelection;
+      } else if (hawkerSelection) {
+        selectedType = 'hawker';
+        selectedItem = hawkerSelection;
       }
     } else if (menuSelection) {
       selectedType = 'menuItem';
@@ -581,6 +618,9 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
     } else if (stallSelection) {
       selectedType = 'stall';
       selectedItem = stallSelection;
+    } else if (hawkerSelection) {
+      selectedType = 'hawker';
+      selectedItem = hawkerSelection;
     }
 
     if (selectedItem && selectedType === 'menuItem') {
@@ -593,6 +633,12 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
       payloadContent = `Selected stall: ${selectedItem.label} (stallId: ${selectedItem.id}).`;
       displayContent = trimmed;
       lastStallSelectionRef.current = null;
+    }
+
+    if (selectedItem && selectedType === 'hawker') {
+      payloadContent = `Selected hawker centre: ${selectedItem.label} (hawkerId: ${selectedItem.id}).`;
+      displayContent = trimmed;
+      lastHawkerSelectionRef.current = null;
     }
 
     const userMessage: Message = {

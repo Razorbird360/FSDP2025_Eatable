@@ -384,14 +384,23 @@ function ToolBubble({ message }: MessageBubbleProps) {
   const checkoutPayment = toolName === 'checkout_and_pay' ? output?.payment : null;
   const canToggleDetails = !error;
 
+  const detailsWrapperClass = showDetails
+    ? 'w-full max-w-[560px]'
+    : 'w-[260px] max-w-[75%]';
+
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-800 shadow-sm">
-      <div className="flex items-center justify-between gap-2">
+    <div
+      className={`rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-800 shadow-sm ${detailsWrapperClass}`}
+    >
+      <div className="flex min-w-0 items-center justify-between gap-2">
         <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
           Tool
         </span>
         <div className="flex items-center gap-2">
-          <span className="rounded-full bg-[#21421B]/10 px-2 py-1 text-xs font-semibold text-[#21421B]">
+          <span
+            className="max-w-[150px] truncate rounded-full bg-[#21421B]/10 px-2 py-1 text-xs font-semibold text-[#21421B]"
+            title={toolLabel}
+          >
             {toolLabel}
           </span>
         </div>

@@ -105,6 +105,18 @@ const resolveStallId = async (stallIdOrName: string) => {
   return null;
 };
 
+const resolveHawkerId = async (hawkerIdOrName: string) => {
+  if (!hawkerIdOrName || typeof hawkerIdOrName !== 'string') return null;
+  if (isUuid(hawkerIdOrName)) return hawkerIdOrName;
+
+  const results = await searchService.search(hawkerIdOrName, 5);
+  const lowered = hawkerIdOrName.toLowerCase();
+  const exact = results.hawkerCentres.find(
+    (centre) => centre.name?.toLowerCase() === lowered
+  );
+  return (exact ?? results.hawkerCentres[0])?.id ?? null;
+};
+
 export const createDiscoveryTools = (context: ToolContext) => [
   createTool(
     {
@@ -173,7 +185,11 @@ export const createDiscoveryTools = (context: ToolContext) => [
       description: 'Fetch a hawker centre record by id.',
       schema: hawkerSchema,
       handler: async ({ hawkerId }) => {
-        const info = await hawkerCentresService.getHawkerInfoById(hawkerId);
+        const resolvedId = await resolveHawkerId(hawkerId);
+        if (!resolvedId) {
+          throw new Error('Hawker centre not found.');
+        }
+        const info = await hawkerCentresService.getHawkerInfoById(resolvedId);
         if (!info) {
           return null;
         }
@@ -199,7 +215,11 @@ export const createDiscoveryTools = (context: ToolContext) => [
       description: 'List stalls for a hawker centre.',
       schema: hawkerSchema,
       handler: async ({ hawkerId }) => {
-        const stalls = await hawkerCentresService.getHawkerStallsById(hawkerId);
+        const resolvedId = await resolveHawkerId(hawkerId);
+        if (!resolvedId) {
+          throw new Error('Hawker centre not found.');
+        }
+        const stalls = await hawkerCentresService.getHawkerStallsById(resolvedId);
         return stalls.map((stall) => ({
           id: stall.id,
           ownerId: stall.ownerId ?? null,
@@ -224,7 +244,11 @@ export const createDiscoveryTools = (context: ToolContext) => [
       description: 'List dishes for a hawker centre.',
       schema: hawkerSchema,
       handler: async ({ hawkerId }) => {
-        const dishes = await hawkerCentresService.getHawkerDishesById(hawkerId);
+        const resolvedId = await resolveHawkerId(hawkerId);
+        if (!resolvedId) {
+          throw new Error('Hawker centre not found.');
+        }
+        const dishes = await hawkerCentresService.getHawkerDishesById(resolvedId);
         return dishes.map((dish) => ({
           id: dish.id,
           stallId: dish.stallId,
