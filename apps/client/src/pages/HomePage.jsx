@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Camera, ChevronRight, CircleCheck, Dot, MapPin, TrendingUp } from 'lucide-react';
+import { Camera, ChevronRight, CircleCheck, ClipboardList, Dot, MapPin, TrendingUp } from 'lucide-react';
 import CuisineBox from "../ui/CuisineBox";
 import HeroAdvertisement from "../ui/HeroAdvertisement";
 import { Button } from "@chakra-ui/react";
@@ -53,6 +53,8 @@ function HomePage() {
   const [topPicksLoading, setTopPicksLoading] = useState(true);
   const [activeCuisineIndex, setActiveCuisineIndex] = useState(0);
   const [featuredDishes, setFeaturedDishes] = useState({});
+  const [favoriteStallIds, setFavoriteStallIds] = useState(() => new Set());
+  const [favoriteBusyId, setFavoriteBusyId] = useState(null);
   const isProfileLoading = status === 'loading';
 
 
@@ -107,6 +109,36 @@ function HomePage() {
     fetchFeatured();
   }, []);
 
+  useEffect(() => {
+    let ignore = false;
+
+    const fetchFavorites = async () => {
+      if (!profile?.id) {
+        setFavoriteStallIds(new Set());
+        return;
+      }
+
+      try {
+        const res = await api.get('/stalls/likes');
+        if (ignore) return;
+        const ids = (res.data?.likes || [])
+          .map((like) => like?.stallId || like?.stall?.id)
+          .filter(Boolean);
+        setFavoriteStallIds(new Set(ids));
+      } catch (err) {
+        if (!ignore) {
+          console.error('Failed to fetch favourite stalls:', err);
+        }
+      }
+    };
+
+    fetchFavorites();
+
+    return () => {
+      ignore = true;
+    };
+  }, [profile?.id]);
+
   // Get current featured dish based on active cuisine
   const activeCuisine = CUISINE_TYPES[activeCuisineIndex];
   const currentFeaturedDish = featuredDishes[activeCuisine] || {
@@ -114,6 +146,65 @@ function HomePage() {
     stallName: 'Explore local hawker favorites',
     stallId: null,
     imageUrl: undefined,
+  };
+  const featuredStallId = currentFeaturedDish?.stallId || null;
+  const isFeaturedFavorited = useMemo(() => {
+    if (!featuredStallId) return false;
+    return favoriteStallIds.has(featuredStallId);
+  }, [favoriteStallIds, featuredStallId]);
+  const isFeaturedFavoriteBusy = featuredStallId
+    ? favoriteBusyId === featuredStallId
+    : false;
+
+  const handleToggleFeaturedFavorite = async () => {
+    if (!featuredStallId) return;
+    if (!profile?.id) {
+      toaster.create({
+        title: 'Login required',
+        description: 'Log in to save favourites.',
+        type: 'warning',
+      });
+      return;
+    }
+    if (favoriteBusyId === featuredStallId) return;
+
+    const nextLiked = !favoriteStallIds.has(featuredStallId);
+    setFavoriteBusyId(featuredStallId);
+    setFavoriteStallIds((prev) => {
+      const next = new Set(prev);
+      if (nextLiked) {
+        next.add(featuredStallId);
+      } else {
+        next.delete(featuredStallId);
+      }
+      return next;
+    });
+
+    try {
+      if (nextLiked) {
+        await api.post(`/stalls/${featuredStallId}/like`);
+      } else {
+        await api.delete(`/stalls/${featuredStallId}/like`);
+      }
+    } catch (err) {
+      console.error('Failed to update favourite stall:', err);
+      setFavoriteStallIds((prev) => {
+        const next = new Set(prev);
+        if (nextLiked) {
+          next.delete(featuredStallId);
+        } else {
+          next.add(featuredStallId);
+        }
+        return next;
+      });
+      toaster.create({
+        title: 'Unable to update favourites',
+        description: 'Please try again in a moment.',
+        type: 'error',
+      });
+    } finally {
+      setFavoriteBusyId(null);
+    }
   };
 
   const getButtonConfig = () => {
@@ -287,27 +378,52 @@ function HomePage() {
                 />
               )}
 
-              <Button
-                height="44px"
-                rounded="10px"
-                width="16vw"
-                maxW="280px"
-                px={6}
-                bg="#F6FBF2"
-                borderWidth="2px"
-                borderColor="#21421B"
-                color="#21421B"
-                fontWeight="semibold"
-                fontSize="md"
-                gap="12px"
-                justifyContent="center"
-                boxShadow="0 3px 10px rgba(33, 66, 27, 0.14)"
-                _hover={{ bg: "#ECF5E7" }}
-                onClick={handleUploadClick}
-              >
-                <Camera className="h-6 w-6 text-[#21421B]" aria-hidden="true" />
-                Upload a dish photo
-              </Button>
+              {profile?.role === 'hawker' ? (
+                <Link to="/hawker/orders" className="w-full">
+                  <Button
+                    height="44px"
+                    rounded="10px"
+                    width="16vw"
+                    maxW="280px"
+                    px={6}
+                    bg="#F6FBF2"
+                    borderWidth="2px"
+                    borderColor="#21421B"
+                    color="#21421B"
+                    fontWeight="semibold"
+                    fontSize="md"
+                    gap="12px"
+                    justifyContent="center"
+                    boxShadow="0 3px 10px rgba(33, 66, 27, 0.14)"
+                    _hover={{ bg: "#ECF5E7" }}
+                  >
+                    <ClipboardList className="h-5 w-5 text-[#21421B]" aria-hidden="true" />
+                    View Orders
+                  </Button>
+                </Link>
+              ) : (
+                <Button
+                  height="44px"
+                  rounded="10px"
+                  width="16vw"
+                  maxW="280px"
+                  px={6}
+                  bg="#F6FBF2"
+                  borderWidth="2px"
+                  borderColor="#21421B"
+                  color="#21421B"
+                  fontWeight="semibold"
+                  fontSize="md"
+                  gap="12px"
+                  justifyContent="center"
+                  boxShadow="0 3px 10px rgba(33, 66, 27, 0.14)"
+                  _hover={{ bg: "#ECF5E7" }}
+                  onClick={handleUploadClick}
+                >
+                  <Camera className="h-6 w-6 text-[#21421B]" aria-hidden="true" />
+                  Upload a dish photo
+                </Button>
+              )}
             </div>
           </div>
 
@@ -351,6 +467,9 @@ function HomePage() {
               dishName={currentFeaturedDish.name}
               stallName={currentFeaturedDish.stallName}
               stallId={currentFeaturedDish.stallId}
+              isFavorited={isFeaturedFavorited}
+              isFavoriteBusy={isFeaturedFavoriteBusy}
+              onFavoriteToggle={handleToggleFeaturedFavorite}
             />
             <div className="grid w-[90vw] max-w-[24rem] grid-cols-3 gap-x-3 mt-6 gap-y-3 max-[430px]:w-[88vw] max-[430px]:max-w-[22rem] max-[430px]:gap-x-2 max-[430px]:gap-y-2">
               {CUISINE_TYPES.map((cuisine, index) => (
@@ -434,26 +553,50 @@ function HomePage() {
                 />
               )}
 
-              <Button
-                height="56px"
-                rounded="10px"
-                w="full"
-                px={6}
-                bg="#F6FBF2"
-                borderWidth="2px"
-                borderColor="#21421B"
-                color="#21421B"
-                fontWeight="semibold"
-                fontSize="md"
-                gap="12px"
-                justifyContent="center"
-                boxShadow="0 3px 10px rgba(33, 66, 27, 0.14)"
-                _hover={{ bg: "#ECF5E7" }}
-                onClick={handleUploadClick}
-              >
-                <Camera className="h-6 w-6 text-[#21421B]" aria-hidden="true" />
-                Upload a dish photo
-              </Button>
+              {profile?.role === 'hawker' ? (
+                <Link to="/hawker/orders" className="w-full">
+                  <Button
+                    height="56px"
+                    rounded="10px"
+                    w="full"
+                    px={6}
+                    bg="#F6FBF2"
+                    borderWidth="2px"
+                    borderColor="#21421B"
+                    color="#21421B"
+                    fontWeight="semibold"
+                    fontSize="md"
+                    gap="12px"
+                    justifyContent="center"
+                    boxShadow="0 3px 10px rgba(33, 66, 27, 0.14)"
+                    _hover={{ bg: "#ECF5E7" }}
+                  >
+                    <ClipboardList className="h-5 w-5 text-[#21421B]" aria-hidden="true" />
+                    View Orders
+                  </Button>
+                </Link>
+              ) : (
+                <Button
+                  height="56px"
+                  rounded="10px"
+                  w="full"
+                  px={6}
+                  bg="#F6FBF2"
+                  borderWidth="2px"
+                  borderColor="#21421B"
+                  color="#21421B"
+                  fontWeight="semibold"
+                  fontSize="md"
+                  gap="12px"
+                  justifyContent="center"
+                  boxShadow="0 3px 10px rgba(33, 66, 27, 0.14)"
+                  _hover={{ bg: "#ECF5E7" }}
+                  onClick={handleUploadClick}
+                >
+                  <Camera className="h-6 w-6 text-[#21421B]" aria-hidden="true" />
+                  Upload a dish photo
+                </Button>
+              )}
             </div>
           </div>
 
@@ -493,6 +636,9 @@ function HomePage() {
                 dishName={currentFeaturedDish.name}
                 stallName={currentFeaturedDish.stallName}
                 stallId={currentFeaturedDish.stallId}
+                isFavorited={isFeaturedFavorited}
+                isFavoriteBusy={isFeaturedFavoriteBusy}
+                onFavoriteToggle={handleToggleFeaturedFavorite}
               />
 
               <div className="flex justify-between w-full mt-3" style={{ transform: "translateY(2vh)" }}>

@@ -32,6 +32,11 @@ export const stallsService = {
             displayName: true,
           },
         },
+        _count: {
+          select: {
+            favoriteStalls: true,
+          },
+        },
         menuItems: {
           where: { isActive: true },
           include: {
@@ -78,9 +83,14 @@ export const stallsService = {
       ? Math.round(prices.reduce((sum, value) => sum + value, 0) / prices.length)
       : null;
 
+    const { _count, ...stallData } = stall;
     const menuItems = stall.menuItems || [];
     if (menuItems.length === 0) {
-      return stall;
+      return {
+        ...stallData,
+        likeCount: _count?.favoriteStalls ?? 0,
+        menuItems: [],
+      };
     }
 
     const menuItemIds = menuItems.map((item) => item.id);
@@ -92,20 +102,144 @@ export const stallsService = {
       },
       _count: { _all: true },
     });
+    const orderCounts = await prisma.orderItem.groupBy({
+      by: ['menuItemId'],
+      where: {
+        menuItemId: { in: menuItemIds },
+      },
+      _sum: { quantity: true },
+    });
+    const orderRecency = await prisma.orderItem.groupBy({
+      by: ['menuItemId'],
+      where: {
+        menuItemId: { in: menuItemIds },
+      },
+      _max: { createdAt: true },
+    });
+    const uploadRecency = await prisma.mediaUpload.groupBy({
+      by: ['menuItemId'],
+      where: {
+        menuItemId: { in: menuItemIds },
+        validationStatus: 'approved',
+      },
+      _max: { createdAt: true },
+    });
 
     const uploadCountsByMenuItem = new Map(
       uploadCounts.map((row) => [row.menuItemId, row._count?._all ?? 0])
     );
+    const orderCountsByMenuItem = new Map(
+      orderCounts.map((row) => [row.menuItemId, row._sum?.quantity ?? 0])
+    );
+    const orderRecencyByMenuItem = new Map(
+      orderRecency.map((row) => [row.menuItemId, row._max?.createdAt ?? null])
+    );
+    const uploadRecencyByMenuItem = new Map(
+      uploadRecency.map((row) => [row.menuItemId, row._max?.createdAt ?? null])
+    );
 
     return {
-      ...stall,
+      ...stallData,
+      likeCount: _count?.favoriteStalls ?? 0,
       menuItems: menuItems.map((item) => ({
         ...item,
         approvedUploadCount: uploadCountsByMenuItem.get(item.id) || 0,
+        orderCount: orderCountsByMenuItem.get(item.id) || 0,
+        lastOrderedAt: orderRecencyByMenuItem.get(item.id) || null,
+        lastUploadAt: uploadRecencyByMenuItem.get(item.id) || null,
         maxPrepTimeMins,
         avgPriceCents
       })),
     };
+  },
+
+  async addFavoriteStall(userId, stallId) {
+    if (!userId || !stallId) {
+      throw new Error('userId and stallId are required');
+    }
+
+    return await prisma.favoriteStall.upsert({
+      where: {
+        userId_stallId: {
+          userId,
+          stallId,
+        },
+      },
+      update: {},
+      create: {
+        userId,
+        stallId,
+      },
+    });
+  },
+
+  async removeFavoriteStall(userId, stallId) {
+    if (!userId || !stallId) {
+      throw new Error('userId and stallId are required');
+    }
+
+    await prisma.favoriteStall.deleteMany({
+      where: {
+        userId,
+        stallId,
+      },
+    });
+  },
+
+  async getUserFavoriteStalls(userId) {
+    if (!userId) {
+      throw new Error('userId is required');
+    }
+
+    const favorites = await prisma.favoriteStall.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        stall: {
+          select: {
+            id: true,
+            name: true,
+            cuisineType: true,
+            location: true,
+            image_url: true,
+            _count: {
+              select: {
+                menuItems: true,
+                favoriteStalls: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return favorites.map((favorite) => {
+      const stall = favorite.stall;
+      if (!stall) {
+        return {
+          id: favorite.id,
+          userId: favorite.userId,
+          stallId: favorite.stallId,
+          createdAt: favorite.createdAt,
+          likedAt: favorite.createdAt,
+          stall: null,
+        };
+      }
+
+      const { _count, ...stallData } = stall;
+      return {
+        id: favorite.id,
+        userId: favorite.userId,
+        stallId: favorite.stallId,
+        createdAt: favorite.createdAt,
+        likedAt: favorite.createdAt,
+        stall: {
+          ...stallData,
+          menuItemCount: _count?.menuItems ?? 0,
+          likeCount: _count?.favoriteStalls ?? 0,
+        },
+      };
+    });
   },
 
 
