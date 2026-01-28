@@ -8,7 +8,7 @@ const CHAT_HISTORY_KEY = 'eatable:agentChatHistory';
 const CHAT_SESSION_KEY = 'eatable:agentChatSessionId';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
 
-export type MessageKind = 'text' | 'tool' | 'gallery';
+export type MessageKind = 'text' | 'tool' | 'gallery' | 'qr';
 
 export interface Message {
   id: string;
@@ -18,6 +18,7 @@ export interface Message {
   toolName?: string;
   toolPayload?: unknown;
   galleryItems?: unknown[];
+  qrImage?: string;
   status?: 'streaming' | 'done' | 'error';
   hidden?: boolean;
   displayContent?: string;
@@ -309,6 +310,32 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
     });
   };
 
+  const appendQrMessage = (qrImage: string) => {
+    if (!qrImage) return;
+    appendMessage({
+      role: 'assistant',
+      kind: 'qr',
+      content: '',
+      qrImage,
+      status: 'done',
+    });
+  };
+
+  const extractQrImageFromPayload = (payload: any) => {
+    const output = payload?.output ?? payload;
+    const qrCode =
+      output?.payment?.qrCode ||
+      output?.nets?.result?.data?.qr_code ||
+      output?.nets?.qr_code ||
+      output?.nets?.result?.data?.qrCode ||
+      null;
+    if (!qrCode) return null;
+    if (typeof qrCode === 'string' && qrCode.startsWith('data:image')) {
+      return qrCode;
+    }
+    return `data:image/png;base64,${qrCode}`;
+  };
+
   const buildStallOptions = (items: any[]) =>
     items
       .map((stall) => {
@@ -467,12 +494,18 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
         ? { assistantId, uploads }
         : { assistantId: streamingAssistantRef.current ?? '', uploads };
     }
+    const qrImage = extractQrImageFromPayload(payload);
+    if (qrImage) {
+      appendQrMessage(qrImage);
+    }
     if (
       toolName === 'get_cart' ||
       toolName === 'add_to_cart' ||
       toolName === 'update_cart_item' ||
       toolName === 'remove_cart_item' ||
-      toolName === 'clear_cart'
+      toolName === 'clear_cart' ||
+      toolName === 'checkout_and_pay' ||
+      toolName === 'create_order_from_cart'
     ) {
       void refreshCart();
     }

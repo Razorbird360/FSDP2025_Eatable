@@ -312,25 +312,10 @@ function NetsCheckoutCard({
     };
   }, [payment]);
 
-  const qrImage = payment?.qrCode ? `data:image/png;base64,${payment.qrCode}` : null;
-
   return (
     <div className="mt-3 space-y-3 rounded-xl border border-gray-100 bg-white p-3">
       <p className="text-xs font-semibold text-gray-500">Checkout & Pay</p>
-      {qrImage ? (
-        <div className="flex flex-col items-center gap-3">
-          <img
-            src={qrImage}
-            alt="NETS QR code"
-            className="h-40 w-40 rounded-lg border border-gray-200 bg-white p-2"
-          />
-          <p className="text-xs text-gray-500">
-            Scan to pay. Waiting for confirmation…
-          </p>
-        </div>
-      ) : (
-        <p className="text-xs text-gray-500">QR code unavailable.</p>
-      )}
+      <p className="text-xs text-gray-500">Waiting for payment confirmation…</p>
       {status === 'pending' && (
         <p className="text-xs text-gray-500">
           Time remaining: {Math.floor(secondsLeft / 60)}:
@@ -409,13 +394,6 @@ function ToolBubble({ message }: MessageBubbleProps) {
       ? output.budget ?? output
       : null;
 
-  const qrCode =
-    output?.nets?.result?.data?.qr_code ||
-    output?.nets?.qr_code ||
-    output?.nets?.result?.data?.qrCode ||
-    null;
-
-  const qrImage = qrCode ? `data:image/png;base64,${qrCode}` : null;
   const uploadInfo =
     toolName === 'prepare_upload_photo' && output?.upload
       ? {
@@ -901,15 +879,6 @@ function ToolBubble({ message }: MessageBubbleProps) {
               </p>
             </div>
           )}
-          {qrImage && (
-            <div className="mt-3 flex justify-center">
-              <img
-                src={qrImage}
-                alt="NETS QR code"
-                className="h-40 w-40 rounded-lg border border-gray-200 bg-white p-2"
-              />
-            </div>
-          )}
             </div>
           </div>
         </>
@@ -1085,6 +1054,27 @@ function MessageBubble({ message, introTyping = false }: MessageBubbleProps) {
         </div>
         <div className="max-w-[75%] rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-800 shadow-sm">
           <UploadGrid uploads={uploads} />
+        </div>
+      </div>
+    );
+  }
+
+  if (message.kind === 'qr') {
+    const qrImage = message.qrImage;
+    if (!qrImage) {
+      return null;
+    }
+    return (
+      <div className="flex items-start gap-3">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#21421B]">
+          <img src={logoLight} alt="At-Table" className="h-7 w-7 object-contain" />
+        </div>
+        <div className="max-w-[75%] rounded-2xl border border-gray-200 bg-white p-3 shadow-sm">
+          <img
+            src={qrImage}
+            alt="NETS QR code"
+            className="h-48 w-48 rounded-xl border border-gray-200 bg-white p-2"
+          />
         </div>
       </div>
     );

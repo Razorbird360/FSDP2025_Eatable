@@ -31,6 +31,11 @@ const DELTA_CHUNK_SIZE = 160;
 const UPLOAD_TOOL_NAMES = new Set(['get_stall_gallery', 'get_dish_uploads']);
 const UPLOAD_TOOL_FALLBACK = 'Here are the community uploads below.';
 const UPLOAD_TOOL_EMPTY_FALLBACK = 'No community uploads yet.';
+const NETS_TOOL_NAMES = new Set([
+  'checkout_and_pay',
+  'request_nets_qr',
+  'query_nets_qr_status',
+]);
 const EMPTY_RESPONSE_FALLBACK =
   'Sorry, I did not catch that. Could you rephrase?';
 const LIST_TOOL_NAMES = new Set([
@@ -136,6 +141,17 @@ const normalizeMessageContent = (message: AIMessage) => {
 
 const stripExternalUrls = (text: string) =>
   text.replace(/https?:\/\/\S+/gi, '').replace(/\s{2,}/g, ' ').trim();
+
+const stripQrPayload = (text: string) => {
+  if (!text) return text;
+  const trimmed = text.trim();
+  if (!trimmed) return trimmed;
+  const base64Regex = /(iVBORw0KGgo[0-9A-Za-z+/=]+|data:image\/png;base64,[0-9A-Za-z+/=]+)/g;
+  if (base64Regex.test(trimmed)) {
+    return 'Scan the QR code below to complete payment.';
+  }
+  return text;
+};
 
 const extractExplicitUploadRequest = (content: string) => {
   if (!content) return null;
@@ -627,11 +643,16 @@ export async function* streamAgentResponse({
           lastUploadHadResults === false
             ? UPLOAD_TOOL_EMPTY_FALLBACK
             : UPLOAD_TOOL_FALLBACK;
+      } else if (lastToolName && NETS_TOOL_NAMES.has(lastToolName)) {
+        responseText =
+          lastToolName === 'query_nets_qr_status'
+            ? 'Checking payment status...'
+            : 'Scan the QR code shown above to complete payment.';
       } else if (lastToolName && LIST_TOOL_NAMES.has(lastToolName)) {
         responseText = buildListSummary(lastToolName, lastToolOutput);
       } else {
         const stripped = stripExternalUrls(responseText);
-        responseText = stripped || responseText;
+        responseText = stripQrPayload(stripped || responseText);
         if (!responseText.trim()) {
           responseText = forceUploadResponse
             ? UPLOAD_TOOL_FALLBACK
