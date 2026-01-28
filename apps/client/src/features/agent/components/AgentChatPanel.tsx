@@ -873,20 +873,42 @@ function MessageBubble({ message, introTyping = false }: MessageBubbleProps) {
   const isTyping =
     introTyping || (message.status === 'streaming' && !message.content);
 
-  const renderInline = (text: string) => {
-    const parts = text.split('**');
+  const renderBoldSegments = (segment: string, keyPrefix: string) => {
+    const parts = segment.split('**');
     if (parts.length === 1) {
-      return text;
+      return [segment];
     }
     return parts.map((part, index) =>
       index % 2 === 1 ? (
-        <strong key={`bold-${index}`} className="font-semibold text-gray-900">
+        <strong key={`${keyPrefix}-bold-${index}`} className="font-semibold text-gray-900">
           {part}
         </strong>
       ) : (
         part
       )
     );
+  };
+
+  const renderInline = (text: string) => {
+    if (!text.includes('`')) {
+      const rendered = renderBoldSegments(text, 'inline');
+      return rendered.length === 1 ? rendered[0] : rendered;
+    }
+
+    const parts = text.split('`');
+    return parts.flatMap((part, index) => {
+      if (index % 2 === 1) {
+        return (
+          <span
+            key={`code-${index}`}
+            className="font-semibold font-mono text-gray-900"
+          >
+            {part}
+          </span>
+        );
+      }
+      return renderBoldSegments(part, `inline-${index}`);
+    });
   };
 
   const formatMessageContent = (text: string) => {
