@@ -152,6 +152,25 @@ const normalizeToolInput = (args: unknown) => {
   return {};
 };
 
+const normalizeToolError = (error: unknown) => {
+  if (error instanceof Error) {
+    if (error.name === 'ZodError') {
+      return 'Invalid tool arguments. Please try again.';
+    }
+    const message = error.message?.trim();
+    if (!message || message.length > 160) {
+      return 'Tool failed. Please try again.';
+    }
+    return message;
+  }
+
+  if (typeof error === 'string' && error.trim()) {
+    return error.trim();
+  }
+
+  return 'Tool failed. Please try again.';
+};
+
 const chunkText = (text: string, size = DELTA_CHUNK_SIZE) => {
   const chunks: string[] = [];
   if (!text) {
@@ -230,7 +249,25 @@ export async function* streamAgentResponse({
         continue;
       }
 
-      const output = await tool.invoke(input);
+      let output: unknown;
+      try {
+        output = await tool.invoke(input);
+      } catch (error) {
+        const payload = {
+          toolName: call.name,
+          input,
+          error: normalizeToolError(error),
+        };
+        conversation.push(
+          new ToolMessage({
+            content: JSON.stringify(payload),
+            tool_call_id: toolCallId,
+            status: 'error',
+          })
+        );
+        yield { type: 'tool', payload };
+        continue;
+      }
       conversation.push(
         new ToolMessage({
           content: JSON.stringify(output),
