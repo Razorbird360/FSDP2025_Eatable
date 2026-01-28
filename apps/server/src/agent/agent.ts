@@ -244,17 +244,26 @@ const buildListSummary = (toolName: string, output: unknown) => {
     return LIST_TOOL_FALLBACK;
   }
 
-  const buildNumberedList = (items: any[], getLabel: (item: any) => string) =>
+  const formatOptionLabel = (label: string) => {
+    if (!label) return label;
+    const parts = label.split(' — ');
+    if (parts.length === 1) {
+      return `**${parts[0]}**`;
+    }
+    return `**${parts[0]}** — ${parts.slice(1).join(' — ')}`;
+  };
+
+  const buildOptionList = (items: any[], getLabel: (item: any) => string) =>
     items
       .slice(0, 5)
-      .map((item, index) => `${index + 1}. ${getLabel(item)}`)
+      .map((item) => `- ${formatOptionLabel(getLabel(item))}`)
       .join('\n');
 
   const buildFollowUp = (items: any[], labelBuilder: (item: any) => string) => {
     if (!items.length) {
       return 'I could not find any matches. Try a more specific name or another keyword.';
     }
-    const list = buildNumberedList(items, labelBuilder);
+    const list = buildOptionList(items, labelBuilder);
     return `Here are a few options:\n${list}\nReply with a number or name.`;
   };
 
