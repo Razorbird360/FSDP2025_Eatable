@@ -964,10 +964,13 @@ function MessageBubble({ message, introTyping = false }: MessageBubbleProps) {
   const formatMessageContent = (text: string) => {
     const normalized = text.replace(/\r\n/g, '\n');
     const lines = normalized.split('\n');
-    const blocks: Array<{ type: 'p'; text: string } | { type: 'list'; items: string[] }> =
-      [];
+    const blocks: Array<
+      | { type: 'p'; text: string }
+      | { type: 'list'; items: string[]; ordered: boolean }
+    > = [];
     let paragraph: string[] = [];
     let listItems: string[] | null = null;
+    let listOrdered = false;
 
     const flushParagraph = () => {
       if (paragraph.length) {
@@ -978,9 +981,10 @@ function MessageBubble({ message, introTyping = false }: MessageBubbleProps) {
 
     const flushList = () => {
       if (listItems && listItems.length) {
-        blocks.push({ type: 'list', items: listItems });
+        blocks.push({ type: 'list', items: listItems, ordered: listOrdered });
       }
       listItems = null;
+      listOrdered = false;
     };
 
     lines.forEach((line) => {
@@ -992,12 +996,25 @@ function MessageBubble({ message, introTyping = false }: MessageBubbleProps) {
       }
 
       const bulletMatch = /^[-*]\s+(.*)/.exec(trimmed);
+      const numberMatch = /^\d+\.\s+(.*)/.exec(trimmed);
       if (bulletMatch) {
         flushParagraph();
-        if (!listItems) {
-          listItems = [];
+        if (listItems && listOrdered) {
+          flushList();
         }
+        if (!listItems) listItems = [];
+        listOrdered = false;
         listItems.push(bulletMatch[1]);
+        return;
+      }
+      if (numberMatch) {
+        flushParagraph();
+        if (listItems && !listOrdered) {
+          flushList();
+        }
+        if (!listItems) listItems = [];
+        listOrdered = true;
+        listItems.push(numberMatch[1]);
         return;
       }
 
@@ -1021,7 +1038,7 @@ function MessageBubble({ message, introTyping = false }: MessageBubbleProps) {
           blocks.push({ type: 'p', text: prefix });
         }
         if (items.length) {
-          blocks.push({ type: 'list', items });
+          blocks.push({ type: 'list', items, ordered: false });
         }
       }
     }
@@ -1030,12 +1047,16 @@ function MessageBubble({ message, introTyping = false }: MessageBubbleProps) {
       <div className="space-y-2">
         {blocks.map((block, index) => {
           if (block.type === 'list') {
+            const ListTag = block.ordered ? 'ol' : 'ul';
+            const listClass = block.ordered
+              ? 'list-decimal space-y-1 pl-5'
+              : 'list-disc space-y-1 pl-5';
             return (
-              <ul key={`list-${index}`} className="list-disc space-y-1 pl-5">
+              <ListTag key={`list-${index}`} className={listClass}>
                 {block.items.map((item, itemIndex) => (
                   <li key={`item-${index}-${itemIndex}`}>{renderInline(item)}</li>
                 ))}
-              </ul>
+              </ListTag>
             );
           }
           return <p key={`p-${index}`}>{renderInline(block.text)}</p>;

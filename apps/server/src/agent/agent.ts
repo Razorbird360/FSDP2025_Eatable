@@ -31,6 +31,8 @@ const DELTA_CHUNK_SIZE = 160;
 const UPLOAD_TOOL_NAMES = new Set(['get_stall_gallery', 'get_dish_uploads']);
 const UPLOAD_TOOL_FALLBACK = 'Here are the community uploads below.';
 const UPLOAD_TOOL_EMPTY_FALLBACK = 'No community uploads yet.';
+const EMPTY_RESPONSE_FALLBACK =
+  'Sorry, I did not catch that. Could you rephrase?';
 const LIST_TOOL_NAMES = new Set([
   'search_entities',
   'list_stalls',
@@ -154,6 +156,56 @@ const extractExplicitUploadRequest = (content: string) => {
   return null;
 };
 
+const extractExplicitListRequest = (content: string) => {
+  if (!content) return null;
+  const lowered = content.toLowerCase();
+  if (/(top[-\s]?voted|most voted|popular)\s+(dishes|dish|menu items|items)/.test(lowered)) {
+    return {
+      toolName: 'get_top_voted_menu_items',
+      input: { limit: 5 },
+    };
+  }
+  if (/(popular|top)\s+stalls/.test(lowered)) {
+    return {
+      toolName: 'get_popular_stalls',
+      input: { limit: 5 },
+    };
+  }
+  return null;
+};
+
+const extractAddToCartRequest = (content: string) => {
+  if (!content) return null;
+  const lowered = content.toLowerCase();
+  if (!/\b(add|order|buy)\b/.test(lowered) || !/\bcart\b/.test(lowered)) {
+    return null;
+  }
+  const qtyMatch = lowered.match(/\b(\d+)\b/);
+  const qty = qtyMatch ? Math.max(1, Number(qtyMatch[1])) : 1;
+  const cleaned = lowered
+    .replace(/\b(add|order|buy|please|can you|could you|cart|to|my)\b/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!cleaned) return null;
+  return { query: cleaned, qty };
+};
+
+const extractStallRequest = (content: string) => {
+  if (!content) return null;
+  const lowered = content.toLowerCase();
+  if (!/\bstall\b/.test(lowered)) return null;
+  const wantsGallery = /\b(upload|uploads|gallery|photo|photos)\b/.test(lowered);
+  const cleaned = lowered
+    .replace(/\b(show|see|details|menu|info|about|stall|uploads|upload|gallery|photo|photos|for|of|the|please|can you|could you)\b/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!cleaned) return null;
+  return {
+    query: cleaned,
+    toolName: wantsGallery ? 'get_stall_gallery' : 'get_stall_details',
+  };
+};
+
 const getUploadItems = (output: unknown) => {
   if (Array.isArray(output)) return output;
   if (output && typeof output === 'object') {
@@ -244,19 +296,10 @@ const buildListSummary = (toolName: string, output: unknown) => {
     return LIST_TOOL_FALLBACK;
   }
 
-  const formatOptionLabel = (label: string) => {
-    if (!label) return label;
-    const parts = label.split(' — ');
-    if (parts.length === 1) {
-      return `**${parts[0]}**`;
-    }
-    return `**${parts[0]}** — ${parts.slice(1).join(' — ')}`;
-  };
-
   const buildOptionList = (items: any[], getLabel: (item: any) => string) =>
     items
       .slice(0, 5)
-      .map((item) => `- ${formatOptionLabel(getLabel(item))}`)
+      .map((item, index) => `${index + 1}. ${getLabel(item)}`)
       .join('\n');
 
   const buildFollowUp = (items: any[], labelBuilder: (item: any) => string) => {
@@ -401,6 +444,176 @@ export async function* streamAgentResponse({
         }
       }
     }
+
+    const explicitList = extractExplicitListRequest(lastUserMessage.content);
+    if (explicitList) {
+      const tool = toolMap.get(explicitList.toolName);
+      if (tool) {
+        try {
+          const output = await tool.invoke(explicitList.input);
+          conversation.push(
+            new ToolMessage({
+              content: JSON.stringify(output),
+              tool_call_id: randomUUID(),
+              status: output?.error ? 'error' : 'success',
+            })
+          );
+          yield { type: 'tool', payload: output };
+          if (output?.error) {
+            const message = normalizeToolError(output.error);
+            for (const delta of chunkText(message)) {
+              yield { type: 'delta', delta };
+            }
+            return;
+          }
+          const summary = buildListSummary(
+            explicitList.toolName,
+            output?.output ?? output
+          );
+          for (const delta of chunkText(summary)) {
+            yield { type: 'delta', delta };
+          }
+          return;
+        } catch (error) {
+          const payload = {
+            toolName: explicitList.toolName,
+            input: explicitList.input,
+            error: normalizeToolError(error),
+          };
+          conversation.push(
+            new ToolMessage({
+              content: JSON.stringify(payload),
+              tool_call_id: randomUUID(),
+              status: 'error',
+            })
+          );
+          yield { type: 'tool', payload };
+          return;
+        }
+      }
+    }
+
+    const addToCartRequest = extractAddToCartRequest(lastUserMessage.content);
+    if (addToCartRequest) {
+      const searchTool = toolMap.get('search_entities');
+      const cartTool = toolMap.get('add_to_cart');
+      if (searchTool && cartTool) {
+        try {
+          const searchOutput = await searchTool.invoke({
+            query: addToCartRequest.query,
+            limit: 5,
+          });
+          yield { type: 'tool', payload: searchOutput };
+          if (searchOutput?.error) {
+            const message = normalizeToolError(searchOutput.error);
+            for (const delta of chunkText(message)) {
+              yield { type: 'delta', delta };
+            }
+            return;
+          }
+          const searchData = searchOutput?.output ?? searchOutput;
+          const dishes = Array.isArray(searchData?.dishes) ? searchData.dishes : [];
+          if (dishes.length === 1) {
+            const cartOutput = await cartTool.invoke({
+              menuItemId: dishes[0].id,
+              qty: addToCartRequest.qty,
+            });
+            yield { type: 'tool', payload: cartOutput };
+            if (cartOutput?.error) {
+              const message = normalizeToolError(cartOutput.error);
+              for (const delta of chunkText(message)) {
+                yield { type: 'delta', delta };
+              }
+              return;
+            }
+            const confirmMessage = `Added ${dishes[0].name} to your cart.`;
+            for (const delta of chunkText(confirmMessage)) {
+              yield { type: 'delta', delta };
+            }
+            return;
+          }
+
+          const summary = buildListSummary('search_entities', searchData);
+          for (const delta of chunkText(summary)) {
+            yield { type: 'delta', delta };
+          }
+          return;
+        } catch (error) {
+          const message = normalizeToolError(error);
+          for (const delta of chunkText(message)) {
+            yield { type: 'delta', delta };
+          }
+          return;
+        }
+      }
+    }
+
+    const stallRequest = extractStallRequest(lastUserMessage.content);
+    if (stallRequest) {
+      const searchTool = toolMap.get('search_entities');
+      const stallTool = toolMap.get(stallRequest.toolName);
+      if (searchTool && stallTool) {
+        try {
+          const searchOutput = await searchTool.invoke({
+            query: stallRequest.query,
+            limit: 5,
+          });
+          yield { type: 'tool', payload: searchOutput };
+          if (searchOutput?.error) {
+            const message = normalizeToolError(searchOutput.error);
+            for (const delta of chunkText(message)) {
+              yield { type: 'delta', delta };
+            }
+            return;
+          }
+          const searchData = searchOutput?.output ?? searchOutput;
+          const stalls = Array.isArray(searchData?.stalls) ? searchData.stalls : [];
+          if (stalls.length === 1) {
+            const stallOutput = await stallTool.invoke({
+              stallId: stalls[0].id,
+            });
+            yield { type: 'tool', payload: stallOutput };
+            if (stallOutput?.error) {
+              const message = normalizeToolError(stallOutput.error);
+              for (const delta of chunkText(message)) {
+                yield { type: 'delta', delta };
+              }
+              return;
+            }
+            if (stallRequest.toolName === 'get_stall_gallery') {
+              const uploads = getUploadItems(stallOutput);
+              forceUploadResponse = true;
+              lastUploadHadResults = uploads.length > 0;
+              const fallback =
+                lastUploadHadResults === false
+                  ? UPLOAD_TOOL_EMPTY_FALLBACK
+                  : UPLOAD_TOOL_FALLBACK;
+              for (const delta of chunkText(fallback)) {
+                yield { type: 'delta', delta };
+              }
+              return;
+            }
+            const confirmMessage = `Here are the stall details for ${stalls[0].name}.`;
+            for (const delta of chunkText(confirmMessage)) {
+              yield { type: 'delta', delta };
+            }
+            return;
+          }
+
+          const summary = buildListSummary('search_entities', searchData);
+          for (const delta of chunkText(summary)) {
+            yield { type: 'delta', delta };
+          }
+          return;
+        } catch (error) {
+          const message = normalizeToolError(error);
+          for (const delta of chunkText(message)) {
+            yield { type: 'delta', delta };
+          }
+          return;
+        }
+      }
+    }
   }
 
   for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration += 1) {
@@ -420,7 +633,9 @@ export async function* streamAgentResponse({
         const stripped = stripExternalUrls(responseText);
         responseText = stripped || responseText;
         if (!responseText.trim()) {
-          responseText = UPLOAD_TOOL_FALLBACK;
+          responseText = forceUploadResponse
+            ? UPLOAD_TOOL_FALLBACK
+            : EMPTY_RESPONSE_FALLBACK;
         }
       }
       const chunks = chunkText(responseText);
