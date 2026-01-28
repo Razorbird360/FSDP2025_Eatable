@@ -87,6 +87,46 @@ function TypingDots() {
   );
 }
 
+function UploadGrid({ uploads }: { uploads: any[] }) {
+  if (!uploads || uploads.length === 0) {
+    return <p className="text-xs text-gray-500">No community uploads yet.</p>;
+  }
+
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      {uploads.map((upload: any) => (
+        <div
+          key={upload.id}
+          className="rounded-xl border border-gray-200 bg-white p-2"
+        >
+          {upload.imageUrl ? (
+            <img
+              src={upload.imageUrl}
+              alt={upload.caption || 'Community upload'}
+              className="h-32 w-full rounded-lg object-cover"
+            />
+          ) : (
+            <div className="flex h-32 items-center justify-center rounded-lg bg-gray-100 text-xs text-gray-500">
+              No image
+            </div>
+          )}
+          <div className="mt-2 space-y-1">
+            <p className="text-xs font-semibold text-gray-700">
+              {upload.user?.displayName || 'Community member'}
+            </p>
+            {upload.caption && (
+              <p className="text-xs text-gray-500">{upload.caption}</p>
+            )}
+            <p className="text-[11px] text-gray-400">
+              {upload.upvoteCount ?? 0} upvotes • {upload.downvoteCount ?? 0} downvotes
+            </p>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function UploadToolCard({ uploadInfo }: { uploadInfo: any }) {
   const { uploadPhoto, sendMessage } = useAgentChat();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -319,16 +359,19 @@ function ToolBubble({ message }: MessageBubbleProps) {
   const toolName = message.toolName || payload?.toolName || 'tool';
   const [showDetails, setShowDetails] = useState(false);
   const toolLabel = formatToolLabel(toolName);
-  const output = payload?.output;
+  const output = payload?.output ?? payload;
   const error = payload?.error;
   const uploads = Array.isArray(output)
     ? output
     : Array.isArray(output?.uploads)
       ? output.uploads
-      : [];
+      : Array.isArray(output?.output)
+        ? output.output
+        : Array.isArray(output?.output?.uploads)
+          ? output.output.uploads
+          : [];
   const showUploads =
     toolName === 'get_dish_uploads' || toolName === 'get_stall_gallery';
-  const previewUploads = showUploads ? uploads.slice(0, 3) : [];
   const searchResults =
     toolName === 'search_entities' && output
       ? {
@@ -382,7 +425,7 @@ function ToolBubble({ message }: MessageBubbleProps) {
       : null;
   const checkoutOrder = toolName === 'checkout_and_pay' ? output?.order : null;
   const checkoutPayment = toolName === 'checkout_and_pay' ? output?.payment : null;
-  const canToggleDetails = !error;
+  const canToggleDetails = !error && !uploadInfo;
 
   const detailsWrapperClass = showDetails
     ? 'w-full max-w-[560px]'
@@ -424,34 +467,6 @@ function ToolBubble({ message }: MessageBubbleProps) {
       ) : (
         <>
           {uploadInfo && <UploadToolCard uploadInfo={uploadInfo} />}
-          {!showDetails && showUploads && (
-            <div className="mt-3">
-              {previewUploads.length > 0 ? (
-                <div className="flex gap-2">
-                  {previewUploads.map((upload: any) => (
-                    <div
-                      key={upload.id}
-                      className="h-14 w-14 overflow-hidden rounded-lg border border-gray-100 bg-gray-50"
-                    >
-                      {upload.imageUrl ? (
-                        <img
-                          src={upload.imageUrl}
-                          alt={upload.caption || 'Community upload'}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center text-[10px] text-gray-400">
-                          No image
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-xs text-gray-500">No community uploads yet.</p>
-              )}
-            </div>
-          )}
           <div
             className={`overflow-hidden transition-all duration-300 ease-out ${
               showDetails ? 'max-h-[2200px] opacity-100' : 'max-h-0 opacity-0'
@@ -459,6 +474,11 @@ function ToolBubble({ message }: MessageBubbleProps) {
             aria-hidden={!showDetails}
           >
             <div className={showDetails ? 'mt-2' : ''}>
+          {showUploads && (
+            <div className="mt-3">
+              <UploadGrid uploads={uploads} />
+            </div>
+          )}
           {searchResults && (
             <div className="mt-3 space-y-4">
               {['hawkerCentres', 'stalls', 'dishes'].every(
@@ -489,7 +509,7 @@ function ToolBubble({ message }: MessageBubbleProps) {
                       <p className="text-xs text-gray-400">No matches.</p>
                     ) : (
                       <div className="space-y-2">
-                        {section.items.map((item: any) => {
+                        {section.items.map((item: any, idx: number) => {
                           const imageUrl = item.imageUrl || item.image_url || null;
                           const subtitle =
                             section.subtitleKey === 'address'
@@ -504,6 +524,11 @@ function ToolBubble({ message }: MessageBubbleProps) {
                               key={item.id}
                               className="flex items-center gap-3 rounded-xl border border-gray-100 bg-white p-2"
                             >
+                              {section.title === 'Stalls' && (
+                                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[#21421B]/10 text-[11px] font-semibold text-[#21421B]">
+                                  {idx + 1}
+                                </div>
+                              )}
                               {imageUrl ? (
                                 <img
                                   src={imageUrl}
@@ -757,12 +782,17 @@ function ToolBubble({ message }: MessageBubbleProps) {
               <p className="text-xs font-semibold text-gray-500">Stalls</p>
               {Array.isArray(stallsList) && stallsList.length > 0 ? (
                 <div className="space-y-2">
-                  {stallsList.map((stall: any) => (
+                  {stallsList.map((stall: any, idx: number) => (
                     <div
                       key={stall.id}
                       className="rounded-xl border border-gray-100 bg-white p-2"
                     >
+                      <div className="flex items-center gap-2">
+                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[#21421B]/10 text-[11px] font-semibold text-[#21421B]">
+                          {idx + 1}
+                        </div>
                       <p className="text-xs font-semibold text-gray-700">{stall.name}</p>
+                      </div>
                       {stall.cuisineType && (
                         <p className="text-[11px] text-gray-500">{stall.cuisineType}</p>
                       )}
@@ -869,43 +899,6 @@ function ToolBubble({ message }: MessageBubbleProps) {
               <p className="text-[11px] text-gray-500">
                 Alert at {budgetInfo.alertAtPercent ?? 80}%
               </p>
-            </div>
-          )}
-          {showUploads && (
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              {uploads.length === 0 ? (
-                <p className="text-xs text-gray-500">No community photos yet.</p>
-              ) : (
-                uploads.map((upload: any) => (
-                  <div
-                    key={upload.id}
-                    className="rounded-xl border border-gray-200 bg-white p-2"
-                  >
-                    {upload.imageUrl ? (
-                      <img
-                        src={upload.imageUrl}
-                        alt={upload.caption || 'Community upload'}
-                        className="h-32 w-full rounded-lg object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-32 items-center justify-center rounded-lg bg-gray-100 text-xs text-gray-500">
-                        No image
-                      </div>
-                    )}
-                    <div className="mt-2 space-y-1">
-                      <p className="text-xs font-semibold text-gray-700">
-                        {upload.user?.displayName || 'Community member'}
-                      </p>
-                      {upload.caption && (
-                        <p className="text-xs text-gray-500">{upload.caption}</p>
-                      )}
-                      <p className="text-[11px] text-gray-400">
-                        {upload.upvoteCount ?? 0} upvotes • {upload.downvoteCount ?? 0} downvotes
-                      </p>
-                    </div>
-                  </div>
-                ))
-              )}
             </div>
           )}
           {qrImage && (
@@ -1058,6 +1051,20 @@ function MessageBubble({ message, introTyping = false }: MessageBubbleProps) {
           <img src={logoLight} alt="At-Table" className="h-7 w-7 object-contain" />
         </div>
         <ToolBubble message={message} />
+      </div>
+    );
+  }
+
+  if (message.kind === 'gallery') {
+    const uploads = Array.isArray(message.galleryItems) ? message.galleryItems : [];
+    return (
+      <div className="flex items-start gap-3">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#21421B]">
+          <img src={logoLight} alt="At-Table" className="h-7 w-7 object-contain" />
+        </div>
+        <div className="max-w-[75%] rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-800 shadow-sm">
+          <UploadGrid uploads={uploads} />
+        </div>
       </div>
     );
   }
@@ -1226,8 +1233,7 @@ export default function AgentChatPanel() {
             color="#4A554B"
             fontSize="sm"
             height="48px"
-            paddingLeft="1rem"
-            paddingRight="1rem"
+            paddingX="1rem"
             _placeholder={{ color: '#6d7f68' }}
             _hover={{ bg: 'white', borderColor: '#21421B' }}
             _focus={{ borderColor: '#21421B', boxShadow: 'none', bg: 'white' }}

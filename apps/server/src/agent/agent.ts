@@ -31,6 +31,17 @@ const DELTA_CHUNK_SIZE = 160;
 const UPLOAD_TOOL_NAMES = new Set(['get_stall_gallery', 'get_dish_uploads']);
 const UPLOAD_TOOL_FALLBACK = 'Here are the community uploads below.';
 const UPLOAD_TOOL_EMPTY_FALLBACK = 'No community uploads yet.';
+const LIST_TOOL_NAMES = new Set([
+  'search_entities',
+  'list_stalls',
+  'get_hawker_stalls',
+  'get_popular_stalls',
+  'get_hawker_dishes',
+  'get_top_voted_menu_items',
+  'get_featured_menu_items_by_cuisine',
+]);
+const LIST_TOOL_FALLBACK =
+  'Here are the results below. Tap "Show details" to view them and reply with a number or name.';
 
 const BASE_SYSTEM_PROMPT = [
   'You are the Eatable assistant.',
@@ -124,6 +135,41 @@ const normalizeMessageContent = (message: AIMessage) => {
 const stripExternalUrls = (text: string) =>
   text.replace(/https?:\/\/\S+/gi, '').replace(/\s{2,}/g, ' ').trim();
 
+const extractExplicitUploadRequest = (content: string) => {
+  if (!content) return null;
+  const stallMatch = content.match(/stallId\s+([0-9a-fA-F-]{16,})/i);
+  if (stallMatch) {
+    return {
+      toolName: 'get_stall_gallery',
+      input: { stallId: stallMatch[1] },
+    };
+  }
+  const menuItemMatch = content.match(/menuItemId\s+([0-9a-fA-F-]{16,})/i);
+  if (menuItemMatch) {
+    return {
+      toolName: 'get_dish_uploads',
+      input: { menuItemId: menuItemMatch[1] },
+    };
+  }
+  return null;
+};
+
+const getUploadItems = (output: unknown) => {
+  if (Array.isArray(output)) return output;
+  if (output && typeof output === 'object') {
+    if (Array.isArray(output.uploads)) {
+      return output.uploads;
+    }
+    if (Array.isArray(output.output)) {
+      return output.output;
+    }
+    if (output.output && typeof output.output === 'object' && Array.isArray(output.output.uploads)) {
+      return output.output.uploads;
+    }
+  }
+  return [];
+};
+
 const extractToolCalls = (message: AIMessage) => {
   const direct = (message as AIMessage & { tool_calls?: unknown }).tool_calls;
   if (Array.isArray(direct)) {
@@ -193,6 +239,74 @@ const chunkText = (text: string, size = DELTA_CHUNK_SIZE) => {
   return chunks;
 };
 
+const buildListSummary = (toolName: string, output: unknown) => {
+  if (!output || typeof output !== 'object') {
+    return LIST_TOOL_FALLBACK;
+  }
+
+  const buildNumberedList = (items: any[], getLabel: (item: any) => string) =>
+    items
+      .slice(0, 5)
+      .map((item, index) => `${index + 1}. ${getLabel(item)}`)
+      .join('\n');
+
+  const buildFollowUp = (items: any[], labelBuilder: (item: any) => string) => {
+    if (!items.length) {
+      return 'I could not find any matches. Try a more specific name or another keyword.';
+    }
+    const list = buildNumberedList(items, labelBuilder);
+    return `Here are a few options:\n${list}\nReply with a number or name.`;
+  };
+
+  if (toolName === 'search_entities') {
+    const hawkers = Array.isArray((output as any).hawkerCentres)
+      ? (output as any).hawkerCentres
+      : [];
+    const stalls = Array.isArray((output as any).stalls)
+      ? (output as any).stalls
+      : [];
+    const dishes = Array.isArray((output as any).dishes)
+      ? (output as any).dishes
+      : [];
+
+    if (stalls.length) {
+      return buildFollowUp(stalls, (stall) =>
+        stall.subtitle ? `${stall.name} — ${stall.subtitle}` : stall.name
+      );
+    }
+    if (dishes.length) {
+      return buildFollowUp(dishes, (dish) => dish.name);
+    }
+    if (hawkers.length) {
+      return buildFollowUp(hawkers, (centre) =>
+        centre.subtitle ? `${centre.name} — ${centre.subtitle}` : centre.name
+      );
+    }
+    return 'I could not find any matches. Try a more specific name or another keyword.';
+  }
+
+  if (Array.isArray(output)) {
+    if (toolName === 'get_top_voted_menu_items') {
+      return buildFollowUp(output, (item) =>
+        item.stall?.name ? `${item.name} — ${item.stall.name}` : item.name
+      );
+    }
+    if (toolName === 'get_featured_menu_items_by_cuisine') {
+      return buildFollowUp(output, (entry) => {
+        const itemName = entry?.menuItem?.name ?? 'Menu item';
+        const stallName = entry?.stall?.name;
+        return stallName ? `${itemName} — ${stallName}` : itemName;
+      });
+    }
+    if (toolName === 'get_hawker_dishes') {
+      return buildFollowUp(output, (item) => item.name);
+    }
+    return buildFollowUp(output, (item) => item.name ?? 'Item');
+  }
+
+  return LIST_TOOL_FALLBACK;
+};
+
 export async function* streamAgentResponse({
   messages,
   userId,
@@ -220,6 +334,65 @@ export async function* streamAgentResponse({
   ];
   let forceUploadResponse = false;
   let lastUploadHadResults: boolean | null = null;
+  let lastToolName: string | null = null;
+  let lastToolOutput: unknown = null;
+
+  const lastUserMessage = userMessages[userMessages.length - 1];
+  if (lastUserMessage?.role === 'user') {
+    const explicitUpload = extractExplicitUploadRequest(lastUserMessage.content);
+    if (explicitUpload) {
+      const tool = toolMap.get(explicitUpload.toolName);
+      if (tool) {
+        let output: unknown;
+        try {
+          output = await tool.invoke(explicitUpload.input);
+          conversation.push(
+            new ToolMessage({
+              content: JSON.stringify(output),
+              tool_call_id: randomUUID(),
+              status: output?.error ? 'error' : 'success',
+            })
+          );
+          yield { type: 'tool', payload: output };
+
+          if (output?.error) {
+            const message = normalizeToolError(output.error);
+            for (const delta of chunkText(message)) {
+              yield { type: 'delta', delta };
+            }
+            return;
+          }
+
+          forceUploadResponse = true;
+          const uploadItems = getUploadItems(output);
+          lastUploadHadResults = uploadItems.length > 0;
+          const fallback =
+            lastUploadHadResults === false
+              ? UPLOAD_TOOL_EMPTY_FALLBACK
+              : UPLOAD_TOOL_FALLBACK;
+          for (const delta of chunkText(fallback)) {
+            yield { type: 'delta', delta };
+          }
+          return;
+        } catch (error) {
+          const payload = {
+            toolName: explicitUpload.toolName,
+            input: explicitUpload.input,
+            error: normalizeToolError(error),
+          };
+          conversation.push(
+            new ToolMessage({
+              content: JSON.stringify(payload),
+              tool_call_id: randomUUID(),
+              status: 'error',
+            })
+          );
+          yield { type: 'tool', payload };
+          return;
+        }
+      }
+    }
+  }
 
   for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration += 1) {
     const response = await model.invoke(conversation);
@@ -232,6 +405,8 @@ export async function* streamAgentResponse({
           lastUploadHadResults === false
             ? UPLOAD_TOOL_EMPTY_FALLBACK
             : UPLOAD_TOOL_FALLBACK;
+      } else if (lastToolName && LIST_TOOL_NAMES.has(lastToolName)) {
+        responseText = buildListSummary(lastToolName, lastToolOutput);
       } else {
         const stripped = stripExternalUrls(responseText);
         responseText = stripped || responseText;
@@ -293,18 +468,19 @@ export async function* streamAgentResponse({
         yield { type: 'tool', payload };
         continue;
       }
-      if (UPLOAD_TOOL_NAMES.has(call.name)) {
+      const outputHasError =
+        output && typeof output === 'object' && 'error' in output
+          ? Boolean(output.error)
+          : false;
+      if (!outputHasError) {
+        lastToolName = call.name;
+        lastToolOutput = output?.output ?? output;
+      }
+
+      if (UPLOAD_TOOL_NAMES.has(call.name) && !outputHasError) {
         forceUploadResponse = true;
-        if (output && typeof output === 'object') {
-          const resultArray = Array.isArray(output)
-            ? output
-            : Array.isArray(output.uploads)
-              ? output.uploads
-              : [];
-          lastUploadHadResults = resultArray.length > 0;
-        } else {
-          lastUploadHadResults = false;
-        }
+        const resultArray = getUploadItems(output);
+        lastUploadHadResults = resultArray.length > 0;
       }
       conversation.push(
         new ToolMessage({

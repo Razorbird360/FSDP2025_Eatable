@@ -8,7 +8,7 @@ const CHAT_HISTORY_KEY = 'eatable:agentChatHistory';
 const CHAT_SESSION_KEY = 'eatable:agentChatSessionId';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
 
-export type MessageKind = 'text' | 'tool';
+export type MessageKind = 'text' | 'tool' | 'gallery';
 
 export interface Message {
   id: string;
@@ -17,6 +17,7 @@ export interface Message {
   content: string;
   toolName?: string;
   toolPayload?: unknown;
+  galleryItems?: unknown[];
   status?: 'streaming' | 'done' | 'error';
   hidden?: boolean;
   displayContent?: string;
@@ -96,6 +97,10 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
   const [isStreaming, setIsStreaming] = useState(false);
   const messagesRef = useRef<Message[]>(initialMessages);
   const streamingAssistantRef = useRef<string | null>(null);
+  const pendingGalleryRef = useRef<{
+    assistantId: string;
+    uploads: any[];
+  } | null>(null);
   const lastStallSelectionRef = useRef<{
     items: Array<{ id: string; label: string; name: string }>;
     updatedAt: number;
@@ -106,6 +111,10 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
   } | null>(null);
   const lastMenuItemSelectionRef = useRef<{
     items: Array<{ id: string; label: string; name: string }>;
+    updatedAt: number;
+  } | null>(null);
+  const lastIntentRef = useRef<{
+    type: 'stall_uploads' | 'dish_uploads';
     updatedAt: number;
   } | null>(null);
   const isCustomer =
@@ -280,6 +289,26 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
     });
   };
 
+  const extractUploadsFromPayload = (payload: any) => {
+    const output = payload?.output ?? payload;
+    if (Array.isArray(output)) return output;
+    if (Array.isArray(output?.uploads)) return output.uploads;
+    if (Array.isArray(output?.output)) return output.output;
+    if (Array.isArray(output?.output?.uploads)) return output.output.uploads;
+    return [];
+  };
+
+  const appendGalleryMessage = (uploads: any[]) => {
+    if (!uploads || uploads.length === 0) return;
+    appendMessage({
+      role: 'assistant',
+      kind: 'gallery',
+      content: '',
+      galleryItems: uploads,
+      status: 'done',
+    });
+  };
+
   const buildStallOptions = (items: any[]) =>
     items
       .map((stall) => {
@@ -343,6 +372,9 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
     const toolName = payload?.toolName;
     const output = payload?.output;
     const now = Date.now();
+    if (toolName === 'get_stall_gallery' || toolName === 'get_dish_uploads') {
+      lastIntentRef.current = null;
+    }
 
     if (toolName === 'search_entities' && output?.stalls) {
       const options = buildStallOptions(output.stalls);
@@ -429,6 +461,12 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
     insertToolMessage(payload, assistantId);
     updateSelectionContext(payload);
     const toolName = payload?.toolName;
+    if (toolName === 'get_stall_gallery' || toolName === 'get_dish_uploads') {
+      const uploads = extractUploadsFromPayload(payload);
+      pendingGalleryRef.current = assistantId
+        ? { assistantId, uploads }
+        : { assistantId: streamingAssistantRef.current ?? '', uploads };
+    }
     if (
       toolName === 'get_cart' ||
       toolName === 'add_to_cart' ||
@@ -539,6 +577,15 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
     const trimmed = content.trim();
     if (!trimmed) return;
 
+    const loweredInput = trimmed.toLowerCase();
+    if (/\b(upload|uploads|photo|photos|gallery|community)\b/.test(loweredInput)) {
+      const intentType =
+        /\b(dish|menu|item)\b/.test(loweredInput) && !/\bstall\b/.test(loweredInput)
+          ? 'dish_uploads'
+          : 'stall_uploads';
+      lastIntentRef.current = { type: intentType, updatedAt: Date.now() };
+    }
+
     let payloadContent = trimmed;
     let displayContent: string | undefined;
     const normalizedInput = normalizeSelectionText(trimmed);
@@ -624,7 +671,13 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
     let selectedType: 'menuItem' | 'stall' | 'hawker' | null = null;
     let selectedItem: { id: string; label: string; name: string } | null = null;
 
-    if (preferMenuItem && menuSelection) {
+    if (lastIntentRef.current?.type === 'stall_uploads' && stallSelection) {
+      selectedType = 'stall';
+      selectedItem = stallSelection;
+    } else if (lastIntentRef.current?.type === 'dish_uploads' && menuSelection) {
+      selectedType = 'menuItem';
+      selectedItem = menuSelection;
+    } else if (preferMenuItem && menuSelection) {
       selectedType = 'menuItem';
       selectedItem = menuSelection;
     } else if (preferHawker && hawkerSelection) {
@@ -659,13 +712,23 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
     }
 
     if (selectedItem && selectedType === 'menuItem') {
-      payloadContent = `Selected menu item: ${selectedItem.label} (menuItemId: ${selectedItem.id}).`;
+      if (lastIntentRef.current?.type === 'dish_uploads') {
+        payloadContent = `Show community uploads for menuItemId ${selectedItem.id}.`;
+        lastIntentRef.current = null;
+      } else {
+        payloadContent = `Selected menu item: ${selectedItem.label} (menuItemId: ${selectedItem.id}).`;
+      }
       displayContent = trimmed;
       lastMenuItemSelectionRef.current = null;
     }
 
     if (selectedItem && selectedType === 'stall') {
-      payloadContent = `Selected stall: ${selectedItem.label} (stallId: ${selectedItem.id}).`;
+      if (lastIntentRef.current?.type === 'stall_uploads') {
+        payloadContent = `Show community uploads for stallId ${selectedItem.id}.`;
+        lastIntentRef.current = null;
+      } else {
+        payloadContent = `Selected stall: ${selectedItem.label} (stallId: ${selectedItem.id}).`;
+      }
       displayContent = trimmed;
       lastStallSelectionRef.current = null;
     }
@@ -699,6 +762,7 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
     setMessages([...nextMessages, assistantMessage]);
     setIsStreaming(true);
     streamingAssistantRef.current = assistantId;
+    pendingGalleryRef.current = null;
 
     try {
       await streamAgent({
@@ -706,6 +770,10 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
         assistantId,
       });
       updateMessage(assistantId, { status: 'done' });
+      if (pendingGalleryRef.current?.assistantId === assistantId) {
+        appendGalleryMessage(pendingGalleryRef.current.uploads);
+      }
+      pendingGalleryRef.current = null;
     } catch (error) {
       updateMessage(assistantId, {
         content: error instanceof Error ? error.message : 'Something went wrong.',
