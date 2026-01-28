@@ -2,6 +2,7 @@ import prisma from '../lib/prisma.js';
 
 const DEFAULT_LIMIT = 5;
 const CANDIDATE_MULTIPLIER = 5;
+const STOP_WORDS = new Set(['stall', 'stalls', 'the', 'a', 'an']);
 
 function getMatchTier(name, query) {
   const normalizedName = name.toLowerCase();
@@ -20,19 +21,36 @@ function sortByRelevance(items, query) {
   });
 }
 
-async function search(query, limit = DEFAULT_LIMIT) {
-  const trimmedQuery = query.trim();
-  if (!trimmedQuery) {
-    return { hawkerCentres: [], stalls: [], dishes: [] };
+const buildTokens = (query) => {
+  const tokens = query
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .map((token) => token.trim())
+    .filter(Boolean)
+    .filter((token) => token.length >= 3)
+    .filter((token) => !STOP_WORDS.has(token));
+
+  return Array.from(new Set(tokens));
+};
+
+const buildNameFilter = ({ query, tokens }) => {
+  if (tokens && tokens.length > 0) {
+    return {
+      OR: tokens.map((token) => ({
+        name: { contains: token, mode: 'insensitive' },
+      })),
+    };
   }
+  return { name: { contains: query, mode: 'insensitive' } };
+};
 
+const runSearch = async ({ query, tokens, limit }) => {
   const take = limit * CANDIDATE_MULTIPLIER;
-
+  const nameFilter = buildNameFilter({ query, tokens });
   const [hawkerCentres, stalls, dishes] = await Promise.all([
     prisma.hawkerCentre.findMany({
-      where: {
-        name: { contains: trimmedQuery, mode: 'insensitive' },
-      },
+      where: nameFilter,
       select: {
         id: true,
         name: true,
@@ -42,9 +60,7 @@ async function search(query, limit = DEFAULT_LIMIT) {
       take,
     }),
     prisma.stall.findMany({
-      where: {
-        name: { contains: trimmedQuery, mode: 'insensitive' },
-      },
+      where: nameFilter,
       select: {
         id: true,
         name: true,
@@ -58,7 +74,7 @@ async function search(query, limit = DEFAULT_LIMIT) {
     prisma.menuItem.findMany({
       where: {
         isActive: true,
-        name: { contains: trimmedQuery, mode: 'insensitive' },
+        ...nameFilter,
       },
       select: {
         id: true,
@@ -79,6 +95,36 @@ async function search(query, limit = DEFAULT_LIMIT) {
       take,
     }),
   ]);
+
+  return { hawkerCentres, stalls, dishes };
+};
+
+async function search(query, limit = DEFAULT_LIMIT) {
+  const trimmedQuery = query.trim();
+  if (!trimmedQuery) {
+    return { hawkerCentres: [], stalls: [], dishes: [] };
+  }
+
+  let { hawkerCentres, stalls, dishes } = await runSearch({
+    query: trimmedQuery,
+    tokens: [],
+    limit,
+  });
+
+  if (
+    hawkerCentres.length === 0 &&
+    stalls.length === 0 &&
+    dishes.length === 0
+  ) {
+    const tokens = buildTokens(trimmedQuery);
+    if (tokens.length > 0) {
+      ({ hawkerCentres, stalls, dishes } = await runSearch({
+        query: trimmedQuery,
+        tokens,
+        limit,
+      }));
+    }
+  }
 
   const hawkerCentreResults = sortByRelevance(
     hawkerCentres.map((centre) => ({
