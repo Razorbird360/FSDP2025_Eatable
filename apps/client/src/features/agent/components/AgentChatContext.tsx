@@ -715,6 +715,7 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
     const decoder = new TextDecoder();
     let buffer = '';
 
+    let doneReceived = false;
     while (true) {
       const { value, done } = await reader.read();
       if (done) break;
@@ -751,11 +752,22 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
               content: payload?.error || 'Something went wrong.',
               status: 'error',
             });
+          } else if (eventType === 'done') {
+            doneReceived = true;
           }
         } catch (parseError) {
           // ignore malformed chunks
         }
       });
+
+      if (doneReceived) {
+        try {
+          await reader.cancel();
+        } catch {
+          // ignore
+        }
+        break;
+      }
     }
   };
 
