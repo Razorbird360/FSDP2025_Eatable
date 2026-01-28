@@ -1,8 +1,8 @@
 import prisma from '../lib/prisma.js';
 
 export const stallsService = {
-  async getAll() {
-    return await prisma.stall.findMany({
+  async getAll(limit) {
+    const query = {
       include: {
         owner: {
           select: {
@@ -19,7 +19,13 @@ export const stallsService = {
       orderBy: {
         createdAt: 'desc',
       },
-    });
+    };
+
+    if (Number.isInteger(limit) && limit > 0) {
+      query.take = limit;
+    }
+
+    return await prisma.stall.findMany(query);
   },
 
   async getById(id) {

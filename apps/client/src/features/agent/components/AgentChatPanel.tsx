@@ -11,6 +11,7 @@ const logoLight = new URL(
 
 const TOOL_LABELS: Record<string, string> = {
   search_entities: 'Search',
+  list_stalls: 'Stalls list',
   get_hawker_info: 'Hawker centre info',
   get_hawker_stalls: 'Hawker centre stalls',
   get_hawker_dishes: 'Hawker centre dishes',
@@ -338,7 +339,10 @@ function ToolBubble({ message }: MessageBubbleProps) {
   const topVoted = toolName === 'get_top_voted_menu_items' && output ? output : null;
   const featured = toolName === 'get_featured_menu_items_by_cuisine' && output ? output : null;
   const hawkerInfo = toolName === 'get_hawker_info' && output ? output : null;
-  const hawkerStalls = toolName === 'get_hawker_stalls' && output ? output : null;
+  const stallsList =
+    (toolName === 'get_hawker_stalls' || toolName === 'list_stalls') && output
+      ? output
+      : null;
   const hawkerDishes = toolName === 'get_hawker_dishes' && output ? output : null;
   const stallDetails = toolName === 'get_stall_details' && output ? output : null;
   const budgetInfo =
@@ -668,12 +672,12 @@ function ToolBubble({ message }: MessageBubbleProps) {
               )}
             </div>
           )}
-          {hawkerStalls && (
+          {stallsList && (
             <div className="mt-3 space-y-2">
               <p className="text-xs font-semibold text-gray-500">Stalls</p>
-              {Array.isArray(hawkerStalls) && hawkerStalls.length > 0 ? (
+              {Array.isArray(stallsList) && stallsList.length > 0 ? (
                 <div className="space-y-2">
-                  {hawkerStalls.map((stall: any) => (
+                  {stallsList.map((stall: any) => (
                     <div
                       key={stall.id}
                       className="rounded-xl border border-gray-100 bg-white p-2"

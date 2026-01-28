@@ -24,6 +24,10 @@ const menuListSchema = z.object({
   limit: limitSchema,
 });
 
+const stallListSchema = z.object({
+  limit: limitSchema,
+});
+
 const featuredSchema = z.object({
   minUpvotes: z.number().int().min(1).optional(),
   cuisines: z.array(z.string().min(1)).optional(),
@@ -99,6 +103,32 @@ export const createDiscoveryTools = (context: ToolContext) => [
             imageUrl: dish.imageUrl ?? null,
           })),
         };
+      },
+    },
+    context
+  ),
+  createTool(
+    {
+      name: 'list_stalls',
+      description:
+        'List stalls for browsing when the user has no specific search query.',
+      schema: stallListSchema,
+      handler: async ({ limit }) => {
+        const stalls = await stallsService.getAll(limit ?? undefined);
+        return stalls.map((stall) => ({
+          id: stall.id,
+          ownerId: stall.ownerId ?? null,
+          name: stall.name,
+          description: stall.description ?? null,
+          location: stall.location ?? null,
+          cuisineType: stall.cuisineType ?? null,
+          tags: stall.tags ?? [],
+          dietaryTags: stall.dietaryTags ?? [],
+          image_url: stall.image_url ?? null,
+          hawkerCentreId: stall.hawkerCentreId ?? null,
+          createdAt: stall.createdAt,
+          updatedAt: stall.updatedAt,
+        }));
       },
     },
     context
