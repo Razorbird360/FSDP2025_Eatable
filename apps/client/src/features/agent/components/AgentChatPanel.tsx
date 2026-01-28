@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, KeyboardEvent, ChangeEvent } from 'react';
 import { Input, Box } from '@chakra-ui/react';
-import { X, Send, ChevronDown } from 'lucide-react';
+import { X, Send, ChevronDown, ImagePlus } from 'lucide-react';
 import { useAgentChat, Message } from './AgentChatContext';
 import { getSessionAccessToken } from '../../auth/sessionCache';
 
@@ -88,7 +88,7 @@ function TypingDots() {
 }
 
 function UploadToolCard({ uploadInfo }: { uploadInfo: any }) {
-  const { uploadPhoto } = useAgentChat();
+  const { uploadPhoto, sendMessage } = useAgentChat();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [status, setStatus] = useState<'idle' | 'uploading' | 'done' | 'error'>('idle');
@@ -112,33 +112,56 @@ function UploadToolCard({ uploadInfo }: { uploadInfo: any }) {
     inputRef.current?.click();
   };
 
-  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null;
+    if (!file || status === 'uploading') {
+      if (inputRef.current) {
+        inputRef.current.value = '';
+      }
+      return;
+    }
     setSelectedFile(file);
-    setStatus('idle');
     if (inputRef.current) {
       inputRef.current.value = '';
     }
-  };
-
-  const handleUpload = async () => {
-    if (!selectedFile || !uploadInfo || status === 'uploading') return;
+    if (!uploadInfo) return;
     setStatus('uploading');
-    const success = await uploadPhoto(uploadInfo, selectedFile);
+    const success = await uploadPhoto(uploadInfo, file);
     setStatus(success ? 'done' : 'error');
+    if (success) {
+      const menuItemId =
+        uploadInfo?.menuItemId || uploadInfo?.fields?.menuItemId || 'unknown';
+      const aspectRatio = uploadInfo?.fields?.aspectRatio || 'square';
+      await sendMessage(
+        `Photo uploaded for menuItemId ${menuItemId} (aspectRatio: ${aspectRatio}).`,
+        { silent: true }
+      );
+    }
   };
 
   return (
     <div className="mt-3 space-y-3 rounded-xl border border-gray-100 bg-white p-3">
       <p className="text-xs font-semibold text-gray-500">Upload a dish photo</p>
-      <div className="overflow-hidden rounded-xl border border-dashed border-gray-200 bg-gray-50">
-        {previewUrl ? (
-          <img src={previewUrl} alt="Selected upload" className="h-40 w-full object-cover" />
-        ) : (
-          <div className="flex h-40 items-center justify-center text-xs text-gray-400">
-            No photo selected
-          </div>
-        )}
+      <div className="flex justify-center">
+        <button
+          type="button"
+          onClick={handleChoose}
+          disabled={status === 'uploading'}
+          className="flex h-40 w-40 items-center justify-center overflow-hidden rounded-xl border border-dashed border-gray-200 bg-gray-50 text-gray-400 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {previewUrl ? (
+            <img
+              src={previewUrl}
+              alt="Selected upload"
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <div className="flex flex-col items-center gap-2 text-xs">
+              <ImagePlus className="h-6 w-6" />
+              <span>Upload photo</span>
+            </div>
+          )}
+        </button>
       </div>
       <input
         ref={inputRef}
@@ -147,29 +170,14 @@ function UploadToolCard({ uploadInfo }: { uploadInfo: any }) {
         onChange={handleFileChange}
         className="hidden"
       />
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={handleChoose}
-          className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
-          disabled={status === 'uploading'}
-        >
-          Choose photo
-        </button>
-        <button
-          type="button"
-          onClick={handleUpload}
-          className="flex-1 rounded-lg bg-[#21421B] px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#2d5a24] disabled:cursor-not-allowed disabled:opacity-60"
-          disabled={!selectedFile || status === 'uploading'}
-        >
-          {status === 'uploading' ? 'Uploading…' : 'Upload photo'}
-        </button>
-      </div>
       {status === 'done' && (
         <p className="text-xs font-semibold text-emerald-600">Upload complete.</p>
       )}
       {status === 'error' && (
         <p className="text-xs font-semibold text-red-600">Upload failed. Try again.</p>
+      )}
+      {status === 'uploading' && (
+        <p className="text-xs font-semibold text-gray-500">Uploading…</p>
       )}
     </div>
   );
@@ -341,7 +349,10 @@ function ToolBubble({ message }: MessageBubbleProps) {
   const featured = toolName === 'get_featured_menu_items_by_cuisine' && output ? output : null;
   const hawkerInfo = toolName === 'get_hawker_info' && output ? output : null;
   const stallsList =
-    (toolName === 'get_hawker_stalls' || toolName === 'list_stalls') && output
+    (toolName === 'get_hawker_stalls' ||
+      toolName === 'list_stalls' ||
+      toolName === 'get_popular_stalls') &&
+    output
       ? output
       : null;
   const hawkerDishes = toolName === 'get_hawker_dishes' && output ? output : null;
@@ -361,7 +372,13 @@ function ToolBubble({ message }: MessageBubbleProps) {
     null;
 
   const qrImage = qrCode ? `data:image/png;base64,${qrCode}` : null;
-  const uploadInfo = toolName === 'prepare_upload_photo' ? output?.upload : null;
+  const uploadInfo =
+    toolName === 'prepare_upload_photo' && output?.upload
+      ? {
+          ...output.upload,
+          menuItemId: output.menuItemId ?? output.upload?.fields?.menuItemId ?? null,
+        }
+      : null;
   const checkoutOrder = toolName === 'checkout_and_pay' ? output?.order : null;
   const checkoutPayment = toolName === 'checkout_and_pay' ? output?.payment : null;
   const canToggleDetails = !error;
@@ -395,13 +412,15 @@ function ToolBubble({ message }: MessageBubbleProps) {
       {error ? (
         <p className="mt-2 text-sm text-red-600">{error}</p>
       ) : (
-        <div
-          className={`overflow-hidden transition-all duration-300 ease-out ${
-            showDetails ? 'max-h-[2200px] opacity-100' : 'max-h-0 opacity-0'
-          }`}
-          aria-hidden={!showDetails}
-        >
-          <div className={showDetails ? 'mt-2' : ''}>
+        <>
+          {uploadInfo && <UploadToolCard uploadInfo={uploadInfo} />}
+          <div
+            className={`overflow-hidden transition-all duration-300 ease-out ${
+              showDetails ? 'max-h-[2200px] opacity-100' : 'max-h-0 opacity-0'
+            }`}
+            aria-hidden={!showDetails}
+          >
+            <div className={showDetails ? 'mt-2' : ''}>
           {searchResults && (
             <div className="mt-3 space-y-4">
               {['hawkerCentres', 'stalls', 'dishes'].every(
@@ -479,7 +498,6 @@ function ToolBubble({ message }: MessageBubbleProps) {
           {checkoutPayment && (
             <NetsCheckoutCard order={checkoutOrder} payment={checkoutPayment} />
           )}
-          {uploadInfo && <UploadToolCard uploadInfo={uploadInfo} />}
           {cartData && (
             <div className="mt-3 space-y-3">
               {Array.isArray(cartData.cart) && cartData.cart.length > 0 ? (
@@ -861,8 +879,9 @@ function ToolBubble({ message }: MessageBubbleProps) {
               />
             </div>
           )}
+            </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );
@@ -1044,6 +1063,7 @@ export default function AgentChatPanel() {
     sendMessage,
     isStreaming,
   } = useAgentChat();
+  const visibleMessages = messages.filter((message) => !message.hidden);
   const [inputValue, setInputValue] = useState('');
   const [introPhase, setIntroPhase] = useState<'idle' | 'typing' | 'reveal'>(
     'idle'
@@ -1053,7 +1073,7 @@ export default function AgentChatPanel() {
   // Auto-scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [visibleMessages]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -1062,9 +1082,9 @@ export default function AgentChatPanel() {
     }
 
     const introMessage =
-      messages.length === 1 &&
-      messages[0]?.role === 'assistant' &&
-      messages[0]?.content === 'Hello! 👋 What are you hungry for today?';
+      visibleMessages.length === 1 &&
+      visibleMessages[0]?.role === 'assistant' &&
+      visibleMessages[0]?.content === 'Hello! 👋 What are you hungry for today?';
 
     if (!introMessage) {
       setIntroPhase('idle');
@@ -1079,7 +1099,7 @@ export default function AgentChatPanel() {
     return () => {
       window.clearTimeout(timer);
     };
-  }, [isOpen, messages]);
+  }, [isOpen, visibleMessages]);
 
   const handleSend = async () => {
     const trimmed = inputValue.trim();
@@ -1133,7 +1153,7 @@ export default function AgentChatPanel() {
 
       {/* Messages area */}
       <div className="h-[400px] overflow-y-auto px-4 py-4 space-y-4 bg-gray-50">
-        {messages.map((msg, index) => (
+        {visibleMessages.map((msg, index) => (
           <MessageBubble
             key={msg.id}
             message={msg}

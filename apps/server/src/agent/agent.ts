@@ -34,6 +34,8 @@ const BASE_SYSTEM_PROMPT = [
   'Keep responses concise and ask clarifying questions when needed.',
   'Use available tools to fetch up-to-date menu, stall, cart, and order data.',
   'If the user wants to browse without a specific name, use list_stalls to show options.',
+  'If the user asks for popular stalls, use get_popular_stalls.',
+  'When using prepare_upload_photo, do not list raw upload fields. Ask the user to upload via the UI card.',
   'When a user wants to checkout or pay, use checkout_and_pay to create the order and show payment QR.',
   'After tool responses, summarize in a friendly, structured reply.',
 ].join(' ');

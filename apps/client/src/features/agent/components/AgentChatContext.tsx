@@ -18,6 +18,7 @@ export interface Message {
   toolName?: string;
   toolPayload?: unknown;
   status?: 'streaming' | 'done' | 'error';
+  hidden?: boolean;
 }
 
 interface AgentChatContextType {
@@ -29,7 +30,7 @@ interface AgentChatContextType {
   closeChat: () => void;
   toggleChat: () => void;
   setEnabled: (enabled: boolean) => void;
-  sendMessage: (content: string) => Promise<void>;
+  sendMessage: (content: string, options?: { silent?: boolean }) => Promise<void>;
   uploadPhoto: (uploadInfo: any, file: File) => Promise<boolean>;
   clearHistory: () => void;
 }
@@ -237,12 +238,6 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
       return false;
     }
 
-    appendMessage({
-      role: 'assistant',
-      kind: 'text',
-      content: 'Photo uploaded successfully. Thanks for sharing!',
-      status: 'done',
-    });
     return true;
   };
 
@@ -378,7 +373,7 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
     }
   };
 
-  const sendMessage = async (content: string) => {
+  const sendMessage = async (content: string, options?: { silent?: boolean }) => {
     if (isStreaming) return;
     if (!isCustomer) return;
 
@@ -391,6 +386,7 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
       kind: 'text',
       content: trimmed,
       status: 'done',
+      hidden: options?.silent ?? false,
     };
 
     const assistantId = createMessageId();
