@@ -578,6 +578,14 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
       return;
     }
 
+    if (toolName === 'list_hawker_centres' && Array.isArray(output)) {
+      const options = buildHawkerOptions(output);
+      if (options.length) {
+        lastHawkerSelectionRef.current = { items: options, updatedAt: now };
+      }
+      return;
+    }
+
     if (toolName === 'get_stall_details' && output?.menuItems) {
       const options = buildMenuItemOptions(output.menuItems, {
         stallName: output.name,

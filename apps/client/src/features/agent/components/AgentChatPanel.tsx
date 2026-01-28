@@ -11,6 +11,7 @@ const logoLight = new URL(
 
 const TOOL_LABELS: Record<string, string> = {
   search_entities: 'Search',
+  list_hawker_centres: 'Hawker centres list',
   list_stalls: 'Stalls list',
   get_hawker_info: 'Hawker centre info',
   get_hawker_stalls: 'Hawker centre stalls',
@@ -377,6 +378,7 @@ function ToolBubble({ message }: MessageBubbleProps) {
   const topVoted = toolName === 'get_top_voted_menu_items' && output ? output : null;
   const featured = toolName === 'get_featured_menu_items_by_cuisine' && output ? output : null;
   const hawkerInfo = toolName === 'get_hawker_info' && output ? output : null;
+  const hawkerList = toolName === 'list_hawker_centres' && output ? output : null;
   const stallsList =
     (toolName === 'get_hawker_stalls' ||
       toolName === 'list_stalls' ||
@@ -533,6 +535,44 @@ function ToolBubble({ message }: MessageBubbleProps) {
                     )}
                   </div>
                 ))
+              )}
+            </div>
+          )}
+          {hawkerList && (
+            <div className="mt-3 space-y-2">
+              {Array.isArray(hawkerList) && hawkerList.length > 0 ? (
+                hawkerList.map((centre: any, idx: number) => (
+                  <div
+                    key={centre.id ?? `${centre.name}-${idx}`}
+                    className="flex items-center gap-3 rounded-xl border border-gray-100 bg-white p-2"
+                  >
+                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[#21421B]/10 text-[11px] font-semibold text-[#21421B]">
+                      {idx + 1}
+                    </div>
+                    {centre.imageUrl ? (
+                      <img
+                        src={centre.imageUrl}
+                        alt={centre.name}
+                        className="h-10 w-10 rounded-lg object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 text-xs font-semibold text-gray-500">
+                        {(centre.name ?? '?').slice(0, 1).toUpperCase()}
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-gray-700">{centre.name}</p>
+                      {centre.address && (
+                        <p className="text-xs text-gray-500">{centre.address}</p>
+                      )}
+                      {centre.postalCode && (
+                        <p className="text-[11px] text-gray-400">{centre.postalCode}</p>
+                      )}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-xs text-gray-500">No hawker centres found.</p>
               )}
             </div>
           )}

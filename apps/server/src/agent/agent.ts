@@ -40,6 +40,7 @@ const EMPTY_RESPONSE_FALLBACK =
   'Sorry, I did not catch that. Could you rephrase?';
 const LIST_TOOL_NAMES = new Set([
   'search_entities',
+  'list_hawker_centres',
   'list_stalls',
   'get_hawker_stalls',
   'get_popular_stalls',
@@ -56,6 +57,7 @@ const BASE_SYSTEM_PROMPT = [
   'Use available tools to fetch up-to-date menu, stall, cart, and order data.',
   'Never ask the user for an order id. Use the available tools and context instead.',
   'If the user wants to browse without a specific name, use list_stalls to show options.',
+  'If the user wants to browse hawker centres, use list_hawker_centres.',
   'If the user asks for popular stalls, use get_popular_stalls.',
   'If the user asks for stalls from top-voted dishes, prefer get_popular_stalls over listing dishes.',
   'When using prepare_upload_photo, do not list raw upload fields. Ask the user to upload via the UI card.',
@@ -223,6 +225,29 @@ const extractStallRequest = (content: string) => {
   };
 };
 
+const extractHawkerRequest = (content: string) => {
+  if (!content) return null;
+  const lowered = content.toLowerCase();
+  if (!/\bhawker\b/.test(lowered)) return null;
+
+  const wantsList = /\b(all|list|show|what|which|available|any)\b/.test(lowered);
+  const cleaned = lowered
+    .replace(
+      /\b(hawker|centre|center|info|information|details|about|show|list|what|which|please|can you|could you|some|any|available|me|are|is|there|the|a|an)\b/g,
+      ' '
+    )
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (wantsList && !cleaned) {
+    return { mode: 'list' as const };
+  }
+  if (cleaned) {
+    return { mode: 'search' as const, query: cleaned };
+  }
+  return wantsList ? { mode: 'list' as const } : null;
+};
+
 const getUploadItems = (output: unknown) => {
   if (Array.isArray(output)) return output;
   if (output && typeof output === 'object') {
@@ -308,7 +333,11 @@ const chunkText = (text: string, size = DELTA_CHUNK_SIZE) => {
   return chunks;
 };
 
-const buildListSummary = (toolName: string, output: unknown) => {
+const buildListSummary = (
+  toolName: string,
+  output: unknown,
+  options: { preferHawkers?: boolean } = {}
+) => {
   if (!output || typeof output !== 'object') {
     return LIST_TOOL_FALLBACK;
   }
@@ -338,6 +367,11 @@ const buildListSummary = (toolName: string, output: unknown) => {
       ? (output as any).dishes
       : [];
 
+    if (options.preferHawkers && hawkers.length) {
+      return buildFollowUp(hawkers, (centre) =>
+        centre.subtitle ? `${centre.name} — ${centre.subtitle}` : centre.name
+      );
+    }
     if (stalls.length) {
       return buildFollowUp(stalls, (stall) =>
         stall.subtitle ? `${stall.name} — ${stall.subtitle}` : stall.name
@@ -355,6 +389,11 @@ const buildListSummary = (toolName: string, output: unknown) => {
   }
 
   if (Array.isArray(output)) {
+    if (toolName === 'list_hawker_centres') {
+      return buildFollowUp(output, (centre) =>
+        centre.address ? `${centre.name} — ${centre.address}` : centre.name
+      );
+    }
     if (toolName === 'get_top_voted_menu_items') {
       return buildFollowUp(output, (item) =>
         item.stall?.name ? `${item.name} — ${item.stall.name}` : item.name
@@ -405,6 +444,8 @@ export async function* streamAgentResponse({
   let lastUploadHadResults: boolean | null = null;
   let lastToolName: string | null = null;
   let lastToolOutput: unknown = null;
+  let explicitHandled = false;
+  let preferHawkerResults = false;
 
   const lastUserMessage = userMessages[userMessages.length - 1];
   if (lastUserMessage?.role === 'user') {
@@ -418,31 +459,19 @@ export async function* streamAgentResponse({
           conversation.push(
             new ToolMessage({
               content: JSON.stringify(output),
+              name: explicitUpload.toolName,
               tool_call_id: randomUUID(),
               status: output?.error ? 'error' : 'success',
             })
           );
           yield { type: 'tool', payload: output };
 
-          if (output?.error) {
-            const message = normalizeToolError(output.error);
-            for (const delta of chunkText(message)) {
-              yield { type: 'delta', delta };
-            }
-            return;
-          }
-
+          lastToolName = explicitUpload.toolName;
+          lastToolOutput = output?.output ?? output;
           forceUploadResponse = true;
           const uploadItems = getUploadItems(output);
           lastUploadHadResults = uploadItems.length > 0;
-          const fallback =
-            lastUploadHadResults === false
-              ? UPLOAD_TOOL_EMPTY_FALLBACK
-              : UPLOAD_TOOL_FALLBACK;
-          for (const delta of chunkText(fallback)) {
-            yield { type: 'delta', delta };
-          }
-          return;
+          explicitHandled = true;
         } catch (error) {
           const payload = {
             toolName: explicitUpload.toolName,
@@ -452,18 +481,21 @@ export async function* streamAgentResponse({
           conversation.push(
             new ToolMessage({
               content: JSON.stringify(payload),
+              name: explicitUpload.toolName,
               tool_call_id: randomUUID(),
               status: 'error',
             })
           );
           yield { type: 'tool', payload };
-          return;
+          lastToolName = explicitUpload.toolName;
+          lastToolOutput = payload;
+          explicitHandled = true;
         }
       }
     }
 
     const explicitList = extractExplicitListRequest(lastUserMessage.content);
-    if (explicitList) {
+    if (!explicitHandled && explicitList) {
       const tool = toolMap.get(explicitList.toolName);
       if (tool) {
         try {
@@ -471,26 +503,15 @@ export async function* streamAgentResponse({
           conversation.push(
             new ToolMessage({
               content: JSON.stringify(output),
+              name: explicitList.toolName,
               tool_call_id: randomUUID(),
               status: output?.error ? 'error' : 'success',
             })
           );
           yield { type: 'tool', payload: output };
-          if (output?.error) {
-            const message = normalizeToolError(output.error);
-            for (const delta of chunkText(message)) {
-              yield { type: 'delta', delta };
-            }
-            return;
-          }
-          const summary = buildListSummary(
-            explicitList.toolName,
-            output?.output ?? output
-          );
-          for (const delta of chunkText(summary)) {
-            yield { type: 'delta', delta };
-          }
-          return;
+          lastToolName = explicitList.toolName;
+          lastToolOutput = output?.output ?? output;
+          explicitHandled = true;
         } catch (error) {
           const payload = {
             toolName: explicitList.toolName,
@@ -500,18 +521,150 @@ export async function* streamAgentResponse({
           conversation.push(
             new ToolMessage({
               content: JSON.stringify(payload),
+              name: explicitList.toolName,
               tool_call_id: randomUUID(),
               status: 'error',
             })
           );
           yield { type: 'tool', payload };
-          return;
+          lastToolName = explicitList.toolName;
+          lastToolOutput = payload;
+          explicitHandled = true;
+        }
+      }
+    }
+
+    const hawkerRequest = extractHawkerRequest(lastUserMessage.content);
+    if (!explicitHandled && hawkerRequest) {
+      if (hawkerRequest.mode === 'list') {
+        const listTool = toolMap.get('list_hawker_centres');
+        if (listTool) {
+          try {
+            const output = await listTool.invoke({ limit: 10 });
+            conversation.push(
+              new ToolMessage({
+                content: JSON.stringify(output),
+                name: 'list_hawker_centres',
+                tool_call_id: randomUUID(),
+                status: output?.error ? 'error' : 'success',
+              })
+            );
+            yield { type: 'tool', payload: output };
+            lastToolName = 'list_hawker_centres';
+            lastToolOutput = output?.output ?? output;
+            explicitHandled = true;
+          } catch (error) {
+            const payload = {
+              toolName: 'list_hawker_centres',
+              input: { limit: 10 },
+              error: normalizeToolError(error),
+            };
+            conversation.push(
+              new ToolMessage({
+                content: JSON.stringify(payload),
+                name: 'list_hawker_centres',
+                tool_call_id: randomUUID(),
+                status: 'error',
+              })
+            );
+            yield { type: 'tool', payload };
+            lastToolName = 'list_hawker_centres';
+            lastToolOutput = payload;
+            explicitHandled = true;
+          }
+        }
+      } else if (hawkerRequest.mode === 'search') {
+        const searchTool = toolMap.get('search_entities');
+        const infoTool = toolMap.get('get_hawker_info');
+        const listTool = toolMap.get('list_hawker_centres');
+        if (searchTool) {
+          try {
+            const searchOutput = await searchTool.invoke({
+              query: hawkerRequest.query,
+              limit: 5,
+            });
+            const searchData = searchOutput?.output ?? searchOutput;
+            const hawkerCentres = Array.isArray(searchData?.hawkerCentres)
+              ? searchData.hawkerCentres
+              : [];
+            const hawkerOnly = {
+              hawkerCentres,
+              stalls: [],
+              dishes: [],
+            };
+            const payload = {
+              ...searchOutput,
+              output: hawkerOnly,
+            };
+            conversation.push(
+              new ToolMessage({
+                content: JSON.stringify(payload),
+                name: 'search_entities',
+                tool_call_id: randomUUID(),
+                status: searchOutput?.error ? 'error' : 'success',
+              })
+            );
+            yield { type: 'tool', payload };
+            lastToolName = 'search_entities';
+            lastToolOutput = hawkerOnly;
+            preferHawkerResults = true;
+
+            if (hawkerCentres.length === 0 && listTool) {
+              const listOutput = await listTool.invoke({ limit: 10 });
+              conversation.push(
+                new ToolMessage({
+                  content: JSON.stringify(listOutput),
+                  name: 'list_hawker_centres',
+                  tool_call_id: randomUUID(),
+                  status: listOutput?.error ? 'error' : 'success',
+                })
+              );
+              yield { type: 'tool', payload: listOutput };
+              lastToolName = 'list_hawker_centres';
+              lastToolOutput = listOutput?.output ?? listOutput;
+            } else if (hawkerCentres.length === 1 && infoTool) {
+              const infoOutput = await infoTool.invoke({
+                hawkerId: hawkerCentres[0].id,
+              });
+              conversation.push(
+                new ToolMessage({
+                  content: JSON.stringify(infoOutput),
+                  name: 'get_hawker_info',
+                  tool_call_id: randomUUID(),
+                  status: infoOutput?.error ? 'error' : 'success',
+                })
+              );
+              yield { type: 'tool', payload: infoOutput };
+              lastToolName = 'get_hawker_info';
+              lastToolOutput = infoOutput?.output ?? infoOutput;
+            }
+            explicitHandled = true;
+          } catch (error) {
+            const payload = {
+              toolName: 'search_entities',
+              input: { query: hawkerRequest.query, limit: 5 },
+              error: normalizeToolError(error),
+            };
+            conversation.push(
+              new ToolMessage({
+                content: JSON.stringify(payload),
+                name: 'search_entities',
+                tool_call_id: randomUUID(),
+                status: 'error',
+              })
+            );
+            yield { type: 'tool', payload };
+            lastToolName = 'search_entities';
+            lastToolOutput = payload;
+            preferHawkerResults = true;
+            explicitHandled = true;
+          }
         }
       }
     }
 
     const addToCartRequest = extractAddToCartRequest(lastUserMessage.content);
-    if (addToCartRequest) {
+    if (!explicitHandled && addToCartRequest) {
       const searchTool = toolMap.get('search_entities');
       const cartTool = toolMap.get('add_to_cart');
       if (searchTool && cartTool) {
@@ -520,53 +673,49 @@ export async function* streamAgentResponse({
             query: addToCartRequest.query,
             limit: 5,
           });
+          conversation.push(
+            new ToolMessage({
+              content: JSON.stringify(searchOutput),
+              name: 'search_entities',
+              tool_call_id: randomUUID(),
+              status: searchOutput?.error ? 'error' : 'success',
+            })
+          );
           yield { type: 'tool', payload: searchOutput };
-          if (searchOutput?.error) {
-            const message = normalizeToolError(searchOutput.error);
-            for (const delta of chunkText(message)) {
-              yield { type: 'delta', delta };
-            }
-            return;
-          }
           const searchData = searchOutput?.output ?? searchOutput;
+          lastToolName = 'search_entities';
+          lastToolOutput = searchData;
           const dishes = Array.isArray(searchData?.dishes) ? searchData.dishes : [];
           if (dishes.length === 1) {
             const cartOutput = await cartTool.invoke({
               menuItemId: dishes[0].id,
               qty: addToCartRequest.qty,
             });
+            conversation.push(
+              new ToolMessage({
+                content: JSON.stringify(cartOutput),
+                name: 'add_to_cart',
+                tool_call_id: randomUUID(),
+                status: cartOutput?.error ? 'error' : 'success',
+              })
+            );
             yield { type: 'tool', payload: cartOutput };
-            if (cartOutput?.error) {
-              const message = normalizeToolError(cartOutput.error);
-              for (const delta of chunkText(message)) {
-                yield { type: 'delta', delta };
-              }
-              return;
-            }
-            const confirmMessage = `Added ${dishes[0].name} to your cart.`;
-            for (const delta of chunkText(confirmMessage)) {
-              yield { type: 'delta', delta };
-            }
-            return;
+            lastToolName = 'add_to_cart';
+            lastToolOutput = cartOutput?.output ?? cartOutput;
+            explicitHandled = true;
+          } else {
+            explicitHandled = true;
           }
-
-          const summary = buildListSummary('search_entities', searchData);
-          for (const delta of chunkText(summary)) {
-            yield { type: 'delta', delta };
-          }
-          return;
         } catch (error) {
-          const message = normalizeToolError(error);
-          for (const delta of chunkText(message)) {
-            yield { type: 'delta', delta };
-          }
-          return;
+          lastToolName = 'search_entities';
+          lastToolOutput = { error: normalizeToolError(error) };
+          explicitHandled = true;
         }
       }
     }
 
     const stallRequest = extractStallRequest(lastUserMessage.content);
-    if (stallRequest) {
+    if (!explicitHandled && stallRequest) {
       const searchTool = toolMap.get('search_entities');
       const stallTool = toolMap.get(stallRequest.toolName);
       if (searchTool && stallTool) {
@@ -575,67 +724,56 @@ export async function* streamAgentResponse({
             query: stallRequest.query,
             limit: 5,
           });
+          conversation.push(
+            new ToolMessage({
+              content: JSON.stringify(searchOutput),
+              name: 'search_entities',
+              tool_call_id: randomUUID(),
+              status: searchOutput?.error ? 'error' : 'success',
+            })
+          );
           yield { type: 'tool', payload: searchOutput };
-          if (searchOutput?.error) {
-            const message = normalizeToolError(searchOutput.error);
-            for (const delta of chunkText(message)) {
-              yield { type: 'delta', delta };
-            }
-            return;
-          }
           const searchData = searchOutput?.output ?? searchOutput;
+          lastToolName = 'search_entities';
+          lastToolOutput = searchData;
           const stalls = Array.isArray(searchData?.stalls) ? searchData.stalls : [];
           if (stalls.length === 1) {
             const stallOutput = await stallTool.invoke({
               stallId: stalls[0].id,
             });
+            conversation.push(
+              new ToolMessage({
+                content: JSON.stringify(stallOutput),
+                name: stallRequest.toolName,
+                tool_call_id: randomUUID(),
+                status: stallOutput?.error ? 'error' : 'success',
+              })
+            );
             yield { type: 'tool', payload: stallOutput };
-            if (stallOutput?.error) {
-              const message = normalizeToolError(stallOutput.error);
-              for (const delta of chunkText(message)) {
-                yield { type: 'delta', delta };
-              }
-              return;
-            }
+            lastToolName = stallRequest.toolName;
+            lastToolOutput = stallOutput?.output ?? stallOutput;
             if (stallRequest.toolName === 'get_stall_gallery') {
               const uploads = getUploadItems(stallOutput);
               forceUploadResponse = true;
               lastUploadHadResults = uploads.length > 0;
-              const fallback =
-                lastUploadHadResults === false
-                  ? UPLOAD_TOOL_EMPTY_FALLBACK
-                  : UPLOAD_TOOL_FALLBACK;
-              for (const delta of chunkText(fallback)) {
-                yield { type: 'delta', delta };
-              }
-              return;
             }
-            const confirmMessage = `Here are the stall details for ${stalls[0].name}.`;
-            for (const delta of chunkText(confirmMessage)) {
-              yield { type: 'delta', delta };
-            }
-            return;
+            explicitHandled = true;
+          } else {
+            explicitHandled = true;
           }
-
-          const summary = buildListSummary('search_entities', searchData);
-          for (const delta of chunkText(summary)) {
-            yield { type: 'delta', delta };
-          }
-          return;
         } catch (error) {
-          const message = normalizeToolError(error);
-          for (const delta of chunkText(message)) {
-            yield { type: 'delta', delta };
-          }
-          return;
+          lastToolName = stallRequest.toolName;
+          lastToolOutput = { error: normalizeToolError(error) };
+          explicitHandled = true;
         }
       }
     }
   }
 
-  for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration += 1) {
+  const maxIterations = explicitHandled ? 1 : MAX_TOOL_ITERATIONS;
+  for (let iteration = 0; iteration < maxIterations; iteration += 1) {
     const response = await model.invoke(conversation);
-    const toolCalls = extractToolCalls(response);
+    const toolCalls = explicitHandled ? [] : extractToolCalls(response);
 
     if (!toolCalls.length) {
       let responseText = normalizeMessageContent(response);
@@ -650,7 +788,9 @@ export async function* streamAgentResponse({
             ? 'Checking payment status...'
             : 'Scan the QR code shown above to complete payment.';
       } else if (lastToolName && LIST_TOOL_NAMES.has(lastToolName)) {
-        responseText = buildListSummary(lastToolName, lastToolOutput);
+        responseText = buildListSummary(lastToolName, lastToolOutput, {
+          preferHawkers: preferHawkerResults,
+        });
       } else {
         const stripped = stripExternalUrls(responseText);
         responseText = stripQrPayload(stripped || responseText);
@@ -687,6 +827,7 @@ export async function* streamAgentResponse({
         conversation.push(
           new ToolMessage({
             content: JSON.stringify(payload),
+            name: call.name,
             tool_call_id: toolCallId,
             status: 'error',
           })
@@ -707,6 +848,7 @@ export async function* streamAgentResponse({
         conversation.push(
           new ToolMessage({
             content: JSON.stringify(payload),
+            name: call.name,
             tool_call_id: toolCallId,
             status: 'error',
           })
@@ -731,6 +873,7 @@ export async function* streamAgentResponse({
       conversation.push(
         new ToolMessage({
           content: JSON.stringify(output),
+          name: call.name,
           tool_call_id: toolCallId,
           status: output?.error ? 'error' : 'success',
         })

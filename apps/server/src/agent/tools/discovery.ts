@@ -28,6 +28,10 @@ const stallListSchema = z.object({
   limit: limitSchema,
 });
 
+const hawkerListSchema = z.object({
+  limit: limitSchema,
+});
+
 const featuredSchema = z.object({
   minUpvotes: z.number().int().min(1).optional(),
   cuisines: z.array(z.string().min(1)).optional(),
@@ -174,6 +178,27 @@ export const createDiscoveryTools = (context: ToolContext) => [
           hawkerCentreId: stall.hawkerCentreId ?? null,
           createdAt: stall.createdAt,
           updatedAt: stall.updatedAt,
+        }));
+      },
+    },
+    context
+  ),
+  createTool(
+    {
+      name: 'list_hawker_centres',
+      description: 'List hawker centres for browsing.',
+      schema: hawkerListSchema,
+      handler: async ({ limit }) => {
+        const centres = await hawkerCentresService.getAllHawkerCentres(
+          limit ?? undefined
+        );
+        return centres.map((centre) => ({
+          id: centre.id,
+          name: centre.name,
+          slug: centre.slug,
+          address: centre.address ?? null,
+          postalCode: centre.postalCode ?? null,
+          imageUrl: centre.imageUrl ?? null,
         }));
       },
     },
