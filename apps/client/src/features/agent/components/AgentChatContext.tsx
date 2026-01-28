@@ -562,11 +562,46 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
         );
       });
 
+    const parseOrdinalIndex = (value: string) => {
+      const normalized = normalizeSelectionText(value);
+      const ordinalMap: Record<string, number> = {
+        first: 1,
+        second: 2,
+        third: 3,
+        fourth: 4,
+        fifth: 5,
+        sixth: 6,
+        seventh: 7,
+        eighth: 8,
+        ninth: 9,
+        tenth: 10,
+      };
+
+      if (/^\d+$/.test(normalized)) {
+        return Number(normalized);
+      }
+
+      const ordinalMatch = normalized.match(/\b(\d+)(st|nd|rd|th)\b/);
+      if (ordinalMatch) {
+        return Number(ordinalMatch[1]);
+      }
+
+      const wordMatch = normalized.match(
+        /\b(first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth)\b/
+      );
+      if (wordMatch && ordinalMap[wordMatch[1]]) {
+        return ordinalMap[wordMatch[1]];
+      }
+
+      return null;
+    };
+
     const pickByNumber = (
       items: Array<{ id: string; label: string; name: string }>
     ) => {
-      if (!/^\d+$/.test(trimmed)) return null;
-      const index = Number(trimmed) - 1;
+      const ordinalIndex = parseOrdinalIndex(trimmed);
+      if (!ordinalIndex) return null;
+      const index = ordinalIndex - 1;
       return items[index] ?? null;
     };
 
