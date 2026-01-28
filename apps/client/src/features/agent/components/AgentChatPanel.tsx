@@ -317,9 +317,7 @@ function NetsCheckoutCard({
 function ToolBubble({ message }: MessageBubbleProps) {
   const payload = message.toolPayload as any;
   const toolName = message.toolName || payload?.toolName || 'tool';
-  const isUploadTool =
-    toolName === 'get_dish_uploads' || toolName === 'get_stall_gallery';
-  const [showDetails, setShowDetails] = useState(isUploadTool);
+  const [showDetails, setShowDetails] = useState(false);
   const toolLabel = formatToolLabel(toolName);
   const output = payload?.output;
   const error = payload?.error;
@@ -330,6 +328,7 @@ function ToolBubble({ message }: MessageBubbleProps) {
       : [];
   const showUploads =
     toolName === 'get_dish_uploads' || toolName === 'get_stall_gallery';
+  const previewUploads = showUploads ? uploads.slice(0, 3) : [];
   const searchResults =
     toolName === 'search_entities' && output
       ? {
@@ -416,6 +415,34 @@ function ToolBubble({ message }: MessageBubbleProps) {
       ) : (
         <>
           {uploadInfo && <UploadToolCard uploadInfo={uploadInfo} />}
+          {!showDetails && showUploads && (
+            <div className="mt-3">
+              {previewUploads.length > 0 ? (
+                <div className="flex gap-2">
+                  {previewUploads.map((upload: any) => (
+                    <div
+                      key={upload.id}
+                      className="h-14 w-14 overflow-hidden rounded-lg border border-gray-100 bg-gray-50"
+                    >
+                      {upload.imageUrl ? (
+                        <img
+                          src={upload.imageUrl}
+                          alt={upload.caption || 'Community upload'}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-[10px] text-gray-400">
+                          No image
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-gray-500">No community uploads yet.</p>
+              )}
+            </div>
+          )}
           <div
             className={`overflow-hidden transition-all duration-300 ease-out ${
               showDetails ? 'max-h-[2200px] opacity-100' : 'max-h-0 opacity-0'

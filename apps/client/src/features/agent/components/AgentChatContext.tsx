@@ -96,9 +96,13 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
   const [isStreaming, setIsStreaming] = useState(false);
   const messagesRef = useRef<Message[]>(initialMessages);
   const streamingAssistantRef = useRef<string | null>(null);
-  const lastSelectionRef = useRef<{
-    type: 'stall';
-    items: Array<{ id: string; label: string }>;
+  const lastStallSelectionRef = useRef<{
+    items: Array<{ id: string; label: string; name: string }>;
+    updatedAt: number;
+  } | null>(null);
+  const lastMenuItemSelectionRef = useRef<{
+    items: Array<{ id: string; label: string; name: string }>;
+    updatedAt: number;
   } | null>(null);
   const isCustomer =
     status === 'authenticated' && profile?.role === 'user' && Boolean(profile?.id);
@@ -284,20 +288,53 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
         }
         return {
           id: stall.id,
+          name: stall.name,
           label: parts.filter(Boolean).join(' • '),
         };
       })
-      .filter(Boolean) as Array<{ id: string; label: string }>;
+      .filter(Boolean) as Array<{ id: string; label: string; name: string }>;
+
+  const buildMenuItemOptions = (
+    items: any[],
+    options?: { stallName?: string | null }
+  ) =>
+    items
+      .map((item) => {
+        if (!item?.id || !item?.name) return null;
+        const stallLabel = options?.stallName || item.stallName || item.stall?.name;
+        const label = stallLabel ? `${item.name} • ${stallLabel}` : item.name;
+        return {
+          id: item.id,
+          name: item.name,
+          label,
+        };
+      })
+      .filter(Boolean) as Array<{ id: string; label: string; name: string }>;
+
+  const normalizeSelectionText = (value: string) =>
+    value
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
 
   const updateSelectionContext = (payload: any) => {
     if (!payload || payload?.error) return;
     const toolName = payload?.toolName;
     const output = payload?.output;
+    const now = Date.now();
 
     if (toolName === 'search_entities' && output?.stalls) {
       const options = buildStallOptions(output.stalls);
       if (options.length) {
-        lastSelectionRef.current = { type: 'stall', items: options };
+        lastStallSelectionRef.current = { items: options, updatedAt: now };
+      }
+    }
+
+    if (toolName === 'search_entities' && output?.dishes) {
+      const options = buildMenuItemOptions(output.dishes);
+      if (options.length) {
+        lastMenuItemSelectionRef.current = { items: options, updatedAt: now };
       }
       return;
     }
@@ -310,8 +347,53 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
       if (Array.isArray(output)) {
         const options = buildStallOptions(output);
         if (options.length) {
-          lastSelectionRef.current = { type: 'stall', items: options };
+          lastStallSelectionRef.current = { items: options, updatedAt: now };
         }
+      }
+      return;
+    }
+
+    if (toolName === 'get_stall_details' && output?.menuItems) {
+      const options = buildMenuItemOptions(output.menuItems, {
+        stallName: output.name,
+      });
+      if (options.length) {
+        lastMenuItemSelectionRef.current = { items: options, updatedAt: now };
+      }
+      return;
+    }
+
+    if (toolName === 'get_hawker_dishes' && Array.isArray(output)) {
+      const options = buildMenuItemOptions(output);
+      if (options.length) {
+        lastMenuItemSelectionRef.current = { items: options, updatedAt: now };
+      }
+      return;
+    }
+
+    if (toolName === 'get_top_voted_menu_items' && Array.isArray(output)) {
+      const options = buildMenuItemOptions(output);
+      if (options.length) {
+        lastMenuItemSelectionRef.current = { items: options, updatedAt: now };
+      }
+      return;
+    }
+
+    if (toolName === 'get_featured_menu_items_by_cuisine' && Array.isArray(output)) {
+      const options = output
+        .map((entry: any) => {
+          if (!entry?.menuItem) return null;
+          return {
+            id: entry.menuItem.id,
+            name: entry.menuItem.name,
+            label: entry.stall?.name
+              ? `${entry.menuItem.name} • ${entry.stall.name}`
+              : entry.menuItem.name,
+          };
+        })
+        .filter(Boolean) as Array<{ id: string; label: string; name: string }>;
+      if (options.length) {
+        lastMenuItemSelectionRef.current = { items: options, updatedAt: now };
       }
     }
   };
@@ -432,14 +514,85 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
 
     let payloadContent = trimmed;
     let displayContent: string | undefined;
-    const selection = lastSelectionRef.current;
-    if (/^\d+$/.test(trimmed) && selection?.items?.length) {
+    const normalizedInput = normalizeSelectionText(trimmed);
+    const yesTokens = new Set(['yes', 'y', 'yeah', 'yep', 'correct', 'that one']);
+    const preferMenuItem = /\b(add|cart|order|buy)\b/i.test(trimmed);
+
+    const pickByText = (
+      items: Array<{ id: string; label: string; name: string }>
+    ) =>
+      items.find((item) => {
+        const normalizedLabel = normalizeSelectionText(item.label);
+        const normalizedName = normalizeSelectionText(item.name);
+        return (
+          normalizedLabel.includes(normalizedInput) ||
+          normalizedInput.includes(normalizedLabel) ||
+          normalizedName === normalizedInput ||
+          normalizedName.includes(normalizedInput) ||
+          normalizedInput.includes(normalizedName)
+        );
+      });
+
+    const pickByNumber = (
+      items: Array<{ id: string; label: string; name: string }>
+    ) => {
+      if (!/^\d+$/.test(trimmed)) return null;
       const index = Number(trimmed) - 1;
-      const selected = selection.items[index];
-      if (selected) {
-        payloadContent = `Selected stall: ${selected.label} (stallId: ${selected.id}).`;
-        displayContent = trimmed;
+      return items[index] ?? null;
+    };
+
+    const selectFrom = (
+      selection:
+        | { items: Array<{ id: string; label: string; name: string }>; updatedAt: number }
+        | null
+    ) => {
+      if (!selection?.items?.length) return null;
+      if (yesTokens.has(normalizedInput) && selection.items.length === 1) {
+        return selection.items[0];
       }
+      return pickByNumber(selection.items) || pickByText(selection.items);
+    };
+
+    const menuSelection = selectFrom(lastMenuItemSelectionRef.current);
+    const stallSelection = selectFrom(lastStallSelectionRef.current);
+
+    let selectedType: 'menuItem' | 'stall' | null = null;
+    let selectedItem: { id: string; label: string; name: string } | null = null;
+
+    if (preferMenuItem && menuSelection) {
+      selectedType = 'menuItem';
+      selectedItem = menuSelection;
+    } else if (!preferMenuItem && stallSelection) {
+      selectedType = 'stall';
+      selectedItem = stallSelection;
+    } else if (menuSelection && stallSelection) {
+      const menuUpdated = lastMenuItemSelectionRef.current?.updatedAt ?? 0;
+      const stallUpdated = lastStallSelectionRef.current?.updatedAt ?? 0;
+      if (menuUpdated >= stallUpdated) {
+        selectedType = 'menuItem';
+        selectedItem = menuSelection;
+      } else {
+        selectedType = 'stall';
+        selectedItem = stallSelection;
+      }
+    } else if (menuSelection) {
+      selectedType = 'menuItem';
+      selectedItem = menuSelection;
+    } else if (stallSelection) {
+      selectedType = 'stall';
+      selectedItem = stallSelection;
+    }
+
+    if (selectedItem && selectedType === 'menuItem') {
+      payloadContent = `Selected menu item: ${selectedItem.label} (menuItemId: ${selectedItem.id}).`;
+      displayContent = trimmed;
+      lastMenuItemSelectionRef.current = null;
+    }
+
+    if (selectedItem && selectedType === 'stall') {
+      payloadContent = `Selected stall: ${selectedItem.label} (stallId: ${selectedItem.id}).`;
+      displayContent = trimmed;
+      lastStallSelectionRef.current = null;
     }
 
     const userMessage: Message = {
