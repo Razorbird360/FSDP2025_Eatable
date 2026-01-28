@@ -538,6 +538,7 @@ export async function* streamAgentResponse({
     if (!explicitHandled && hawkerRequest) {
       if (hawkerRequest.mode === 'list') {
         const listTool = toolMap.get('list_hawker_centres');
+        const infoTool = toolMap.get('get_hawker_info');
         if (listTool) {
           try {
             const output = await listTool.invoke({ limit: 10 });
@@ -552,6 +553,25 @@ export async function* streamAgentResponse({
             yield { type: 'tool', payload: output };
             lastToolName = 'list_hawker_centres';
             lastToolOutput = output?.output ?? output;
+            const listItems = Array.isArray(output?.output ?? output)
+              ? (output?.output ?? output)
+              : [];
+            if (listItems.length === 1 && infoTool) {
+              const infoOutput = await infoTool.invoke({
+                hawkerId: listItems[0].id,
+              });
+              conversation.push(
+                new ToolMessage({
+                  content: JSON.stringify(infoOutput),
+                  name: 'get_hawker_info',
+                  tool_call_id: randomUUID(),
+                  status: infoOutput?.error ? 'error' : 'success',
+                })
+              );
+              yield { type: 'tool', payload: infoOutput };
+              lastToolName = 'get_hawker_info';
+              lastToolOutput = infoOutput?.output ?? infoOutput;
+            }
             explicitHandled = true;
           } catch (error) {
             const payload = {
@@ -879,6 +899,101 @@ export async function* streamAgentResponse({
         })
       );
       yield { type: 'tool', payload: output };
+
+      if (!outputHasError) {
+        const outputData = output?.output ?? output;
+        if (call.name === 'list_stalls') {
+          const listItems = Array.isArray(outputData) ? outputData : [];
+          if (listItems.length === 1) {
+            const stallTool = toolMap.get('get_stall_details');
+            if (stallTool) {
+              const followOutput = await stallTool.invoke({
+                stallId: listItems[0].id,
+              });
+              conversation.push(
+                new ToolMessage({
+                  content: JSON.stringify(followOutput),
+                  name: 'get_stall_details',
+                  tool_call_id: randomUUID(),
+                  status: followOutput?.error ? 'error' : 'success',
+                })
+              );
+              yield { type: 'tool', payload: followOutput };
+              lastToolName = 'get_stall_details';
+              lastToolOutput = followOutput?.output ?? followOutput;
+            }
+          }
+        }
+
+        if (call.name === 'list_hawker_centres') {
+          const listItems = Array.isArray(outputData) ? outputData : [];
+          if (listItems.length === 1) {
+            const infoTool = toolMap.get('get_hawker_info');
+            if (infoTool) {
+              const followOutput = await infoTool.invoke({
+                hawkerId: listItems[0].id,
+              });
+              conversation.push(
+                new ToolMessage({
+                  content: JSON.stringify(followOutput),
+                  name: 'get_hawker_info',
+                  tool_call_id: randomUUID(),
+                  status: followOutput?.error ? 'error' : 'success',
+                })
+              );
+              yield { type: 'tool', payload: followOutput };
+              lastToolName = 'get_hawker_info';
+              lastToolOutput = followOutput?.output ?? followOutput;
+            }
+          }
+        }
+
+        if (call.name === 'search_entities') {
+          const hawkers = Array.isArray(outputData?.hawkerCentres)
+            ? outputData.hawkerCentres
+            : [];
+          const stalls = Array.isArray(outputData?.stalls) ? outputData.stalls : [];
+          const dishes = Array.isArray(outputData?.dishes) ? outputData.dishes : [];
+          if (stalls.length === 1 && hawkers.length === 0 && dishes.length === 0) {
+            const stallTool = toolMap.get('get_stall_details');
+            if (stallTool) {
+              const followOutput = await stallTool.invoke({
+                stallId: stalls[0].id,
+              });
+              conversation.push(
+                new ToolMessage({
+                  content: JSON.stringify(followOutput),
+                  name: 'get_stall_details',
+                  tool_call_id: randomUUID(),
+                  status: followOutput?.error ? 'error' : 'success',
+                })
+              );
+              yield { type: 'tool', payload: followOutput };
+              lastToolName = 'get_stall_details';
+              lastToolOutput = followOutput?.output ?? followOutput;
+            }
+          }
+          if (hawkers.length === 1 && stalls.length === 0 && dishes.length === 0) {
+            const infoTool = toolMap.get('get_hawker_info');
+            if (infoTool) {
+              const followOutput = await infoTool.invoke({
+                hawkerId: hawkers[0].id,
+              });
+              conversation.push(
+                new ToolMessage({
+                  content: JSON.stringify(followOutput),
+                  name: 'get_hawker_info',
+                  tool_call_id: randomUUID(),
+                  status: followOutput?.error ? 'error' : 'success',
+                })
+              );
+              yield { type: 'tool', payload: followOutput };
+              lastToolName = 'get_hawker_info';
+              lastToolOutput = followOutput?.output ?? followOutput;
+            }
+          }
+        }
+      }
     }
   }
 
