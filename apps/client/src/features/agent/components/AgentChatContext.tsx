@@ -19,6 +19,8 @@ export interface Message {
   toolPayload?: unknown;
   galleryItems?: unknown[];
   qrImage?: string;
+  qrStatus?: 'pending' | 'success' | 'fail';
+  orderCode?: string | null;
   status?: 'streaming' | 'done' | 'error';
   hidden?: boolean;
   displayContent?: string;
@@ -101,6 +103,10 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
   const pendingGalleryRef = useRef<{
     assistantId: string;
     uploads: any[];
+  } | null>(null);
+  const paymentPollRef = useRef<{
+    timer: ReturnType<typeof setInterval> | null;
+    qrMessageId: string;
   } | null>(null);
   const lastStallSelectionRef = useRef<{
     items: Array<{ id: string; label: string; name: string }>;
@@ -312,11 +318,12 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
 
   const appendQrMessage = (qrImage: string) => {
     if (!qrImage) return;
-    appendMessage({
+    return appendMessage({
       role: 'assistant',
       kind: 'qr',
       content: '',
       qrImage,
+      qrStatus: 'pending',
       status: 'done',
     });
   };
@@ -334,6 +341,138 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
       return qrCode;
     }
     return `data:image/png;base64,${qrCode}`;
+  };
+
+  const extractPaymentInfoFromPayload = (payload: any) => {
+    const output = payload?.output ?? payload;
+    if (payload?.toolName === 'checkout_and_pay' && output?.payment) {
+      return {
+        payment: output.payment,
+        order: output.order ?? null,
+      };
+    }
+    if (payload?.toolName === 'request_nets_qr' && output?.nets?.result?.data) {
+      return {
+        payment: {
+          txnRetrievalRef: output.nets.result.data.txn_retrieval_ref ?? null,
+          polling: {
+            url: `/api/nets-qr/query/${output.orderId}`,
+            intervalMs: 5000,
+            timeoutSeconds: 300,
+          },
+        },
+        order: null,
+      };
+    }
+    return null;
+  };
+
+  const startPaymentPolling = async ({
+    payment,
+    order,
+    qrMessageId,
+  }: {
+    payment: any;
+    order: any;
+    qrMessageId: string;
+  }) => {
+    if (!payment?.txnRetrievalRef || !payment?.polling?.url) {
+      return;
+    }
+
+    if (paymentPollRef.current?.timer) {
+      clearInterval(paymentPollRef.current.timer);
+    }
+
+    const intervalMs = Number(payment.polling.intervalMs ?? 5000);
+    const timeoutMs = Number(payment.polling.timeoutSeconds ?? 300) * 1000;
+    let elapsed = 0;
+    let active = true;
+
+    const pollOnce = async (isFinal = false) => {
+      const token = getSessionAccessToken();
+      try {
+        const response = await fetch(buildApiUrl(payment.polling.url), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({
+            txn_retrieval_ref: payment.txnRetrievalRef,
+            frontend_timeout_status: isFinal ? 1 : 0,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Payment status request failed.');
+        }
+
+        const data = await response.json();
+        const result = data?.result?.data ?? {};
+        const isSuccess =
+          result.response_code === '00' && Number(result.txn_status) === 1;
+
+        if (isSuccess && active) {
+          updateMessage(qrMessageId, {
+            qrStatus: 'success',
+            orderCode: order?.orderCode ?? null,
+          });
+          appendMessage({
+            role: 'assistant',
+            kind: 'text',
+            content: order?.orderCode
+              ? `Payment received. Order code: ${order.orderCode}.`
+              : 'Payment received.',
+            status: 'done',
+          });
+          void refreshCart();
+          return true;
+        }
+
+        if (isFinal && active) {
+          updateMessage(qrMessageId, { qrStatus: 'fail' });
+          appendMessage({
+            role: 'assistant',
+            kind: 'text',
+            content: 'Payment timed out. Please try again.',
+            status: 'done',
+          });
+          return false;
+        }
+
+        return false;
+      } catch {
+        if (isFinal && active) {
+          updateMessage(qrMessageId, { qrStatus: 'fail' });
+          appendMessage({
+            role: 'assistant',
+            kind: 'text',
+            content: 'Payment status failed. Please try again.',
+            status: 'done',
+          });
+        }
+        return false;
+      }
+    };
+
+    const timer = setInterval(async () => {
+      if (!active) return;
+      elapsed += intervalMs;
+      if (elapsed >= timeoutMs) {
+        await pollOnce(true);
+        if (paymentPollRef.current?.timer) {
+          clearInterval(paymentPollRef.current.timer);
+        }
+        return;
+      }
+      const success = await pollOnce(false);
+      if (success && paymentPollRef.current?.timer) {
+        clearInterval(paymentPollRef.current.timer);
+      }
+    }, intervalMs);
+
+    paymentPollRef.current = { timer, qrMessageId };
   };
 
   const buildStallOptions = (items: any[]) =>
@@ -495,8 +634,17 @@ export function AgentChatProvider({ children }: AgentChatProviderProps) {
         : { assistantId: streamingAssistantRef.current ?? '', uploads };
     }
     const qrImage = extractQrImageFromPayload(payload);
+    let qrMessageId: string | null = null;
     if (qrImage) {
-      appendQrMessage(qrImage);
+      qrMessageId = appendQrMessage(qrImage) ?? null;
+    }
+    const paymentInfo = extractPaymentInfoFromPayload(payload);
+    if (paymentInfo && qrMessageId) {
+      void startPaymentPolling({
+        payment: paymentInfo.payment,
+        order: paymentInfo.order,
+        qrMessageId,
+      });
     }
     if (
       toolName === 'get_cart' ||

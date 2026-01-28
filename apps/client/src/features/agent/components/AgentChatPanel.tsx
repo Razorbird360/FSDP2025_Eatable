@@ -1064,6 +1064,9 @@ function MessageBubble({ message, introTyping = false }: MessageBubbleProps) {
     if (!qrImage) {
       return null;
     }
+    const qrStatus = message.qrStatus ?? 'pending';
+    const grayscale =
+      qrStatus === 'success' ? 'grayscale opacity-60' : '';
     return (
       <div className="flex items-start gap-3">
         <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#21421B]">
@@ -1073,7 +1076,7 @@ function MessageBubble({ message, introTyping = false }: MessageBubbleProps) {
           <img
             src={qrImage}
             alt="NETS QR code"
-            className="h-48 w-48 rounded-xl border border-gray-200 bg-white p-2"
+            className={`h-48 w-48 rounded-xl border border-gray-200 bg-white p-2 ${grayscale}`}
           />
         </div>
       </div>
