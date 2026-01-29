@@ -49,7 +49,7 @@ const LIST_TOOL_NAMES = new Set([
   'get_featured_menu_items_by_cuisine',
 ]);
 const LIST_TOOL_FALLBACK =
-  'Here are the results below. Tap "Show details" to view them and reply with a number or name.';
+  'Here are the results below. Tap "Show details" to view them.';
 
 const BASE_SYSTEM_PROMPT = [
   'You are the Eatable assistant.',
@@ -355,7 +355,7 @@ const buildListSummary = (
       return 'I could not find any matches. Try a more specific name or another keyword.';
     }
     const list = buildOptionList(items, labelBuilder);
-    return `Here are a few options:\n${list}\nReply with a number or name.`;
+    return `Here are a few options:\n${list}`;
   };
 
   if (toolName === 'search_entities') {
