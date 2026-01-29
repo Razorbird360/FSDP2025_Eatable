@@ -1027,6 +1027,28 @@ function MessageBubble({ message, introTyping = false }: MessageBubbleProps) {
         return;
       }
 
+      // Handle inline bullet pattern (e.g., "text: * item1 * item2")
+      if (!listItems && trimmed.includes(' * ') && !paragraph.length) {
+        const inlineBullets = trimmed.split(/\s\*\s+/);
+        if (inlineBullets.length > 1) {
+          const firstPart = inlineBullets[0];
+          if (firstPart && !firstPart.endsWith(':')) {
+            // Not an inline bullet pattern, treat as regular text
+            paragraph.push(trimmed);
+            return;
+          }
+          // This is a list prefixed with text like "category: * item1 * item2"
+          if (firstPart) {
+            blocks.push({ type: 'p', text: firstPart + ':' });
+          }
+          const items = inlineBullets.slice(1).filter(Boolean);
+          if (items.length) {
+            blocks.push({ type: 'list', items, ordered: false });
+          }
+          return;
+        }
+      }
+
       if (listItems) {
         flushList();
       }
@@ -1035,22 +1057,6 @@ function MessageBubble({ message, introTyping = false }: MessageBubbleProps) {
 
     flushParagraph();
     flushList();
-
-    const hasList = blocks.some((block) => block.type === 'list');
-    if (!hasList && normalized.includes(' * ')) {
-      const parts = normalized.split(/\s\*\s+/);
-      if (parts.length > 1) {
-        const prefix = parts.shift()?.trim();
-        const items = parts.map((item) => item.trim()).filter(Boolean);
-        blocks.length = 0;
-        if (prefix) {
-          blocks.push({ type: 'p', text: prefix });
-        }
-        if (items.length) {
-          blocks.push({ type: 'list', items, ordered: false });
-        }
-      }
-    }
 
     return (
       <div className="space-y-2">
