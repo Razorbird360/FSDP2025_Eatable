@@ -45,6 +45,7 @@ export const cartService = {
         });
 
         let cleared = false;
+        let clearedItems = [];
 
         if (existingItems.length > 0) {
         // we assume all items in cart are from the same stall if our rule is enforced
@@ -52,6 +53,12 @@ export const cartService = {
 
         if (existingStallId && existingStallId !== menuItem.stallId) {
             // 3) Different stall → clear this user's cart in DB
+            clearedItems = existingItems.map(item => ({
+            id: item.id,
+            name: item.menu_items?.name,
+            qty: item.qty,
+            stallId: existingStallId,
+            }));
             await tx.user_cart.deleteMany({
             where: { userid: userId },
             });
@@ -95,6 +102,7 @@ export const cartService = {
         // 5) Return extra info if useful for FE
         return {
         cleared,   // true if we cleared a previous stall's items
+        clearedItems,  // items that were removed from cart
         merged,    // true if we merged into an existing row
         cartItem,
         };

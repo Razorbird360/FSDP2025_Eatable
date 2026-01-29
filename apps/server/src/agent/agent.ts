@@ -61,6 +61,7 @@ const BASE_SYSTEM_PROMPT = [
   'When users want to VIEW, SEE, or BROWSE a specific dish, use get_menu_item_details (read-only).',
   'When users say "add to cart", "add", "order", "buy", or show purchase intent, use add_to_cart immediately with qty=1 as default.',
   'If user already expressed add/order/buy intent, do not ask for confirmation - execute the action directly.',
+  'If add_to_cart returns cleared=true with clearedItems, inform the user: "Your previous items (list them) from [stall name] have been removed because you can only order from one stall at a time."',
   'If the user asks for popular stalls, use get_popular_stalls.',
   'If the user asks for stalls from top-voted dishes, prefer get_popular_stalls over listing dishes.',
   'When using prepare_upload_photo, do not list raw upload fields. Ask the user to upload via the UI card.',
