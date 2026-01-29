@@ -268,8 +268,8 @@ const requestTags = async ({ caption, imageUrl, fixSchema }) => {
     }
   );
 
-const payload = extractPayload(response.data);
-return parseResponsePayload(payload);
+  const payload = extractPayload(response.data);
+  return parseResponsePayload(payload);
 };
 
 const requestHistoryUpdate = async ({
@@ -332,7 +332,7 @@ const requestHistoryUpdate = async ({
 };
 
 export const aiTaggingService = {
-  async generateDishTags({ caption, imageUrl, previousTagStats }) {
+  async generateDishTags({ caption, imageUrl }) {
     const firstAttempt = await requestTags({
       caption,
       imageUrl,
