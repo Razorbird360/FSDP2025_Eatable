@@ -608,7 +608,8 @@ export default function StallEmenu() {
                 tags: resolveTagConflicts(
                   m.menuItemTagAggs || [],
                   m.approvedUploadCount || 0,
-                  3
+                  3,
+                  { captionAggs: m.tagGroups?.caption }
                 ),
               };
             }) || [];
