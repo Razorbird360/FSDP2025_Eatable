@@ -91,7 +91,7 @@ export const createCartTools = (context: ToolContext) => [
   createTool(
     {
       name: 'add_to_cart',
-      description: 'Add a menu item to the cart.',
+      description: 'Add a menu item to the cart for PURCHASE. Use this tool ONLY when the user explicitly wants to ORDER, BUY, or ADD TO CART. If the user wants to VIEW or BROWSE a dish, use get_menu_item_details instead.',
       schema: addItemSchema,
       handler: async ({ itemId, menuItemId, dishId, id, qty, request }) => {
         const resolvedItemId = itemId ?? menuItemId ?? dishId ?? id;

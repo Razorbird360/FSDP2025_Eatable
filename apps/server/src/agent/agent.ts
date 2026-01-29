@@ -58,6 +58,8 @@ const BASE_SYSTEM_PROMPT = [
   'Never ask the user for an order id. Use the available tools and context instead.',
   'If the user wants to browse without a specific name, use list_stalls to show options.',
   'If the user wants to browse hawker centres, use list_hawker_centres.',
+  'When users want to VIEW, SEE, or BROWSE a specific dish, use get_menu_item_details (read-only).',
+  'When users want to ORDER, BUY, or ADD items, use add_to_cart (purchase intent).',
   'If the user asks for popular stalls, use get_popular_stalls.',
   'If the user asks for stalls from top-voted dishes, prefer get_popular_stalls over listing dishes.',
   'When using prepare_upload_photo, do not list raw upload fields. Ask the user to upload via the UI card.',

@@ -20,6 +20,16 @@ const stallSchema = z.object({
   stallId: z.string().min(1),
 });
 
+const menuItemSchema = z.object({
+  menuItemId: z.string().uuid().optional(),
+  dishId: z.string().uuid().optional(),
+  itemId: z.string().uuid().optional(),
+  id: z.string().uuid().optional(),
+}).refine(
+  (data) => data.menuItemId || data.dishId || data.itemId || data.id,
+  { message: "At least one ID field must be provided" }
+);
+
 const menuListSchema = z.object({
   limit: limitSchema,
 });
@@ -289,6 +299,51 @@ export const createDiscoveryTools = (context: ToolContext) => [
           mediaUploads: mapUploads(dish.mediaUploads),
           menuItemTagAggs: mapMenuItemTagAggs(dish.menuItemTagAggs),
         }));
+      },
+    },
+    context
+  ),
+  createTool(
+    {
+      name: 'get_menu_item_details',
+      description: 'Fetch complete details for a specific menu item by ID. Use this tool when users want to VIEW, SEE, or BROWSE a dish without adding it to their cart. Returns dish name, description, price, preparation time, images, tags, and stall information. This is a READ-ONLY operation that does NOT modify the cart.',
+      schema: menuItemSchema,
+      handler: async ({ menuItemId, dishId, itemId, id }) => {
+        const resolvedId = menuItemId ?? dishId ?? itemId ?? id;
+        if (!resolvedId) {
+          throw new Error('Menu item ID is required.');
+        }
+
+        const menuItem = await menuService.getById(resolvedId);
+        if (!menuItem) {
+          throw new Error('Menu item not found.');
+        }
+
+        return {
+          id: menuItem.id,
+          stallId: menuItem.stallId,
+          name: menuItem.name,
+          description: menuItem.description ?? null,
+          priceCents: menuItem.priceCents,
+          category: menuItem.category ?? null,
+          prepTimeMins: menuItem.prepTimeMins ?? null,
+          isActive: menuItem.isActive,
+          imageUrl: menuItem.imageUrl ?? menuItem.mediaUploads?.[0]?.imageUrl ?? null,
+          createdAt: menuItem.createdAt,
+          updatedAt: menuItem.updatedAt,
+          stall: {
+            id: menuItem.stall.id,
+            name: menuItem.stall.name,
+            location: menuItem.stall.location ?? null,
+            cuisineType: menuItem.stall.cuisineType ?? null,
+            hawkerCentre: menuItem.stall.hawkerCentre ? {
+              id: menuItem.stall.hawkerCentre.id,
+              name: menuItem.stall.hawkerCentre.name,
+            } : null,
+          },
+          mediaUploads: mapUploads(menuItem.mediaUploads ?? []),
+          menuItemTagAggs: mapMenuItemTagAggs(menuItem.menuItemTagAggs ?? []),
+        };
       },
     },
     context
