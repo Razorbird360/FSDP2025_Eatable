@@ -106,12 +106,6 @@ const tokenizeForSimilarity = (label) =>
     .map((token) => TOKEN_ALIASES.get(token) || token)
     .filter((token) => token && !STOPWORDS.has(token));
 
-const tokenizeCaption = (caption) =>
-  normalizeTagLabel(caption)
-    .split(' ')
-    .map((token) => TOKEN_ALIASES.get(token) || token)
-    .filter((token) => token && !STOPWORDS.has(token));
-
 const isTagDerivedFromDishName = (tagLabel, dishName) => {
   if (!dishName || !tagLabel) return false;
   const dishTokens = new Set(tokenizeForSimilarity(dishName));
@@ -257,7 +251,6 @@ export const taggingService = {
   }) {
     const rawCaption = typeof caption === 'string' ? caption : '';
     const captionForAi = stripDishNameFromCaption(rawCaption, menuItemName);
-    const captionTokens = tokenizeCaption(captionForAi);
     const previousAggRows = await prisma.menuItemTagAgg.findMany({
       where: { menuItemId },
       include: {
