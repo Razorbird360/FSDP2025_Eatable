@@ -994,6 +994,25 @@ export async function* streamAgentResponse({
               lastToolOutput = followOutput?.output ?? followOutput;
             }
           }
+          if (dishes.length === 1 && stalls.length === 0 && hawkers.length === 0) {
+            const menuItemTool = toolMap.get('get_menu_item_details');
+            if (menuItemTool) {
+              const followOutput = await menuItemTool.invoke({
+                menuItemId: dishes[0].id,
+              });
+              conversation.push(
+                new ToolMessage({
+                  content: JSON.stringify(followOutput),
+                  name: 'get_menu_item_details',
+                  tool_call_id: randomUUID(),
+                  status: followOutput?.error ? 'error' : 'success',
+                })
+              );
+              yield { type: 'tool', payload: followOutput };
+              lastToolName = 'get_menu_item_details';
+              lastToolOutput = followOutput?.output ?? followOutput;
+            }
+          }
         }
       }
     }
