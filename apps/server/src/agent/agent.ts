@@ -28,9 +28,6 @@ const DEFAULT_MODEL = process.env.GEMINI_MODEL ?? 'gemini-2.5-flash';
 const DEFAULT_TEMPERATURE = 0.4;
 const MAX_TOOL_ITERATIONS = Number(process.env.AGENT_MAX_TOOL_ITERATIONS ?? 4);
 const DELTA_CHUNK_SIZE = 160;
-const UPLOAD_TOOL_NAMES = new Set(['get_stall_gallery', 'get_dish_uploads']);
-const UPLOAD_TOOL_FALLBACK = 'Here are the community uploads below.';
-const UPLOAD_TOOL_EMPTY_FALLBACK = 'No community uploads yet.';
 const NETS_TOOL_NAMES = new Set([
   'checkout_and_pay',
   'request_nets_qr',
@@ -64,9 +61,6 @@ const BASE_SYSTEM_PROMPT = [
   'If add_to_cart returns cleared=true with clearedItems, inform the user: "Your previous items (list them) from [stall name] have been removed because you can only order from one stall at a time."',
   'If the user asks for popular stalls, use get_popular_stalls.',
   'If the user asks for stalls from top-voted dishes, prefer get_popular_stalls over listing dishes.',
-  'When using prepare_upload_photo, do not list raw upload fields. Ask the user to upload via the UI card.',
-  'When using get_dish_uploads or get_stall_gallery, do not say you cannot show images. Tell the user to see the uploads below.',
-  'Do not mention photos, images, or uploads unless you actually used get_dish_uploads or get_stall_gallery tools.',
   'When a user wants to checkout or pay, use checkout_and_pay to create the order and show payment QR.',
   'After tool responses, summarize in a friendly, structured reply.',
 ].join(' ');
@@ -161,25 +155,6 @@ const stripQrPayload = (text: string) => {
   return text;
 };
 
-const extractExplicitUploadRequest = (content: string) => {
-  if (!content) return null;
-  const stallMatch = content.match(/stallId\s+([0-9a-fA-F-]{16,})/i);
-  if (stallMatch) {
-    return {
-      toolName: 'get_stall_gallery',
-      input: { stallId: stallMatch[1] },
-    };
-  }
-  const menuItemMatch = content.match(/menuItemId\s+([0-9a-fA-F-]{16,})/i);
-  if (menuItemMatch) {
-    return {
-      toolName: 'get_dish_uploads',
-      input: { menuItemId: menuItemMatch[1] },
-    };
-  }
-  return null;
-};
-
 const extractExplicitListRequest = (content: string) => {
   if (!content) return null;
   const lowered = content.toLowerCase();
@@ -251,22 +226,6 @@ const extractHawkerRequest = (content: string) => {
     return { mode: 'search' as const, query: cleaned };
   }
   return wantsList ? { mode: 'list' as const } : null;
-};
-
-const getUploadItems = (output: unknown) => {
-  if (Array.isArray(output)) return output;
-  if (output && typeof output === 'object') {
-    if (Array.isArray(output.uploads)) {
-      return output.uploads;
-    }
-    if (Array.isArray(output.output)) {
-      return output.output;
-    }
-    if (output.output && typeof output.output === 'object' && Array.isArray(output.output.uploads)) {
-      return output.output.uploads;
-    }
-  }
-  return [];
 };
 
 const extractToolCalls = (message: AIMessage) => {
@@ -445,8 +404,6 @@ export async function* streamAgentResponse({
     new SystemMessage(buildSystemPrompt(capabilities)),
     ...userMessages.map(toLangChainMessage).filter(Boolean),
   ];
-  let forceUploadResponse = false;
-  let lastUploadHadResults: boolean | null = null;
   let lastToolName: string | null = null;
   let lastToolOutput: unknown = null;
   let explicitHandled = false;
@@ -454,51 +411,6 @@ export async function* streamAgentResponse({
 
   const lastUserMessage = userMessages[userMessages.length - 1];
   if (lastUserMessage?.role === 'user') {
-    const explicitUpload = extractExplicitUploadRequest(lastUserMessage.content);
-    if (explicitUpload) {
-      const tool = toolMap.get(explicitUpload.toolName);
-      if (tool) {
-        let output: unknown;
-        try {
-          output = await tool.invoke(explicitUpload.input);
-          conversation.push(
-            new ToolMessage({
-              content: JSON.stringify(output),
-              name: explicitUpload.toolName,
-              tool_call_id: randomUUID(),
-              status: output?.error ? 'error' : 'success',
-            })
-          );
-          yield { type: 'tool', payload: output };
-
-          lastToolName = explicitUpload.toolName;
-          lastToolOutput = output?.output ?? output;
-          forceUploadResponse = true;
-          const uploadItems = getUploadItems(output);
-          lastUploadHadResults = uploadItems.length > 0;
-          explicitHandled = true;
-        } catch (error) {
-          const payload = {
-            toolName: explicitUpload.toolName,
-            input: explicitUpload.input,
-            error: normalizeToolError(error),
-          };
-          conversation.push(
-            new ToolMessage({
-              content: JSON.stringify(payload),
-              name: explicitUpload.toolName,
-              tool_call_id: randomUUID(),
-              status: 'error',
-            })
-          );
-          yield { type: 'tool', payload };
-          lastToolName = explicitUpload.toolName;
-          lastToolOutput = payload;
-          explicitHandled = true;
-        }
-      }
-    }
-
     const explicitList = extractExplicitListRequest(lastUserMessage.content);
     if (!explicitHandled && explicitList) {
       const tool = toolMap.get(explicitList.toolName);
@@ -777,11 +689,6 @@ export async function* streamAgentResponse({
             yield { type: 'tool', payload: stallOutput };
             lastToolName = stallRequest.toolName;
             lastToolOutput = stallOutput?.output ?? stallOutput;
-            if (stallRequest.toolName === 'get_stall_gallery') {
-              const uploads = getUploadItems(stallOutput);
-              forceUploadResponse = true;
-              lastUploadHadResults = uploads.length > 0;
-            }
             explicitHandled = true;
           } else {
             explicitHandled = true;
@@ -802,16 +709,11 @@ export async function* streamAgentResponse({
 
     if (!toolCalls.length) {
       let responseText = normalizeMessageContent(response);
-      if (forceUploadResponse) {
-        responseText =
-          lastUploadHadResults === false
-            ? UPLOAD_TOOL_EMPTY_FALLBACK
-            : UPLOAD_TOOL_FALLBACK;
-      } else if (lastToolName && NETS_TOOL_NAMES.has(lastToolName)) {
+      if (lastToolName && NETS_TOOL_NAMES.has(lastToolName)) {
         responseText =
           lastToolName === 'query_nets_qr_status'
             ? 'Checking payment status...'
-            : 'Scan the QR code shown above to complete payment.';
+            : 'Scan the QR code below to complete payment.';
       } else if (lastToolName && LIST_TOOL_NAMES.has(lastToolName)) {
         responseText = buildListSummary(lastToolName, lastToolOutput, {
           preferHawkers: preferHawkerResults,
@@ -820,9 +722,7 @@ export async function* streamAgentResponse({
         const stripped = stripExternalUrls(responseText);
         responseText = stripQrPayload(stripped || responseText);
         if (!responseText.trim()) {
-          responseText = forceUploadResponse
-            ? UPLOAD_TOOL_FALLBACK
-            : EMPTY_RESPONSE_FALLBACK;
+          responseText = EMPTY_RESPONSE_FALLBACK;
         }
       }
       const chunks = chunkText(responseText);
@@ -890,11 +790,6 @@ export async function* streamAgentResponse({
         lastToolOutput = output?.output ?? output;
       }
 
-      if (UPLOAD_TOOL_NAMES.has(call.name) && !outputHasError) {
-        forceUploadResponse = true;
-        const resultArray = getUploadItems(output);
-        lastUploadHadResults = resultArray.length > 0;
-      }
       conversation.push(
         new ToolMessage({
           content: JSON.stringify(output),

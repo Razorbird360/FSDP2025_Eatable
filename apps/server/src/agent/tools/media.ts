@@ -6,16 +6,6 @@ const dishSchema = z.object({
   menuItemId: z.string().min(1),
 });
 
-const voteSchema = z.object({
-  uploadId: z.string().min(1),
-});
-
-const uploadSchema = z.object({
-  menuItemId: z.string().min(1),
-  caption: z.string().max(500).optional(),
-  aspectRatio: z.enum(['square', 'rectangle']).optional(),
-});
-
 const mapUpload = (upload) => ({
   id: upload.id,
   menuItemId: upload.menuItemId,
@@ -54,11 +44,6 @@ const mapUpload = (upload) => ({
 
 const mapUploads = (uploads = []) => uploads.map(mapUpload);
 
-const fetchUpload = async (uploadId) => {
-  const upload = await mediaService.getById(uploadId);
-  return upload ? mapUpload(upload) : null;
-};
-
 export const createMediaTools = (context: ToolContext) => [
   createTool(
     {
@@ -70,98 +55,6 @@ export const createMediaTools = (context: ToolContext) => [
         return {
           menuItemId,
           uploads: mapUploads(uploads),
-        };
-      },
-    },
-    context
-  ),
-  createTool(
-    {
-      name: 'upvote_upload',
-      description: 'Upvote a community upload.',
-      schema: voteSchema,
-      handler: async ({ uploadId }) => {
-        const result = await mediaService.upvote(uploadId, context.userId);
-        return {
-          message: result?.message ?? null,
-          vote: result?.vote ?? null,
-          upload: await fetchUpload(uploadId),
-        };
-      },
-    },
-    context
-  ),
-  createTool(
-    {
-      name: 'downvote_upload',
-      description: 'Downvote a community upload.',
-      schema: voteSchema,
-      handler: async ({ uploadId }) => {
-        const result = await mediaService.downvote(uploadId, context.userId);
-        return {
-          message: result?.message ?? null,
-          vote: result?.vote ?? null,
-          upload: await fetchUpload(uploadId),
-        };
-      },
-    },
-    context
-  ),
-  createTool(
-    {
-      name: 'remove_upload_upvote',
-      description: 'Remove an upvote from a community upload.',
-      schema: voteSchema,
-      handler: async ({ uploadId }) => {
-        const result = await mediaService.removeUpvote(uploadId, context.userId);
-        return {
-          message: result?.message ?? null,
-          removed: result?.removed ?? 0,
-          upload: await fetchUpload(uploadId),
-        };
-      },
-    },
-    context
-  ),
-  createTool(
-    {
-      name: 'remove_upload_downvote',
-      description: 'Remove a downvote from a community upload.',
-      schema: voteSchema,
-      handler: async ({ uploadId }) => {
-        const result = await mediaService.removeDownvote(uploadId, context.userId);
-        return {
-          message: result?.message ?? null,
-          removed: result?.removed ?? 0,
-          upload: await fetchUpload(uploadId),
-        };
-      },
-    },
-    context
-  ),
-  createTool(
-    {
-      name: 'prepare_upload_photo',
-      description: 'Return instructions for uploading a dish photo.',
-      schema: uploadSchema,
-      handler: async ({ menuItemId, caption, aspectRatio }) => {
-        return {
-          menuItemId,
-          upload: {
-            method: 'POST',
-            url: '/api/media/upload',
-            contentType: 'multipart/form-data',
-            fields: {
-              menuItemId,
-              caption: caption ?? null,
-              aspectRatio: aspectRatio ?? 'square',
-            },
-            fileField: 'image',
-          },
-          errorHandling: {
-            messageKeys: ['error', 'message'],
-            fallback: 'Upload failed. Please try again.',
-          },
         };
       },
     },
