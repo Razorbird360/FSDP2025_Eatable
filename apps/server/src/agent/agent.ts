@@ -7,6 +7,7 @@ import {
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { createToolRegistry } from './tools/index.js';
 import { randomUUID } from 'crypto';
+import { agentRequestsTotal, agentResponseTime, toolCalls, toolDuration } from '../monitoring/metrics.js';
 
 export type AgentMessage = {
   role: 'user' | 'assistant' | 'system';
@@ -384,8 +385,11 @@ export async function* streamAgentResponse({
   userId,
   sessionId,
 }: AgentRequest): AsyncGenerator<AgentStreamEvent> {
+  const responseTimer = agentResponseTime.startTimer();
   const capabilities = getAgentCapabilities();
   if (!capabilities.geminiConfigured) {
+    responseTimer();
+    agentRequestsTotal.labels('error').inc();
     yield {
       type: 'error',
       error: 'AI service is not configured. Please set GEMINI_API_KEY.',
@@ -733,6 +737,8 @@ export async function* streamAgentResponse({
           yield { type: 'delta', delta };
         }
       }
+      responseTimer();
+      agentRequestsTotal.labels('success').inc();
       return;
     }
 
@@ -762,9 +768,14 @@ export async function* streamAgentResponse({
       }
 
       let output: unknown;
+      const toolTimer = toolDuration.startTimer({ tool_name: call.name });
       try {
         output = await tool.invoke(input);
+        toolTimer();
+        toolCalls.labels(call.name, 'success').inc();
       } catch (error) {
+        toolTimer();
+        toolCalls.labels(call.name, 'error').inc();
         const payload = {
           toolName: call.name,
           input,
@@ -916,6 +927,8 @@ export async function* streamAgentResponse({
     }
   }
 
+  responseTimer();
+  agentRequestsTotal.labels('error').inc();
   yield {
     type: 'error',
     error: 'Agent reached tool limit. Please try again with a narrower request.',

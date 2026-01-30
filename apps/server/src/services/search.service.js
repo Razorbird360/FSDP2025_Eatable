@@ -1,4 +1,5 @@
 import prisma from '../lib/prisma.js';
+import { searchQueries } from '../monitoring/metrics.js';
 
 const DEFAULT_LIMIT = 5;
 const CANDIDATE_MULTIPLIER = 5;
@@ -227,6 +228,9 @@ async function search(query, limit = DEFAULT_LIMIT) {
     })),
     trimmedQuery
   ).slice(0, limit);
+
+  // Track search query metrics
+  searchQueries.labels('general').inc();
 
   return {
     hawkerCentres: hawkerCentreResults,

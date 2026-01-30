@@ -1,4 +1,5 @@
 import prisma from '../lib/prisma.js';
+import { cartAdditions } from '../monitoring/metrics.js';
 
 
 export const cartService = {
@@ -98,6 +99,9 @@ export const cartService = {
             },
         });
         }
+
+        // Track cart addition metric
+        cartAdditions.labels(menuItem.stallId).inc(qty);
 
         // 5) Return extra info if useful for FE
         return {
