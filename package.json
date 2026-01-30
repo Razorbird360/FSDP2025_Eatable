@@ -9,6 +9,7 @@
     "dev:server": "pnpm --filter server dev",
     "dev:ai": "node scripts/lib/dev-ai.js",
     "dev:all": "concurrently \"pnpm dev:client\" \"pnpm dev:server\" \"pnpm dev:ai\"",
+    "dev:metrics": "docker compose -f monitoring/docker-compose.yml up -d",
     "setup:ai": "node scripts/lib/setup-ai-check.js",
     "build": "pnpm -r build",
     "build:client": "pnpm --filter client build",
