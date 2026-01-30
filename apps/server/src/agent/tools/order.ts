@@ -283,6 +283,9 @@ export const createOrderTools = (
         if (!normalized) {
           throw new Error('Order not found.');
         }
+        if (normalized.info.userId !== context.userId) {
+          throw new Error('You do not have permission to access this order.');
+        }
         return normalized;
       },
     },
