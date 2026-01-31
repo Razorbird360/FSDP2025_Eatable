@@ -296,9 +296,15 @@ export const createOrderTools = (
       name: 'get_my_orders',
       description: 'Fetch the current user order history.',
       schema: z.object({}).strict(),
-      handler: async () => ({
-        orders: await fetchOrders(context.userId),
-      }),
+      handler: async () => {
+        try {
+          const orders = await fetchOrders(context.userId);
+          return { orders };
+        } catch (error) {
+          console.error('[get_my_orders] Error fetching orders:', error);
+          throw new Error('Failed to fetch order history. Please try again.');
+        }
+      },
     },
     context
   ),

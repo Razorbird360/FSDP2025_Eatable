@@ -77,6 +77,12 @@ router.post(
     }
   } catch (error) {
     console.error('Agent stream failed:', error);
+    console.error('Error stack:', error?.stack);
+    console.error('Error details:', {
+      message: error?.message,
+      name: error?.name,
+      userId: req.user?.id,
+    });
     res.write(
       `event: error\ndata: ${JSON.stringify({
         error: 'Agent request failed. Please try again.',

@@ -7,7 +7,7 @@ import {
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { createToolRegistry } from './tools/index.js';
 import { randomUUID } from 'crypto';
-import { agentRequestsTotal, agentResponseTime, toolCalls, toolDuration } from '../monitoring/metrics.js';
+import { agentRequestsTotal, agentResponseTime, toolCalls as toolCallsMetric, toolDuration } from '../monitoring/metrics.js';
 
 export type AgentMessage = {
   role: 'user' | 'assistant' | 'system';
@@ -51,7 +51,7 @@ const LIST_TOOL_FALLBACK =
 
 const BASE_SYSTEM_PROMPT = [
   'You are the Eatable assistant.',
-  'Keep responses concise and ask clarifying questions when needed.',
+  'Keep responses conversational. When listing multiple items, use simple bullet points (- or *) without markdown headers or emojis.',
   'Use available tools to fetch up-to-date menu, stall, cart, and order data.',
   'Never ask the user for an order id. Use the available tools and context instead.',
   'If the user wants to browse without a specific name, use list_stalls to show options.',
@@ -63,6 +63,8 @@ const BASE_SYSTEM_PROMPT = [
   'If the user asks for popular stalls, use get_popular_stalls.',
   'If the user asks for stalls from top-voted dishes, prefer get_popular_stalls over listing dishes.',
   'When a user wants to checkout or pay, use checkout_and_pay to create the order and show payment QR.',
+  'When asked generally "what can you do", give a brief 1-2 sentence overview.',
+  'When asked specifically about your tools, features, or capabilities, provide a helpful organized list using simple bullets without markdown headers (###) or emojis.',
   'After tool responses, summarize in a friendly, structured reply.',
 ].join(' ');
 
@@ -718,6 +720,11 @@ export async function* streamAgentResponse({
           lastToolName === 'query_nets_qr_status'
             ? 'Checking payment status...'
             : 'Scan the QR code below to complete payment.';
+        // Send NETS messages immediately without chunking to avoid typing animation
+        yield { type: 'delta', delta: responseText };
+        responseTimer();
+        agentRequestsTotal.labels('success').inc();
+        return;
       } else if (lastToolName && LIST_TOOL_NAMES.has(lastToolName)) {
         responseText = buildListSummary(lastToolName, lastToolOutput, {
           preferHawkers: preferHawkerResults,
@@ -772,10 +779,10 @@ export async function* streamAgentResponse({
       try {
         output = await tool.invoke(input);
         toolTimer();
-        toolCalls.labels(call.name, 'success').inc();
+        toolCallsMetric.labels(call.name, 'success').inc();
       } catch (error) {
         toolTimer();
-        toolCalls.labels(call.name, 'error').inc();
+        toolCallsMetric.labels(call.name, 'error').inc();
         const payload = {
           toolName: call.name,
           input,
