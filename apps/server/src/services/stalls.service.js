@@ -1,5 +1,106 @@
 import prisma from '../lib/prisma.js';
 
+function addTagAggregate(map, { label, confidence }) {
+  if (!label) return;
+
+  const existing = map.get(label);
+  if (!existing) {
+    map.set(label, {
+      label,
+      count: 1,
+      sumConfidence: typeof confidence === 'number' ? confidence : 0,
+    });
+    return;
+  }
+
+  existing.count += 1;
+  if (typeof confidence === 'number') {
+    existing.sumConfidence += confidence;
+  }
+}
+
+function buildTagList(map, limit = 3) {
+  return Array.from(map.values())
+    .map((tag) => ({
+      label: tag.label,
+      count: tag.count,
+      avgConfidence: tag.count > 0 ? tag.sumConfidence / tag.count : 0,
+      reliabilityPercent: Math.round(
+        (tag.count > 0 ? tag.sumConfidence / tag.count : 0) * 100
+      ),
+    }))
+    .sort((a, b) => {
+      if (b.count !== a.count) return b.count - a.count;
+      return b.avgConfidence - a.avgConfidence;
+    })
+    .slice(0, limit);
+}
+
+async function buildTagGroupsByMenuItem(menuItemIds) {
+  if (!Array.isArray(menuItemIds) || menuItemIds.length === 0) {
+    return new Map();
+  }
+
+  const uploadTags = await prisma.uploadTag.findMany({
+    where: {
+      upload: {
+        menuItemId: { in: menuItemIds },
+        validationStatus: 'approved',
+      },
+    },
+    select: {
+      confidence: true,
+      evidenceFrom: true,
+      upload: { select: { menuItemId: true } },
+      tag: { select: { normalized: true, displayLabel: true } },
+    },
+  });
+
+  const tagGroupsByMenuItem = new Map();
+
+  for (const row of uploadTags) {
+    const menuItemId = row.upload?.menuItemId;
+    if (!menuItemId) continue;
+
+    const label = row.tag?.displayLabel || row.tag?.normalized;
+    if (!label) continue;
+
+    const evidence = Array.isArray(row.evidenceFrom) ? row.evidenceFrom : [];
+    let groups = tagGroupsByMenuItem.get(menuItemId);
+    if (!groups) {
+      groups = {
+        caption: new Map(),
+        image: new Map(),
+      };
+      tagGroupsByMenuItem.set(menuItemId, groups);
+    }
+
+    if (evidence.includes('caption')) {
+      addTagAggregate(groups.caption, {
+        label,
+        confidence: row.confidence,
+      });
+    }
+
+    if (evidence.includes('image')) {
+      addTagAggregate(groups.image, {
+        label,
+        confidence: row.confidence,
+      });
+    }
+  }
+
+  const normalizedGroupsByMenuItem = new Map();
+  tagGroupsByMenuItem.forEach((groups, menuItemId) => {
+    normalizedGroupsByMenuItem.set(menuItemId, {
+      caption: buildTagList(groups.caption, 3),
+      image: buildTagList(groups.image, 3),
+    });
+  });
+
+  return normalizedGroupsByMenuItem;
+}
+
 export const stallsService = {
   async getAll() {
     return await prisma.stall.findMany({
@@ -138,6 +239,8 @@ export const stallsService = {
       uploadRecency.map((row) => [row.menuItemId, row._max?.createdAt ?? null])
     );
 
+    const tagGroupsByMenuItem = await buildTagGroupsByMenuItem(menuItemIds);
+
     return {
       ...stallData,
       likeCount: _count?.favoriteStalls ?? 0,
@@ -148,7 +251,8 @@ export const stallsService = {
         lastOrderedAt: orderRecencyByMenuItem.get(item.id) || null,
         lastUploadAt: uploadRecencyByMenuItem.get(item.id) || null,
         maxPrepTimeMins,
-        avgPriceCents
+        avgPriceCents,
+        tagGroups: tagGroupsByMenuItem.get(item.id) || { caption: [], image: [] },
       })),
     };
   },

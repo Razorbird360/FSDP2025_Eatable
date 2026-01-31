@@ -25,9 +25,32 @@ const CONFLICT_GROUPS = [
 export const resolveTagConflicts = (
   tagAggs = [],
   totalUploads = 0,
-  maxTags = 3
+  maxTags = 3,
+  options = {}
 ) => {
+  const captionAggs = Array.isArray(options.captionAggs)
+    ? options.captionAggs
+    : [];
+  const captionWeight =
+    typeof options.captionWeight === "number" ? options.captionWeight : 1;
   const stats = new Map();
+  const captionStats = new Map();
+
+  captionAggs.forEach((agg) => {
+    const label = agg?.label;
+    if (!label) return;
+    const normalized = normalizeTagLabel(label);
+    if (!normalized) return;
+    const count = typeof agg.count === "number" ? agg.count : 0;
+    const avgConfidence =
+      typeof agg.avgConfidence === "number" ? agg.avgConfidence : 0;
+    captionStats.set(normalized, {
+      label,
+      normalized,
+      count,
+      avgConfidence,
+    });
+  });
 
   tagAggs.forEach((agg) => {
     const label = agg.tag?.displayLabel || agg.tag?.normalized;
@@ -37,9 +60,13 @@ export const resolveTagConflicts = (
     const count = typeof agg.count === "number" ? agg.count : 0;
     const avgConfidence =
       typeof agg.avgConfidence === "number" ? agg.avgConfidence : 0;
-    const score = count * avgConfidence;
+    const captionCount = captionStats.get(normalized)?.count ?? 0;
+    const weightedCount = count + captionCount * captionWeight;
+    const score = weightedCount * avgConfidence;
     const share =
       totalUploads > 0 ? count / totalUploads : count > 0 ? 1 : 0;
+    const reliabilityBase =
+      avgConfidence > 0 ? avgConfidence : Math.min(Math.max(share, 0), 1);
     stats.set(normalized, {
       label,
       normalized,
@@ -47,7 +74,34 @@ export const resolveTagConflicts = (
       avgConfidence,
       score,
       share,
-      reliabilityPercent: Math.round(share * 100),
+      weightedCount,
+      reliabilityPercent: Math.round(
+        Math.min(Math.max(reliabilityBase, 0), 1) * 100
+      ),
+    });
+  });
+
+  captionStats.forEach((captionTag, normalized) => {
+    if (stats.has(normalized)) return;
+    const count = captionTag.count;
+    const avgConfidence = captionTag.avgConfidence;
+    const weightedCount = count + count * captionWeight;
+    const score = weightedCount * avgConfidence;
+    const share =
+      totalUploads > 0 ? count / totalUploads : count > 0 ? 1 : 0;
+    const reliabilityBase =
+      avgConfidence > 0 ? avgConfidence : Math.min(Math.max(share, 0), 1);
+    stats.set(normalized, {
+      label: captionTag.label,
+      normalized,
+      count,
+      avgConfidence,
+      score,
+      share,
+      weightedCount,
+      reliabilityPercent: Math.round(
+        Math.min(Math.max(reliabilityBase, 0), 1) * 100
+      ),
     });
   });
 
@@ -63,8 +117,14 @@ export const resolveTagConflicts = (
 
     if (positives.length === 0 && negatives.length === 0) return;
 
-    const posScore = positives.reduce((sum, tag) => sum + tag.score, 0);
-    const negScore = negatives.reduce((sum, tag) => sum + tag.score, 0);
+    const posScore = positives.reduce(
+      (sum, tag) => sum + (tag.weightedCount ?? tag.count) * tag.avgConfidence,
+      0
+    );
+    const negScore = negatives.reduce(
+      (sum, tag) => sum + (tag.weightedCount ?? tag.count) * tag.avgConfidence,
+      0
+    );
     const posCount = positives.reduce((sum, tag) => sum + tag.count, 0);
     const negCount = negatives.reduce((sum, tag) => sum + tag.count, 0);
     const shareBase = totalUploads > 0 ? totalUploads : posCount + negCount;
@@ -79,7 +139,11 @@ export const resolveTagConflicts = (
     }
 
     const winnerPool = winnerType === "positive" ? positives : negatives;
-    const winner = winnerPool.sort((a, b) => b.score - a.score)[0];
+    const winner = winnerPool.sort(
+      (a, b) =>
+        (b.weightedCount ?? b.count) * b.avgConfidence -
+        (a.weightedCount ?? a.count) * a.avgConfidence
+    )[0];
 
     const reliabilityPercent =
       shareBase > 0
@@ -101,7 +165,10 @@ export const resolveTagConflicts = (
   return Array.from(picked.values())
     .sort(
       (a, b) =>
-        b.reliabilityPercent - a.reliabilityPercent || b.count - a.count
+        (b.weightedCount ?? b.count) * b.avgConfidence -
+          (a.weightedCount ?? a.count) * a.avgConfidence ||
+        b.reliabilityPercent - a.reliabilityPercent ||
+        b.count - a.count
     )
     .slice(0, maxTags)
     .map((tag) => ({

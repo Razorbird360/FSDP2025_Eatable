@@ -297,7 +297,7 @@ function ItemDialog({ open, item, onClose, onAdd, onImageError }) {
 
           <p className="mt-2 text-sm text-gray-600">{item.desc}</p>
           {item.tags && item.tags.length > 0 && (
-            <div className="mt-3 flex items-center gap-2 overflow-x-auto pb-1">
+            <div className="mt-3 flex items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
               {item.tags.map((tag) => (
                 <span
                   key={tag.label}
@@ -608,7 +608,8 @@ export default function StallEmenu() {
                 tags: resolveTagConflicts(
                   m.menuItemTagAggs || [],
                   m.approvedUploadCount || 0,
-                  3
+                  3,
+                  { captionAggs: m.tagGroups?.caption }
                 ),
               };
             }) || [];

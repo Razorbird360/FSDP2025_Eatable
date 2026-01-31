@@ -92,11 +92,6 @@ export default function UploadDetails() {
     }
   }, [selectedOrder]);
 
-  useEffect(() => {
-    if (!selectedDish?.name) return;
-    setCaption(selectedDish.name);
-  }, [selectedMenuItemId, selectedDish?.name]);
-
   const handlePost = async () => {
     if (!photoFile) {
       setSubmitError("Please capture or upload a photo in the previous step.");
