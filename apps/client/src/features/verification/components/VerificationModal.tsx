@@ -227,7 +227,7 @@ export default function VerificationModal({
       if (faceValidationDone && faceValidationFailed) {
         setStatusText('Validation failed');
       } else if (faceValidationDone && faceMatched) {
-        setStatusText(faceMatchedText || 'Face detected');
+        setStatusText(faceMatchedText || 'Face validation successful');
       } else if (faceValidationFailed) {
         setStatusText('Validation failed');
       } else if (noFaceOnCard) {
@@ -513,7 +513,9 @@ export default function VerificationModal({
       if (payload.validation_done) {
         setFreezeFrame(true);
         setFaceStageActive(false);
-        setFaceMatchedText(payload.matched ? 'Face detected' : 'Validation failed');
+        setFaceMatchedText(
+          payload.matched ? 'Face validation successful' : 'Validation failed'
+        );
         stopCaptureLoop();
         stopCamera();
         sendInFlightRef.current = false;
@@ -1088,9 +1090,12 @@ export default function VerificationModal({
                   fontSize="xs"
                   letterSpacing="0.08em"
                   textTransform="uppercase"
-                  whiteSpace="nowrap"
+                  whiteSpace="normal"
+                  textAlign="center"
+                  maxW="calc(100% - 24px)"
+                  wordBreak="break-word"
                 >
-                  {freezeFrame ? 'Face detected' : statusText}
+                  {freezeFrame ? 'Face validation successful' : statusText}
                 </Box>
               )}
 
