@@ -21,7 +21,8 @@ function fmtTimeHM(date) {
   });
 }
 
-function generateOrderCode(orderId) {
+function generateOrderCode(orderId, orderCode) {
+  if (orderCode) return `EA-${String(orderCode).toUpperCase()}`;
   if (!orderId || orderId === "—") return "—";
   const hash = orderId.replace(/-/g, "").slice(0, 8).toUpperCase();
   return `EA-${hash}`;
@@ -115,7 +116,7 @@ const collectedAtText =
     : subtotal + serviceFee - voucherApplied;
 
   const voucherInfo = voucherDiscount?.userVoucher?.voucher;
-  const displayOrderCode = generateOrderCode(orderId);
+  const displayOrderCode = generateOrderCode(orderId, order?.orderCode);
   const rawStatus = status || "—";
   const displayStatus =
     typeof rawStatus === "string"
