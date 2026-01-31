@@ -35,7 +35,7 @@ def food_validation_health():
     gemini_status = "connected" if model is not None else "not configured"
 
     return {
-        "status": "healthy",
+        "status": "healthy",  
         "service": "food-validation",
         "gemini_status": gemini_status,
         "model": "gemini-2.5-flash" if model else None

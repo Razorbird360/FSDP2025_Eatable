@@ -11,12 +11,15 @@ router.get('/likes', authMiddleware, stallsController.getLikes);
 router.post('/:id/like', authMiddleware, stallsController.likeStall);
 router.delete('/:id/like', authMiddleware, stallsController.unlikeStall);
 router.get('/:id/gallery', stallsController.getGallery);
-router.get('/:id', stallsController.getById);
 
-// Protected routes
+// Protected routes (must come before /:id to prevent route collision)
 router.get('/my-stall', authMiddleware, stallsController.getMyStall);
 router.post('/', authMiddleware, stallsController.create);
 router.put('/:id', authMiddleware, stallsController.update);
+router.patch('/:id', authMiddleware, stallsController.update);
 router.delete('/:id', authMiddleware, stallsController.delete);
+
+// Public routes (specific ID lookup last)
+router.get('/:id', stallsController.getById);
 
 export default router;

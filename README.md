@@ -187,6 +187,19 @@ pnpm dev:server    # Only backend
 pnpm dev:ai        # Only AI service
 ```
 
+### Agent Smoke Check (Optional)
+
+With the server running and a valid user access token, you can run a quick
+agent/tool integration check:
+
+```bash
+AGENT_SMOKE_TOKEN=your-access-token \
+AGENT_SMOKE_URL=http://localhost:3000/api/agent \
+pnpm --filter server agent:smoke
+```
+
+This verifies that the agent can stream responses and emit tool events.
+
 ---
 
 ## Service Dependencies

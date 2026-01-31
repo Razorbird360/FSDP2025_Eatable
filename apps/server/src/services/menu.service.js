@@ -19,8 +19,20 @@ export const menuService = {
     return await prisma.menuItem.findUnique({
       where: { id },
       include: {
-        stall: true,
+        stall: {
+          include: {
+            hawkerCentre: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
         mediaUploads: {
+          where: {
+            validationStatus: 'approved',
+          },
           include: {
             user: {
               select: {
@@ -36,6 +48,19 @@ export const menuService = {
           },
           orderBy: {
             createdAt: 'desc',
+          },
+        },
+        menuItemTagAggs: {
+          orderBy: { count: 'desc' },
+          take: 12,
+          include: {
+            tag: {
+              select: {
+                id: true,
+                normalized: true,
+                displayLabel: true,
+              },
+            },
           },
         },
       },

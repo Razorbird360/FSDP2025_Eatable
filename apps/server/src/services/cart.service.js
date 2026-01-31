@@ -1,4 +1,5 @@
 import prisma from '../lib/prisma.js';
+import { cartAdditions } from '../monitoring/metrics.js';
 
 
 export const cartService = {
@@ -39,12 +40,14 @@ export const cartService = {
             menu_items: {
             select: {
                 stallId: true,
+                name: true,
             },
             },
         },
         });
 
         let cleared = false;
+        let clearedItems = [];
 
         if (existingItems.length > 0) {
         // we assume all items in cart are from the same stall if our rule is enforced
@@ -52,6 +55,12 @@ export const cartService = {
 
         if (existingStallId && existingStallId !== menuItem.stallId) {
             // 3) Different stall → clear this user's cart in DB
+            clearedItems = existingItems.map(item => ({
+            id: item.id,
+            name: item.menu_items?.name,
+            qty: item.qty,
+            stallId: existingStallId,
+            }));
             await tx.user_cart.deleteMany({
             where: { userid: userId },
             });
@@ -92,9 +101,13 @@ export const cartService = {
         });
         }
 
+        // Track cart addition metric
+        cartAdditions.labels(menuItem.stallId).inc(qty);
+
         // 5) Return extra info if useful for FE
         return {
         cleared,   // true if we cleared a previous stall's items
+        clearedItems,  // items that were removed from cart
         merged,    // true if we merged into an existing row
         cartItem,
         };

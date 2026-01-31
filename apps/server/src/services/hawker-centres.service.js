@@ -564,6 +564,23 @@ async function getHawkerInfoById(hawkerId) {
   }
 }
 
+async function getAllHawkerCentres(limit = 20) {
+  return prisma.hawkerCentre.findMany({
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      address: true,
+      postalCode: true,
+      imageUrl: true,
+    },
+    orderBy: {
+      name: 'asc',
+    },
+    take: limit,
+  });
+}
+
 
 
 export default {
@@ -572,5 +589,6 @@ export default {
   getHawkerStallsById,
   getHawkerDishesById,
   getHawkerRecommendedDishesById,
-  getHawkerInfoById
+  getHawkerInfoById,
+  getAllHawkerCentres
 };

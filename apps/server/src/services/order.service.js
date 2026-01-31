@@ -1,6 +1,7 @@
 import { randomInt } from 'crypto';
 import prisma from '../lib/prisma.js';
 import { cartService } from './cart.service.js';
+import { ordersCreated, orderValue, paymentAttempts } from '../monitoring/metrics.js';
 
 const ORDER_CODE_CHARS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 const ORDER_CODE_LENGTH = 4;
@@ -116,6 +117,9 @@ export const orderService = {
 
       return order;
     });
+
+    // Track payment success
+    paymentAttempts.labels('nets_qr', 'success').inc();
 
     return updatedOrder;
   },
@@ -288,6 +292,10 @@ export const orderService = {
             // Whatever you return here is what $transaction resolves to
             return order;
         });
+
+        // Track order creation metrics
+        ordersCreated.labels(order.stallId, 'pending').inc();
+        orderValue.observe(order.totalCents);
 
         // 5) Return the created order to the caller
         return order;

@@ -33,6 +33,15 @@ router.post(
   mediaController.uploadImage
 );
 
+// Stall image upload (no AI validation, direct to Supabase)
+router.post(
+  '/upload/stall-image',
+  authMiddleware,
+  upload.single('image'),
+  mediaController.uploadStallImage
+);
+router.delete('/stall-image', authMiddleware, mediaController.deleteStallImage);
+
 router.delete('/:uploadId', authMiddleware, mediaController.deleteUpload);
 
 

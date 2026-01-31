@@ -169,11 +169,17 @@ class VerificationState:
                 if now - self.face_validation_window_start >= 1.5:
                     best_similarity = self.face_validation_best_similarity
                     if best_similarity is not None:
-                        validation_done = True
                         matched = bool(best_similarity >= FACE_MATCH_THRESHOLD)
-                        validation_failed = not matched
-                        self.face_validation_done = True
-                        self.face_validation_failed = validation_failed
+                        if matched:
+                            validation_done = True
+                            validation_failed = False
+                            self.face_validation_done = True
+                            self.face_validation_failed = False
+                        else:
+                            validation_failed = True
+                            # Allow continued frames when under threshold.
+                            self.face_validation_window_start = None
+                            self.face_validation_best_similarity = None
         else:
             self.face_hits.clear()
             self.face_last_center = None

@@ -11,6 +11,16 @@ const CHART_COLORS = ['#A855F7', '#5EBECC', '#EC4899', '#F59E0B', '#6366F1', '#9
 const MAX_DISH_ITEMS = 10;
 const SG_TIMEZONE = 'Asia/Singapore';
 
+const CATEGORY_OPTIONS = [
+  'Set Meal',
+  'Main',
+  'Drink',
+  'Breakfast',
+  'Lunch',
+  'Dinner',
+  'Dessert',
+];
+
 interface DishData {
   name: string;
   count: number;
@@ -45,6 +55,12 @@ interface DashboardSummary {
   ordersByDay?: DayData[];
   totals?: TotalsData;
   totalOrdersByDish?: number;
+  period?: {
+    from: string;
+    to: string;
+    timePeriod: string;
+  };
+  granularity?: 'day' | 'week';
 }
 
 interface UserData {
@@ -208,13 +224,28 @@ interface StatsCardProps {
   title: string;
   value: number;
   delta?: number;
+  timePeriod?: 'yesterday' | 'lastWeek' | 'lastMonth' | 'threeMonths';
 }
 
-const StatsCard = ({ title, value, delta }: StatsCardProps) => {
+const StatsCard = ({ title, value, delta, timePeriod = 'lastMonth' }: StatsCardProps) => {
   const deltaValue = delta !== undefined && delta !== null ? Math.abs(delta) : 0;
   const isPositive = delta !== undefined && delta > 0;
   const isNeutral = delta === 0 || delta === undefined || delta === null;
-  
+
+  const getComparisonText = () => {
+    switch (timePeriod) {
+      case 'yesterday':
+        return 'from previous day';
+      case 'lastWeek':
+        return 'from previous week';
+      case 'threeMonths':
+        return 'from previous 3 months';
+      case 'lastMonth':
+      default:
+        return 'from last month';
+    }
+  };
+
   return (
     <div className="bg-white rounded-xl md:rounded-2xl border border-gray-100 p-4 md:p-5 shadow-sm h-fit">
       <p className="text-sm md:text-sm text-gray-500 mb-1 md:mb-2">{title}</p>
@@ -224,7 +255,7 @@ const StatsCard = ({ title, value, delta }: StatsCardProps) => {
         <ChevronUp
           className={`w-3.5 h-3.5 ${isPositive ? 'text-[#1C7C3A]' : isNeutral ? 'text-gray-400' : 'text-[#B42318] rotate-180'}`}
         />
-        <span className="hidden sm:inline">{isPositive ? 'Increased' : isNeutral ? 'No change' : 'Decreased'} from last month</span>
+        <span className="hidden sm:inline">{isPositive ? 'Increased' : isNeutral ? 'No change' : 'Decreased'} {getComparisonText()}</span>
         <span className="sm:hidden">{isPositive ? 'Increased' : isNeutral ? 'No change' : 'Decreased'}</span>
       </div>
     </div>
@@ -283,6 +314,7 @@ interface EditDishFormState {
   description: string;
   price: string;
   prepTime: string;
+  category: string;
   imageUrl: string;
   imagePreview: string;
   imageFile: File | null;
@@ -293,6 +325,7 @@ const emptyEditForm: EditDishFormState = {
   description: '',
   price: '',
   prepTime: '',
+  category: '',
   imageUrl: '',
   imagePreview: '',
   imageFile: null,
@@ -318,6 +351,8 @@ const HawkerDashboardPage = () => {
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
   const [isActionLoading, setIsActionLoading] = useState(false);
+  const [selectedPeriod, setSelectedPeriod] = useState<'yesterday' | 'lastWeek' | 'lastMonth' | 'threeMonths'>('lastMonth');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   
   const containerRef = useRef<HTMLDivElement>(null);
   const dashboardBtnRef = useRef<HTMLButtonElement>(null);
@@ -326,6 +361,16 @@ const HawkerDashboardPage = () => {
   const menuContainerDesktopRef = useRef<HTMLDivElement | null>(null);
   const editFileInputRef = useRef<HTMLInputElement | null>(null);
   const editImageObjectUrlRef = useRef<string | null>(null);
+
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [addForm, setAddForm] = useState<EditDishFormState>(emptyEditForm);
+  const [isSavingAdd, setIsSavingAdd] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
+  const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
+  const [isEditCategoryDropdownOpen, setIsEditCategoryDropdownOpen] = useState(false);
+
+  const addFileInputRef = useRef<HTMLInputElement | null>(null);
+  const addImageObjectUrlRef = useRef<string | null>(null);
 
   // Update slider position when active tab changes or container resizes
   useEffect(() => {
@@ -376,9 +421,10 @@ const HawkerDashboardPage = () => {
 
   useEffect(() => {
     const fetchData = async () => {
+      setLoading(true);
       try {
         const [dashRes, activityRes, dishesRes] = await Promise.all([
-          api.get('/hawker/dashboard'),
+          api.get('/hawker/dashboard', { params: { timePeriod: selectedPeriod } }),
           api.get('/hawker/dashboard/activity', { params: { limit: 10 } }),
           api.get('/hawker/dashboard/dishes'),
         ]);
@@ -393,7 +439,7 @@ const HawkerDashboardPage = () => {
       }
     };
     fetchData();
-  }, []);
+  }, [selectedPeriod]);
 
   useEffect(() => {
     if (!openMenuId) {
@@ -436,12 +482,69 @@ const HawkerDashboardPage = () => {
     };
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if (addImageObjectUrlRef.current) {
+        URL.revokeObjectURL(addImageObjectUrlRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (isDropdownOpen && !target.closest('.time-period-dropdown')) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    if (isDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [isDropdownOpen]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (isCategoryDropdownOpen && !target.closest('.category-dropdown')) {
+        setIsCategoryDropdownOpen(false);
+      }
+    };
+
+    if (isCategoryDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [isCategoryDropdownOpen]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (isEditCategoryDropdownOpen && !target.closest('.edit-category-dropdown')) {
+        setIsEditCategoryDropdownOpen(false);
+      }
+    };
+
+    if (isEditCategoryDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [isEditCategoryDropdownOpen]);
+
   const openEditModal = (dish: MenuItemData) => {
     setEditingDish(dish);
     setEditError(null);
     setEditForm({
       name: dish.name || '',
       description: dish.description || '',
+      category: dish.category || '',
       price: typeof dish.priceCents === 'number' ? (dish.priceCents / 100).toFixed(2) : '',
       prepTime: typeof dish.prepTimeMins === 'number' ? String(dish.prepTimeMins) : '',
       imageUrl: dish.imageUrl || '',
@@ -459,6 +562,27 @@ const HawkerDashboardPage = () => {
     if (editImageObjectUrlRef.current) {
       URL.revokeObjectURL(editImageObjectUrlRef.current);
       editImageObjectUrlRef.current = null;
+    }
+  };
+
+  const openAddModal = () => {
+    setAddError(null);
+    setAddForm(emptyEditForm);
+    setIsAddOpen(true);
+  };
+
+  const closeAddModal = () => {
+    setIsAddOpen(false);
+    setAddForm(emptyEditForm);
+    setAddError(null);
+
+    if (addImageObjectUrlRef.current) {
+      URL.revokeObjectURL(addImageObjectUrlRef.current);
+      addImageObjectUrlRef.current = null;
+    }
+
+    if (addFileInputRef.current) {
+      addFileInputRef.current.value = '';
     }
   };
 
@@ -538,6 +662,7 @@ const HawkerDashboardPage = () => {
       const payload = {
         name: trimmedName,
         description: editForm.description.trim() || null,
+        category: editForm.category?.trim() || null,
         priceCents: Math.round(priceValue * 100),
         prepTimeMins: prepValue,
         imageUrl: updatedImageUrl || null,
@@ -573,6 +698,134 @@ const HawkerDashboardPage = () => {
       setEditError(message);
     } finally {
       setIsSavingEdit(false);
+    }
+  };
+
+  const handleAddFormChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setAddForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleAddImageChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    if (addImageObjectUrlRef.current) {
+      URL.revokeObjectURL(addImageObjectUrlRef.current);
+    }
+
+    const previewUrl = URL.createObjectURL(file);
+    addImageObjectUrlRef.current = previewUrl;
+
+    setAddForm((prev) => ({
+      ...prev,
+      imageFile: file,
+      imagePreview: previewUrl,
+    }));
+  };
+
+  const handleAddDishSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setAddError(null);
+    let createdDishId: string | null = null;
+
+    // Validate dish name
+    const trimmedName = addForm.name.trim();
+    if (!trimmedName) {
+      setAddError('Dish name is required.');
+      return;
+    }
+
+    // Validate price
+    const priceValue = Number(addForm.price);
+    if (!Number.isFinite(priceValue) || priceValue < 0) {
+      setAddError('Price must be a non-negative number.');
+      return;
+    }
+
+    // Validate prep time (optional)
+    let prepValue: number | null = null;
+    if (addForm.prepTime.trim() !== '') {
+      const parsedPrep = Number(addForm.prepTime);
+      if (!Number.isFinite(parsedPrep) || parsedPrep < 0) {
+        setAddError('Preparation time must be a non-negative number.');
+        return;
+      }
+      prepValue = Math.round(parsedPrep);
+    }
+
+    // Validate image is selected
+    if (!addForm.imageFile) {
+      setAddError('Please upload an image for the dish.');
+      return;
+    }
+
+    setIsSavingAdd(true);
+
+    try {
+      // Step 1: Create the dish without image first
+      const createPayload = {
+        name: trimmedName,
+        description: addForm.description.trim() || null,
+        priceCents: Math.round(priceValue * 100),
+        prepTimeMins: prepValue,
+        category: addForm.category?.trim() || null,
+        imageUrl: null,
+      };
+
+      const createRes = await api.post('/hawker/dashboard/dishes', createPayload);
+      const newDishId = createRes.data.id;
+      createdDishId = newDishId;
+
+      // Step 2: Upload image and associate with new dish
+      const formData = new FormData();
+      formData.append('image', addForm.imageFile);
+      formData.append('menuItemId', newDishId);
+      formData.append('aspectRatio', 'square');
+      formData.append('setAsMenuItemImage', 'true');
+
+      try {
+        await api.post('/media/upload', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+          timeout: 35000,
+        });
+      } catch (uploadError) {
+        try {
+          await api.delete(`/hawker/dashboard/dishes/${newDishId}`);
+        } catch (cleanupError) {
+          console.warn('[handleAddDishSubmit] Failed to rollback dish after upload error', cleanupError);
+        }
+        throw uploadError;
+      }
+
+      // Success
+      toaster.create({
+        title: 'Dish added',
+        description: `${trimmedName} has been added to your menu.`,
+        type: 'success',
+        duration: 3000,
+      });
+      closeAddModal();
+
+      // Refresh dish list
+      const dishesRes = await api.get('/hawker/dashboard/dishes');
+      setDishes(dishesRes.data || []);
+    } catch (err: any) {
+      console.error('[handleAddDishSubmit]', err);
+      const isUploadError = String(err?.config?.url || '').includes('/media/upload');
+      const message =
+        err?.response?.data?.error ||
+        (isUploadError
+          ? 'Image upload failed. Please try again.'
+          : 'Failed to add dish. Please try again.');
+      setAddError(message);
+    } finally {
+      setIsSavingAdd(false);
     }
   };
 
@@ -694,11 +947,16 @@ const HawkerDashboardPage = () => {
   const weeklyData = summary?.ordersByWeek || [];
   const dailyData = summary?.ordersByDay || [];
   const isDayView = chartView === 'day';
+  const granularity = summary?.granularity || 'week';
   const isWeeklyView = isDayView && dayChartMode === 'week';
   const isDailyView = isDayView && dayChartMode === 'day';
 
+  // For day-level granularity, show daily data directly
+  const displayData = granularity === 'day' ? dailyData : (isWeeklyView ? weeklyData : dailyData);
   const weekLabels = weeklyData.map((week) => formatWeekLabelShort(week.weekStart));
   const weekCounts = weeklyData.map((week) => week.count);
+  const dayLabels = dailyData.map((day) => formatDayLabelShort(day.date));
+  const dayCounts = dailyData.map((day) => day.count);
 
   const dayCountsByDate = new Map(
     dailyData.map((item) => [item.date, item.count])
@@ -715,15 +973,21 @@ const HawkerDashboardPage = () => {
     }
   }
 
-  const dayCategories = isWeeklyView ? weekLabels : weekDayLabels;
-  const daySeriesData = isWeeklyView ? weekCounts : weekDayCounts;
+  const dayCategories = granularity === 'day' ? dayLabels : (isWeeklyView ? weekLabels : weekDayLabels);
+  const daySeriesData = granularity === 'day' ? dayCounts : (isWeeklyView ? weekCounts : weekDayCounts);
   const dayChartTotal = daySeriesData.reduce((sum, value) => sum + value, 0);
-  const dayEmptyMessage = isWeeklyView
+  const dayEmptyMessage = granularity === 'day'
+    ? 'No orders in this period'
+    : isWeeklyView
     ? 'No orders in the last 4 weeks'
     : 'No orders in this week';
   const dishEmptyMessage = 'No orders by dish yet';
   const selectedWeekEnd = selectedWeekStart ? addDays(selectedWeekStart, 6) : null;
-  const dayTitle = isWeeklyView
+  const dayTitle = granularity === 'day'
+    ? selectedPeriod === 'yesterday'
+      ? 'Total Orders Yesterday'
+      : 'Total Orders This Week'
+    : isWeeklyView
     ? 'Total Orders by Week'
     : `Orders for ${formatDate(selectedWeekStart!, SG_TIMEZONE)} - ${formatDate(
         selectedWeekEnd!,
@@ -773,7 +1037,7 @@ const HawkerDashboardPage = () => {
       type: 'bar',
       fontFamily: 'inherit',
       toolbar: { show: false },
-      events: isWeeklyView
+      events: granularity === 'week' && isWeeklyView
         ? {
             dataPointSelection: (_: unknown, __: unknown, config: { dataPointIndex: number }) => {
               const week = weeklyData[config.dataPointIndex];
@@ -849,14 +1113,59 @@ const HawkerDashboardPage = () => {
         {/* Controls row - on mobile, center the toggle */}
         <div className="flex flex-col md:flex-row items-center md:items-center gap-3 md:gap-4">
           {activeTab === 'dashboard' ? (
-            <div className="hidden md:flex items-center gap-2 text-sm text-gray-500 cursor-pointer hover:text-gray-700">
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="6 9 12 15 18 9" />
-              </svg>
-              <span>Last month</span>
+            <div className="relative time-period-dropdown">
+              <button
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 focus:outline-none"
+              >
+                <svg
+                  className={`w-4 h-4 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+                <span className="hidden md:inline">
+                  {selectedPeriod === 'yesterday' && 'Yesterday'}
+                  {selectedPeriod === 'lastWeek' && 'Last week'}
+                  {selectedPeriod === 'lastMonth' && 'Last month'}
+                  {selectedPeriod === 'threeMonths' && '3 months'}
+                </span>
+              </button>
+
+              {isDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-40 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10">
+                  {[
+                    { value: 'yesterday', label: 'Yesterday' },
+                    { value: 'lastWeek', label: 'Last week' },
+                    { value: 'lastMonth', label: 'Last month' },
+                    { value: 'threeMonths', label: '3 months' },
+                  ].map((option) => (
+                    <button
+                      key={option.value}
+                      onClick={() => {
+                        setSelectedPeriod(option.value as typeof selectedPeriod);
+                        setIsDropdownOpen(false);
+                        setDayChartMode('week');
+                        setSelectedWeekStart(null);
+                      }}
+                      className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 ${
+                        selectedPeriod === option.value ? 'text-[#21421B] font-semibold' : 'text-gray-700'
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           ) : (
-            <button className="hidden md:flex items-center gap-2 bg-[#21421B] text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-[#1a3415] transition-colors animate-[fadeSlideRight_0.3s_ease-out]">
+            <button
+              onClick={openAddModal}
+              className="hidden md:flex items-center gap-2 bg-[#21421B] text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-[#1a3415] transition-colors animate-[fadeSlideRight_0.3s_ease-out]"
+            >
               <Plus className="w-4 h-4" />
               <span>Add Dish</span>
             </button>
@@ -917,16 +1226,19 @@ const HawkerDashboardPage = () => {
                   title="Total Orders"
                   value={summary?.totals?.orders ?? 0}
                   delta={summary?.totals?.delta?.orders}
+                  timePeriod={selectedPeriod}
                 />
                 <StatsCard
                   title="Total Photos Uploaded"
                   value={summary?.totals?.photos ?? 0}
                   delta={summary?.totals?.delta?.photos}
+                  timePeriod={selectedPeriod}
                 />
                 <StatsCard
                   title="Total Community Upvotes"
                   value={summary?.totals?.upvotes ?? 0}
                   delta={summary?.totals?.delta?.upvotes}
+                  timePeriod={selectedPeriod}
                 />
               </div>
 
@@ -985,7 +1297,7 @@ const HawkerDashboardPage = () => {
                         className={`w-6 h-6 transition-all duration-300 ease-out ${chartView === 'day' ? 'text-[#21421B] scale-110 rotate-45' : 'text-gray-400 scale-100 rotate-0'}`}
                       />
                     </button>
-                    {isDailyView ? (
+                    {granularity === 'week' && isDailyView ? (
                       <button
                         className="hidden md:flex items-center gap-1.5 text-sm text-[#21421B] hover:text-[#1a3415] font-medium transition-colors"
                         onClick={() => {
@@ -1288,7 +1600,10 @@ const HawkerDashboardPage = () => {
               </div>
 
               {/* Mobile Add Dish Button - Outside white box */}
-              <button className="md:hidden w-full flex items-center justify-center gap-2 bg-[#21421B] text-white px-4 py-3.5 rounded-xl text-sm font-medium mt-3 animate-[fadeSlideRight_0.3s_ease-out]">
+              <button
+                onClick={openAddModal}
+                className="md:hidden w-full flex items-center justify-center gap-2 bg-[#21421B] text-white px-4 py-3.5 rounded-xl text-sm font-medium mt-3 animate-[fadeSlideRight_0.3s_ease-out]"
+              >
                 <Plus className="w-4 h-4" />
                 <span>Add Dish</span>
               </button>
@@ -1386,6 +1701,52 @@ const HawkerDashboardPage = () => {
                 />
               </div>
 
+              <div className="mb-4">
+                <label className="text-sm font-semibold text-gray-700">Category</label>
+                <div className="relative edit-category-dropdown mt-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsEditCategoryDropdownOpen(!isEditCategoryDropdownOpen)}
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#21421B]/40 bg-white text-left flex items-center justify-between text-sm"
+                  >
+                    <span className={editForm.category ? 'text-gray-900' : 'text-gray-400'}>
+                      {editForm.category || 'Select a category'}
+                    </span>
+                    <ChevronDown className={`w-4 h-4 transition-transform ${isEditCategoryDropdownOpen ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {isEditCategoryDropdownOpen && (
+                    <div className="absolute z-10 mt-1 w-full bg-white rounded-xl shadow-lg border border-gray-200 py-1 max-h-60 overflow-y-auto">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditForm((prev) => ({ ...prev, category: '' }));
+                          setIsEditCategoryDropdownOpen(false);
+                        }}
+                        className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 text-gray-400"
+                      >
+                        Select a category
+                      </button>
+                      {CATEGORY_OPTIONS.map((category) => (
+                        <button
+                          key={category}
+                          type="button"
+                          onClick={() => {
+                            setEditForm((prev) => ({ ...prev, category }));
+                            setIsEditCategoryDropdownOpen(false);
+                          }}
+                          className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 ${
+                            editForm.category === category ? 'text-[#21421B] font-semibold bg-gray-50' : 'text-gray-700'
+                          }`}
+                        >
+                          {category}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-4 mb-6">
                 <div>
                   <label className="text-sm font-semibold text-gray-700">Price</label>
@@ -1438,6 +1799,211 @@ const HawkerDashboardPage = () => {
                   disabled={isSavingEdit}
                 >
                   {isSavingEdit ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add Dish Modal */}
+      {isAddOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 animate-[fadeIn_0.2s_ease-out]">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto animate-[scaleIn_0.2s_ease-out]">
+            {/* Header */}
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-2xl">
+              <h2 className="text-xl font-bold text-[#1C201D]">Add New Dish</h2>
+              <button
+                onClick={closeAddModal}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+                disabled={isSavingAdd}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleAddDishSubmit} className="p-6 space-y-4">
+              {/* Error Message */}
+              {addError && (
+                <div className="mb-4 rounded-xl bg-red-50 px-4 py-2 text-sm text-red-600">
+                  {addError}
+                </div>
+              )}
+
+              {/* Image Upload */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Dish Image <span className="text-red-500">*</span>
+                </label>
+                <input
+                  ref={addFileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleAddImageChange}
+                  className="hidden"
+                  disabled={isSavingAdd}
+                />
+                <button
+                  type="button"
+                  onClick={() => addFileInputRef.current?.click()}
+                  className="w-full border-2 border-dashed border-gray-300 rounded-xl p-4 hover:border-[#21421B] transition-colors disabled:opacity-50"
+                  disabled={isSavingAdd}
+                >
+                  {addForm.imagePreview ? (
+                    <img
+                      src={addForm.imagePreview}
+                      alt="Preview"
+                      className="w-full h-48 object-cover rounded-lg"
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center gap-2 text-gray-500">
+                      <Plus className="w-8 h-8" />
+                      <span className="text-sm">Click to upload image</span>
+                    </div>
+                  )}
+                </button>
+              </div>
+
+              {/* Dish Name */}
+              <div>
+                <label htmlFor="add-name" className="block text-sm font-medium text-gray-700 mb-2">
+                  Dish Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="add-name"
+                  name="name"
+                  type="text"
+                  value={addForm.name}
+                  onChange={handleAddFormChange}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#21421B]"
+                  placeholder="e.g., Chicken Rice"
+                  disabled={isSavingAdd}
+                  required
+                />
+              </div>
+
+              {/* Description */}
+              <div>
+                <label htmlFor="add-description" className="block text-sm font-medium text-gray-700 mb-2">
+                  Description
+                </label>
+                <textarea
+                  id="add-description"
+                  name="description"
+                  value={addForm.description}
+                  onChange={handleAddFormChange}
+                  rows={3}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#21421B] resize-none"
+                  placeholder="Describe your dish..."
+                  disabled={isSavingAdd}
+                />
+              </div>
+
+              {/* Category */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Category
+                </label>
+                <div className="relative category-dropdown">
+                  <button
+                    type="button"
+                    onClick={() => !isSavingAdd && setIsCategoryDropdownOpen(!isCategoryDropdownOpen)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#21421B] bg-white text-left flex items-center justify-between disabled:opacity-50"
+                    disabled={isSavingAdd}
+                  >
+                    <span className={addForm.category ? 'text-gray-900' : 'text-gray-400'}>
+                      {addForm.category || 'Select a category'}
+                    </span>
+                    <ChevronDown className={`w-4 h-4 transition-transform ${isCategoryDropdownOpen ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {isCategoryDropdownOpen && (
+                    <div className="absolute z-10 mt-1 w-full bg-white rounded-lg shadow-lg border border-gray-200 py-1 max-h-60 overflow-y-auto">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAddForm((prev) => ({ ...prev, category: '' }));
+                          setIsCategoryDropdownOpen(false);
+                        }}
+                        className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 text-gray-400"
+                      >
+                        Select a category
+                      </button>
+                      {CATEGORY_OPTIONS.map((category) => (
+                        <button
+                          key={category}
+                          type="button"
+                          onClick={() => {
+                            setAddForm((prev) => ({ ...prev, category }));
+                            setIsCategoryDropdownOpen(false);
+                          }}
+                          className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 ${
+                            addForm.category === category ? 'text-[#21421B] font-semibold bg-gray-50' : 'text-gray-700'
+                          }`}
+                        >
+                          {category}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Price */}
+              <div>
+                <label htmlFor="add-price" className="block text-sm font-medium text-gray-700 mb-2">
+                  Price (SGD) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="add-price"
+                  name="price"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={addForm.price}
+                  onChange={handleAddFormChange}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#21421B]"
+                  placeholder="0.00"
+                  disabled={isSavingAdd}
+                  required
+                />
+              </div>
+
+              {/* Prep Time */}
+              <div>
+                <label htmlFor="add-prepTime" className="block text-sm font-medium text-gray-700 mb-2">
+                  Preparation Time (minutes)
+                </label>
+                <input
+                  id="add-prepTime"
+                  name="prepTime"
+                  type="number"
+                  min="0"
+                  value={addForm.prepTime}
+                  onChange={handleAddFormChange}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#21421B]"
+                  placeholder="e.g., 15"
+                  disabled={isSavingAdd}
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={closeAddModal}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                  disabled={isSavingAdd}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-[#21421B] text-white rounded-lg hover:bg-[#1a3415] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={isSavingAdd}
+                >
+                  {isSavingAdd ? 'Adding...' : 'Add Dish'}
                 </button>
               </div>
             </form>
