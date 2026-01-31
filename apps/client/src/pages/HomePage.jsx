@@ -718,7 +718,7 @@ function HomePage() {
                 <h2 className="text-xl font-bold text-brand mb-0.5">Near you</h2>
                 <p className="text-sm text-gray-700">Top picks nearby</p>
               </div>
-              <Link to="/hawker-centres" className="flex items-center gap-1 text-brand hover:underline">
+              <Link to="/hawker-centres/map" className="flex items-center gap-1 text-brand hover:underline">
                 <MapPin className="h-4 w-4 text-brand" aria-hidden="true" />
                 <span className="text-sm font-medium">Map</span>
               </Link>
