@@ -40,6 +40,7 @@ export const cartService = {
             menu_items: {
             select: {
                 stallId: true,
+                name: true,
             },
             },
         },

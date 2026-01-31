@@ -732,6 +732,7 @@ const HawkerDashboardPage = () => {
   const handleAddDishSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setAddError(null);
+    let createdDishId: string | null = null;
 
     // Validate dish name
     const trimmedName = addForm.name.trim();
@@ -779,6 +780,7 @@ const HawkerDashboardPage = () => {
 
       const createRes = await api.post('/hawker/dashboard/dishes', createPayload);
       const newDishId = createRes.data.id;
+      createdDishId = newDishId;
 
       // Step 2: Upload image and associate with new dish
       const formData = new FormData();
@@ -787,10 +789,19 @@ const HawkerDashboardPage = () => {
       formData.append('aspectRatio', 'square');
       formData.append('setAsMenuItemImage', 'true');
 
-      await api.post('/media/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        timeout: 35000,
-      });
+      try {
+        await api.post('/media/upload', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+          timeout: 35000,
+        });
+      } catch (uploadError) {
+        try {
+          await api.delete(`/hawker/dashboard/dishes/${newDishId}`);
+        } catch (cleanupError) {
+          console.warn('[handleAddDishSubmit] Failed to rollback dish after upload error', cleanupError);
+        }
+        throw uploadError;
+      }
 
       // Success
       toaster.create({
@@ -806,9 +817,12 @@ const HawkerDashboardPage = () => {
       setDishes(dishesRes.data || []);
     } catch (err: any) {
       console.error('[handleAddDishSubmit]', err);
+      const isUploadError = String(err?.config?.url || '').includes('/media/upload');
       const message =
         err?.response?.data?.error ||
-        'Failed to add dish. Please try again.';
+        (isUploadError
+          ? 'Image upload failed. Please try again.'
+          : 'Failed to add dish. Please try again.');
       setAddError(message);
     } finally {
       setIsSavingAdd(false);
