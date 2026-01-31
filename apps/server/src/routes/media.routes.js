@@ -7,6 +7,7 @@ const router = Router();
 
 // Public routes - anyone can view uploads
 router.get('/menu-item/:menuItemId', mediaController.getByMenuItem);
+router.get('/recent-uploaders', mediaController.getRecentUploaders);
 router.get('/user/:userId', authMiddleware, mediaController.getByUser);
 //router.get('/:uploadId', mediaController.getById);
 

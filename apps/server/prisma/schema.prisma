@@ -128,6 +128,7 @@ model UserProfile {
   id             String   @id @default(uuid()) @db.Uuid
   userId         String?  @unique @map("user_id") @db.Uuid
   anonId         String?  @unique @map("anon_id")
+  profilePicUrl  String?  @map("profile_pic_url")
   updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
   categoryScores Json     @map("category_scores")
   tagScores      Json     @map("tag_scores")

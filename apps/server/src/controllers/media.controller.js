@@ -472,6 +472,20 @@ export const mediaController = {
   },
 
   /**
+   * Get recent community uploaders (unique users)
+   * GET /api/media/recent-uploaders?limit=6
+   */
+  async getRecentUploaders(req, res, next) {
+    try {
+      const limit = Number(req.query?.limit ?? 6);
+      const uploaders = await mediaService.getRecentUploaders(limit);
+      res.json({ uploaders });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /**
    * Upload stall image (no AI validation)
    * POST /api/media/upload/stall-image
    */

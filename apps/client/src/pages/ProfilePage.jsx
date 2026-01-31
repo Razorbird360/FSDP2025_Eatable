@@ -30,6 +30,7 @@ export default function ProfilePage() {
     }
   }
 
+
   if (loading) {
     return (
       <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100 min-h-[300px] flex items-center justify-center">

@@ -6,6 +6,12 @@ export const getProfileById = async (userId) => {
     });
 };
 
+export const getUserProfileByUserId = async (userId) => {
+    return await prisma.userProfile.findUnique({
+        where: { userId },
+    });
+};
+
 export const updateUserProfile = async (userId, data) => {
     // Construct the update object based on allowed fields
     const updateData = {};
@@ -18,5 +24,21 @@ export const updateUserProfile = async (userId, data) => {
     return await prisma.user.update({
         where: { id: userId },
         data: updateData,
+    });
+};
+
+export const upsertUserProfilePic = async (userId, profilePicUrl) => {
+    return await prisma.userProfile.upsert({
+        where: { userId },
+        update: { profilePicUrl },
+        create: {
+            userId,
+            profilePicUrl,
+            categoryScores: {},
+            tagScores: {},
+            recentItems: [],
+            pricePrefMin: null,
+            pricePrefMax: null,
+        },
     });
 };
