@@ -469,6 +469,47 @@ export const mediaController = {
     } catch (error) {
       next(error);
     }
+  },
+
+  /**
+   * Upload stall image (no AI validation)
+   * POST /api/media/upload/stall-image
+   */
+  async uploadStallImage(req, res, next) {
+    try {
+      // 1. Validate file exists (from Multer)
+      if (!req.file) {
+        return res.status(400).json({ error: 'No image file provided' });
+      }
+
+      // 2. Verify user is authenticated hawker
+      if (req.user.role !== 'hawker') {
+        return res.status(403).json({ error: 'Only hawkers can upload stall images' });
+      }
+
+      // 3. Compress image
+      const compressed_buffer = await storageService.compressImage(
+        req.file.buffer,
+        'square' // Stalls use square images
+      );
+
+      // 4. Generate file path for stall image
+      const file_path = `stalls/${req.user.id}/${Date.now()}.jpg`;
+
+      // 5. Upload to Supabase Storage
+      const image_url = await storageService.uploadFile(
+        'stall-images',
+        file_path,
+        compressed_buffer,
+        'image/jpeg'
+      );
+
+      // 6. Return success with image URL
+      res.status(200).json({ imageUrl: image_url });
+    } catch (error) {
+      console.error('Stall image upload error:', error);
+      next(error);
+    }
   }
 
 };

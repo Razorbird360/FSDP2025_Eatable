@@ -1,3 +1,4 @@
+import prisma from '../lib/prisma.js';
 import { stallsService } from '../services/stalls.service.js';
 
 export const stallsController = {
@@ -24,9 +25,48 @@ export const stallsController = {
 
   async create(req, res, next) {
     try {
-      const stall = await stallsService.create(req.body);
+      // Verify user is authenticated hawker
+      if (!req.user || req.user.role !== 'hawker') {
+        return res.status(403).json({ error: 'Only hawkers can create stalls' });
+      }
+
+      // Verify user is verified
+      const user = await prisma.user.findUnique({
+        where: { id: req.user.id },
+        select: { verified: true },
+      });
+
+      if (!user?.verified) {
+        return res.status(403).json({ error: 'Hawker must be verified to create a stall' });
+      }
+
+      // Check if user already has a stall
+      const existingStall = await stallsService.findByOwnerId(req.user.id);
+      if (existingStall.length > 0) {
+        return res.status(400).json({ error: 'User already owns a stall' });
+      }
+
+      // Add ownerId to request body
+      const stallData = {
+        ...req.body,
+        ownerId: req.user.id,
+      };
+
+      const stall = await stallsService.create(stallData);
       res.status(201).json(stall);
     } catch (error) {
+      // Handle unique constraint violation (duplicate stall name)
+      if (error.code === 'P2002') {
+        return res.status(400).json({
+          error: 'A stall with this name already exists',
+        });
+      }
+
+      // Handle validation errors
+      if (error.message.includes('required')) {
+        return res.status(400).json({ error: error.message });
+      }
+
       next(error);
     }
   },

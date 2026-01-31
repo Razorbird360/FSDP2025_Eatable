@@ -104,11 +104,23 @@ async function getHawkerInfo(req, res) {
   }
 }
 
+async function getAll(req, res) {
+  try {
+    const limit = parseInt(req.query.limit) || 100;
+    const centres = await hawkerCentresService.getAllHawkerCentres(limit);
+    res.json(centres);
+  } catch (error) {
+    console.error('Error fetching all hawker centres:', error);
+    res.status(500).json({ error: 'Failed to fetch hawker centres' });
+  }
+}
+
 export default {
   getNearby,
   getRandomStalls,
   getHawkerStalls,
   getHawkerDishes,
   getHawkerRecommendedDishes,
-  getHawkerInfo
+  getHawkerInfo,
+  getAll
 };

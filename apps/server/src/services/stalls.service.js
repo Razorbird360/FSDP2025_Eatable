@@ -133,8 +133,46 @@ export const stallsService = {
 
 
   async create(data) {
+    // Validate required fields
+    if (!data.name || typeof data.name !== 'string' || !data.name.trim()) {
+      throw new Error('Stall name is required');
+    }
+
+    if (!data.hawkerCentreId) {
+      throw new Error('Hawker centre selection is required');
+    }
+
+    if (!data.cuisineType || !data.cuisineType.trim()) {
+      throw new Error('Cuisine type is required');
+    }
+
+    if (!data.image_url) {
+      throw new Error('Stall image is required');
+    }
+
+    // Trim and validate data
+    const stallData = {
+      name: data.name.trim(),
+      description: data.description?.trim() || null,
+      cuisineType: data.cuisineType.trim(),
+      hawkerCentreId: data.hawkerCentreId,
+      image_url: data.image_url,
+      tags: Array.isArray(data.tags) ? data.tags : [],
+      dietaryTags: Array.isArray(data.dietaryTags) ? data.dietaryTags : [],
+      ownerId: data.ownerId,
+    };
+
     return await prisma.stall.create({
-      data,
+      data: stallData,
+      include: {
+        hawkerCentre: true,
+        owner: {
+          select: {
+            id: true,
+            displayName: true,
+          },
+        },
+      },
     });
   },
 
