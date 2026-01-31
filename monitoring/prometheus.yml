@@ -8,3 +8,8 @@ scrape_configs:
       - targets: ['host.docker.internal:3000']
     metrics_path: /metrics
     scrape_timeout: 10s
+  - job_name: 'eatable-ai'
+    static_configs:
+      - targets: ['host.docker.internal:8000']
+    metrics_path: /metrics
+    scrape_timeout: 10s

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 import { hawkerDashboardController } from "../controllers/hawker-dashboard.controller.js";
+import { stallsController } from "../controllers/stalls.controller.js";
 import {
   getHawkerOrders,
   acceptOrder,
@@ -11,6 +12,7 @@ import {
 
 const router = Router();
 
+router.get("/my-stall", authMiddleware, stallsController.getMyStall);
 router.get("/dashboard", authMiddleware, hawkerDashboardController.getDashboard);
 router.get(
   "/dashboard/activity",

@@ -138,6 +138,10 @@ export const stallsService = {
       throw new Error('Stall name is required');
     }
 
+    if (!data.location || typeof data.location !== 'string' || !data.location.trim()) {
+      throw new Error('Stall location is required');
+    }
+
     if (!data.hawkerCentreId) {
       throw new Error('Hawker centre selection is required');
     }
@@ -153,6 +157,7 @@ export const stallsService = {
     // Trim and validate data
     const stallData = {
       name: data.name.trim(),
+      location: data.location.trim(),
       description: data.description?.trim() || null,
       cuisineType: data.cuisineType.trim(),
       hawkerCentreId: data.hawkerCentreId,

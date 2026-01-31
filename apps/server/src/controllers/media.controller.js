@@ -482,9 +482,13 @@ export const mediaController = {
         return res.status(400).json({ error: 'No image file provided' });
       }
 
-      // 2. Verify user is authenticated hawker
-      if (req.user.role !== 'hawker') {
+      // 2. Verify user is authenticated hawker (use local DB role)
+      const dbUser = await userService.findById(req.user.id);
+      if (!dbUser || dbUser.role !== 'hawker') {
         return res.status(403).json({ error: 'Only hawkers can upload stall images' });
+      }
+      if (!dbUser.verified) {
+        return res.status(403).json({ error: 'Hawker must be verified to upload stall images' });
       }
 
       // 3. Compress image
@@ -508,6 +512,60 @@ export const mediaController = {
       res.status(200).json({ imageUrl: image_url });
     } catch (error) {
       console.error('Stall image upload error:', error);
+      next(error);
+    }
+  },
+
+  /**
+   * Delete uploaded stall image (cleanup only)
+   * DELETE /api/media/stall-image
+   * Body: { imageUrl }
+   */
+  async deleteStallImage(req, res, next) {
+    try {
+      const { imageUrl } = req.body ?? {};
+      if (!imageUrl || typeof imageUrl !== 'string') {
+        return res.status(400).json({ error: 'imageUrl is required' });
+      }
+
+      const dbUser = await userService.findById(req.user.id);
+      if (!dbUser || dbUser.role !== 'hawker') {
+        return res.status(403).json({ error: 'Only hawkers can delete stall images' });
+      }
+      if (!dbUser.verified) {
+        return res.status(403).json({ error: 'Hawker must be verified to delete stall images' });
+      }
+
+      let bucket = null;
+      let filePath = null;
+      try {
+        const url = new URL(imageUrl);
+        const match = url.pathname.match(/\/storage\/v1\/object\/public\/([^/]+)\/(.+)$/);
+        if (match) {
+          bucket = match[1];
+          filePath = match[2];
+        }
+      } catch (_err) {
+        return res.status(400).json({ error: 'Invalid imageUrl' });
+      }
+
+      if (!bucket || !filePath) {
+        return res.status(400).json({ error: 'Invalid imageUrl' });
+      }
+
+      if (bucket !== 'stall-images') {
+        return res.status(400).json({ error: 'Invalid bucket for stall image' });
+      }
+
+      const expectedPrefix = `stalls/${req.user.id}/`;
+      if (!filePath.startsWith(expectedPrefix)) {
+        return res.status(403).json({ error: 'Not allowed to delete this image' });
+      }
+
+      await storageService.deleteFile(bucket, filePath);
+      res.status(200).json({ ok: true });
+    } catch (error) {
+      console.error('Stall image delete error:', error);
       next(error);
     }
   }

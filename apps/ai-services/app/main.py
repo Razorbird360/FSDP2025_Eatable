@@ -1,5 +1,6 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 import uvicorn
 
 from app.routers import health
@@ -33,6 +34,11 @@ def root():
 app.include_router(health.router)
 app.include_router(id_verification.router)
 app.include_router(food_validation.router)
+
+
+@app.get("/metrics")
+def metrics():
+    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 
 if __name__ == "__main__":

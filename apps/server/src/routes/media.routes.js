@@ -40,6 +40,7 @@ router.post(
   upload.single('image'),
   mediaController.uploadStallImage
 );
+router.delete('/stall-image', authMiddleware, mediaController.deleteStallImage);
 
 router.delete('/:uploadId', authMiddleware, mediaController.deleteUpload);
 

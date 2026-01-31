@@ -25,18 +25,21 @@ export const stallsController = {
 
   async create(req, res, next) {
     try {
-      // Verify user is authenticated hawker
-      if (!req.user || req.user.role !== 'hawker') {
+      // Verify user is authenticated hawker (use local DB role)
+      if (!req.user) {
+        return res.status(401).json({ error: 'Not authenticated' });
+      }
+
+      const user = await prisma.user.findUnique({
+        where: { id: req.user.id },
+        select: { role: true, verified: true },
+      });
+
+      if (!user || user.role !== 'hawker') {
         return res.status(403).json({ error: 'Only hawkers can create stalls' });
       }
 
-      // Verify user is verified
-      const user = await prisma.user.findUnique({
-        where: { id: req.user.id },
-        select: { verified: true },
-      });
-
-      if (!user?.verified) {
+      if (!user.verified) {
         return res.status(403).json({ error: 'Hawker must be verified to create a stall' });
       }
 
