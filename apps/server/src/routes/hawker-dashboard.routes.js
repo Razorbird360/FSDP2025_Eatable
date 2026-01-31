@@ -18,6 +18,7 @@ router.get(
   hawkerDashboardController.getActivity
 );
 router.get("/dashboard/dishes", authMiddleware, hawkerDashboardController.getDishes);
+router.post("/dashboard/dishes", authMiddleware, hawkerDashboardController.createDish);
 router.patch(
   "/dashboard/dishes/:menuItemId",
   authMiddleware,

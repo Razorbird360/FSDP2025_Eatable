@@ -1,7 +1,7 @@
 import prisma from '../lib/prisma.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const MENU_ITEM_UPDATE_FIELDS = ['name', 'description', 'priceCents', 'prepTimeMins', 'imageUrl'];
+const MENU_ITEM_UPDATE_FIELDS = ['name', 'description', 'category', 'priceCents', 'prepTimeMins', 'imageUrl'];
 
 const buildMenuItemUpdateData = (payload = {}) => {
   const data = {};
@@ -41,6 +41,11 @@ const buildMenuItemUpdateData = (payload = {}) => {
       continue;
     }
 
+    if (field === 'category') {
+      data.category = (typeof value === 'string' ? value.trim() : value) || null;
+      continue;
+    }
+
     data[field] = value;
   }
 
@@ -62,16 +67,38 @@ const menuItemResponseSelect = {
   isActive: true,
 };
 
-const buildDateRanges = () => {
+const getChartGranularity = (timePeriod) => {
+  // Day-level for shorter periods
+  if (timePeriod === 'yesterday' || timePeriod === 'lastWeek') {
+    return 'day';
+  }
+  // Week-level for longer periods
+  return 'week';
+};
+
+const buildDateRanges = (timePeriod = 'lastMonth') => {
   const now = new Date();
-  const currentFrom = new Date(now.getTime() - 30 * DAY_MS);
+
+  // Define period lengths in days
+  const periodDays = {
+    yesterday: 1,
+    lastWeek: 7,
+    lastMonth: 30,
+    threeMonths: 90,
+  };
+
+  const days = periodDays[timePeriod] || 30;
+
+  const currentFrom = new Date(now.getTime() - days * DAY_MS);
   const currentTo = now;
-  const previousFrom = new Date(currentFrom.getTime() - 30 * DAY_MS);
+  const previousFrom = new Date(currentFrom.getTime() - days * DAY_MS);
   const previousTo = currentFrom;
 
   return {
     current: { from: currentFrom, to: currentTo },
     previous: { from: previousFrom, to: previousTo },
+    timePeriod,
+    days,
   };
 };
 
@@ -143,20 +170,11 @@ const buildOrderSummary = (orderItems) => {
 export const hawkerDashboardService = {
   buildDateRanges,
 
-  async getSummary(stallId) {
-    const { current, previous } = buildDateRanges();
+  async getSummary(stallId, timePeriod = 'lastMonth') {
+    const { current, previous, days } = buildDateRanges(timePeriod);
+    const granularity = getChartGranularity(timePeriod);
 
-    const [
-      ordersCount,
-      previousOrdersCount,
-      photosCount,
-      previousPhotosCount,
-      upvotesCount,
-      previousUpvotesCount,
-      ordersByDishGrouped,
-      ordersByWeekRows,
-      ordersByDayRows,
-    ] = await Promise.all([
+    const promises = [
       prisma.order.count({
         where: {
           stallId,
@@ -210,43 +228,18 @@ export const hawkerDashboardService = {
         },
         _sum: { quantity: true },
       }),
+    ];
+
+    // Always fetch daily data for drill-down support
+    const numDays = days;
+    promises.push(
       prisma.$queryRaw`
         WITH params AS (
-          SELECT
-            date_trunc('week', timezone('Asia/Singapore', now()))::date AS current_week_start
+          SELECT ${current.from}::date AS start_date, ${current.to}::date AS end_date
         ),
         series AS (
-          SELECT
-            (current_week_start - interval '3 week' + (gs * interval '1 week'))::date AS week_start
-          FROM params, generate_series(0, 3) AS gs
-        ),
-        orders AS (
-          SELECT
-            date_trunc('week', timezone('Asia/Singapore', created_at))::date AS week_start,
-            COUNT(*)::int AS count
-          FROM "orders", params
-          WHERE stall_id = ${stallId}::uuid
-            AND status = 'PAID'
-            AND timezone('Asia/Singapore', created_at) >= (current_week_start - interval '3 week')
-            AND timezone('Asia/Singapore', created_at) < (current_week_start + interval '4 week')
-          GROUP BY week_start
-        )
-        SELECT
-          series.week_start,
-          COALESCE(orders.count, 0) AS count
-        FROM series
-        LEFT JOIN orders USING (week_start)
-        ORDER BY week_start ASC;
-      `,
-      prisma.$queryRaw`
-        WITH params AS (
-          SELECT
-            date_trunc('week', timezone('Asia/Singapore', now()))::date AS current_week_start
-        ),
-        series AS (
-          SELECT
-            (current_week_start - interval '3 week' + (gs * interval '1 day'))::date AS day
-          FROM params, generate_series(0, 27) AS gs
+          SELECT (start_date + (gs * interval '1 day'))::date AS day
+          FROM params, generate_series(0, ${numDays - 1}) AS gs
         ),
         orders AS (
           SELECT
@@ -255,8 +248,8 @@ export const hawkerDashboardService = {
           FROM "orders", params
           WHERE stall_id = ${stallId}::uuid
             AND status = 'PAID'
-            AND timezone('Asia/Singapore', created_at) >= (current_week_start - interval '3 week')
-            AND timezone('Asia/Singapore', created_at) < (current_week_start + interval '4 week')
+            AND timezone('Asia/Singapore', created_at)::date >= start_date
+            AND timezone('Asia/Singapore', created_at)::date < end_date
           GROUP BY day
         )
         SELECT
@@ -264,19 +257,68 @@ export const hawkerDashboardService = {
           COALESCE(orders.count, 0) AS count
         FROM series
         LEFT JOIN orders USING (day)
-        ORDER BY day ASC;
-      `,
-    ]);
+        ORDER BY series.day ASC;
+      `
+    );
+
+    // Fetch weekly data only for week-level granularity
+    if (granularity === 'week') {
+      const weekCount = Math.ceil(days / 7);
+      promises.push(
+        prisma.$queryRaw`
+          WITH params AS (
+            SELECT ${current.from}::date AS start_date, ${current.to}::date AS end_date
+          ),
+          series AS (
+            SELECT (date_trunc('week', start_date::timestamp)::date + (gs * interval '1 week'))::date AS week_start
+            FROM params, generate_series(0, ${weekCount - 1}) AS gs
+          ),
+          orders AS (
+            SELECT
+              date_trunc('week', timezone('Asia/Singapore', created_at))::date AS week_start,
+              COUNT(*)::int AS count
+            FROM "orders", params
+            WHERE stall_id = ${stallId}::uuid
+              AND status = 'PAID'
+              AND timezone('Asia/Singapore', created_at)::date >= start_date
+              AND timezone('Asia/Singapore', created_at)::date < end_date
+            GROUP BY week_start
+          )
+          SELECT
+            series.week_start,
+            COALESCE(orders.count, 0) AS count
+          FROM series
+          LEFT JOIN orders USING (week_start)
+          ORDER BY series.week_start ASC;
+        `
+      );
+    } else {
+      promises.push([]); // Empty array for week data when not needed
+    }
+
+    const [
+      ordersCount,
+      previousOrdersCount,
+      photosCount,
+      previousPhotosCount,
+      upvotesCount,
+      previousUpvotesCount,
+      ordersByDishGrouped,
+      ordersByDayRows,
+      ordersByWeekRows,
+    ] = await Promise.all(promises);
 
     const ordersByDish = await mapOrdersByDish(ordersByDishGrouped);
-    const ordersByWeek = mapOrdersByWeekRows(ordersByWeekRows);
     const ordersByDay = mapOrdersByDayRows(ordersByDayRows);
+    const ordersByWeek = granularity === 'week' ? mapOrdersByWeekRows(ordersByWeekRows) : [];
 
     return {
       period: {
         from: current.from.toISOString(),
         to: current.to.toISOString(),
+        timePeriod,
       },
+      granularity,
       totals: {
         orders: ordersCount,
         photos: photosCount,
@@ -453,6 +495,19 @@ export const hawkerDashboardService = {
     const data = buildMenuItemUpdateData(payload);
     return await prisma.menuItem.update({
       where: { id: menuItemId },
+      data,
+      select: menuItemResponseSelect,
+    });
+  },
+
+  async createMenuItem(stallId, payload) {
+    const data = buildMenuItemUpdateData(payload);
+
+    // Add required fields for creation
+    data.stallId = stallId;
+    data.isActive = true;
+
+    return await prisma.menuItem.create({
       data,
       select: menuItemResponseSelect,
     });

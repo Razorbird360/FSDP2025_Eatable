@@ -77,7 +77,16 @@ export const hawkerDashboardController = {
         return res.status(403).json({ error: verification.error });
       }
 
-      const { stallId: requestedStallId } = req.query;
+      const { stallId: requestedStallId, timePeriod = 'lastMonth' } = req.query;
+
+      // Validate time period
+      const validPeriods = ['yesterday', 'lastWeek', 'lastMonth', 'threeMonths'];
+      if (!validPeriods.includes(timePeriod)) {
+        return res.status(400).json({
+          error: 'Invalid time period. Must be one of: yesterday, lastWeek, lastMonth, threeMonths',
+        });
+      }
+
       const { stallId, error } = await resolveOwnedStallId(
         req.user.id,
         requestedStallId
@@ -87,7 +96,7 @@ export const hawkerDashboardController = {
         return res.status(403).json({ error });
       }
 
-      const summary = await hawkerDashboardService.getSummary(stallId);
+      const summary = await hawkerDashboardService.getSummary(stallId, timePeriod);
       return res.status(200).json(summary);
     } catch (err) {
       next(err);
@@ -145,6 +154,53 @@ export const hawkerDashboardController = {
 
       return res.status(200).json(dishes);
     } catch (err) {
+      next(err);
+    }
+  },
+
+  async createDish(req, res, next) {
+    try {
+      const verification = await ensureVerifiedHawker(req.user.id);
+      if (verification.error) {
+        return res.status(403).json({ error: verification.error });
+      }
+
+      const { stallId: requestedStallId } = req.query;
+      const { stallId, error } = await resolveOwnedStallId(
+        req.user.id,
+        requestedStallId
+      );
+
+      if (error) {
+        return res.status(403).json({ error });
+      }
+
+      // Explicit validation for required fields
+      const { name, priceCents } = req.body;
+      const trimmedName = typeof name === 'string' ? name.trim() : '';
+
+      if (!trimmedName) {
+        return res.status(400).json({ error: 'Dish name is required' });
+      }
+
+      const priceValue = Number(priceCents);
+      if (!Number.isFinite(priceValue) || priceValue < 0) {
+        return res.status(400).json({ error: 'priceCents must be a non-negative number' });
+      }
+
+      const newDish = await hawkerDashboardService.createMenuItem(stallId, req.body);
+      return res.status(201).json(newDish);
+    } catch (err) {
+      // Handle Prisma unique constraint violation
+      if (err.code === 'P2002') {
+        return res.status(400).json({
+          error: 'A dish with this name already exists in your stall.'
+        });
+      }
+
+      if (handleMenuItemValidationError(res, err)) {
+        return;
+      }
       next(err);
     }
   },
