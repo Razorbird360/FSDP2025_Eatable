@@ -39,6 +39,10 @@ interface DishData {
   upvoteCount?: number;
   menuItemTagAggs?: TagAgg[];
   mediaUploads?: MediaUpload[];
+  tagGroups?: {
+    caption?: TagAgg[];
+    image?: TagAgg[];
+  };
 }
 
 interface Dish {
@@ -314,7 +318,8 @@ const HawkerCentreDetailPage = () => {
           const resolvedTags = resolveTagConflicts(
             dish.menuItemTagAggs || [],
             approvedUploadCount,
-            3
+            3,
+            { captionAggs: dish.tagGroups?.caption }
           );
 
           return {

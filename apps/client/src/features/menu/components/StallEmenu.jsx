@@ -1,9 +1,13 @@
 import { useMemo, useState, useRef, useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
+import { Heart } from "lucide-react";
 import foodStallIcon from "./Assets/FoodStall_Icon.png";
 import StallGallery from "../../stalls/components/StallGallery";
 import { useCart } from "../../orders/components/CartContext";
 import { useAuth } from "../../auth/useAuth";
+import popularBadgeIcon from "../../../assets/stallBadges/fire_red.svg";
+import mostUploadsBadgeIcon from "../../../assets/stallBadges/uploading_blue.svg";
+import quickBitesBadgeIcon from "../../../assets/stallBadges/fast_purple.svg";
 import api from "@lib/api"; // ⬅️ adjust path if needed
 import { getOrCreateAnonId, trackEvent } from "@lib/events";
 import { resolveTagConflicts } from "../../../utils/tagging";
@@ -120,6 +124,104 @@ const getTagStyle = (percent = 0) => {
 };
 
 
+const BADGE_CONFIG = {
+  popular: {
+    label: "Popular",
+    src: popularBadgeIcon,
+    iconClassName: "scale-125 translate-y-[2px]",
+    labelClassName: "-ml-0.5",
+  },
+  mostUploads: {
+    label: "Most uploaded",
+    src: mostUploadsBadgeIcon,
+    iconClassName: "translate-y-px",
+  },
+  fast: {
+    label: "Quick bites",
+    src: quickBitesBadgeIcon,
+    iconClassName: "translate-y-px",
+  },
+};
+
+const getNumericValue = (value) => (Number.isFinite(value) ? value : null);
+
+const getRecencyValue = (value) => {
+  if (!value) return null;
+  const time = new Date(value).getTime();
+  return Number.isFinite(time) ? time : null;
+};
+
+const pickWinnerByValue = (items, valueKey, recencyKey, preferLower = false) => {
+  let winnerId = null;
+  let bestValue = null;
+  let bestRecency = null;
+
+  for (const item of items) {
+    const value = getNumericValue(item[valueKey]);
+    if (value === null) continue;
+    const recency = recencyKey ? getRecencyValue(item[recencyKey]) : null;
+
+    if (bestValue === null) {
+      winnerId = item.id;
+      bestValue = value;
+      bestRecency = recency;
+      continue;
+    }
+
+    const isBetter = preferLower ? value < bestValue : value > bestValue;
+    if (isBetter) {
+      winnerId = item.id;
+      bestValue = value;
+      bestRecency = recency;
+      continue;
+    }
+
+    if (
+      value === bestValue &&
+      recency !== null &&
+      (bestRecency === null || recency > bestRecency)
+    ) {
+      winnerId = item.id;
+      bestRecency = recency;
+    }
+  }
+
+  return winnerId;
+};
+
+function BadgeRow({ badges, className, reserveSpace = false }) {
+  if ((!badges || badges.length === 0) && !reserveSpace) return null;
+  const rowClassName = ["flex flex-wrap items-center gap-2", className]
+    .filter(Boolean)
+    .join(" ");
+  if (!badges || badges.length === 0) {
+    return <div className={rowClassName} />;
+  }
+  return (
+    <div className={rowClassName}>
+      {badges.map((badgeKey) => {
+        const badge = BADGE_CONFIG[badgeKey];
+        if (!badge) return null;
+        return (
+          <span
+            key={badgeKey}
+            className="inline-flex h-6 items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2 text-[11px] font-medium leading-none text-gray-700"
+            title={badge.label}
+          >
+            <img
+              src={badge.src}
+              alt=""
+              className={["h-6 w-6", badge.iconClassName].filter(Boolean).join(" ")}
+              aria-hidden="true"
+            />
+            <span className={badge.labelClassName}>{badge.label}</span>
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
 function ItemDialog({ open, item, onClose, onAdd, onImageError }) {
   const [qty, setQty] = useState(1);
   const [notes, setNotes] = useState("");
@@ -195,7 +297,7 @@ function ItemDialog({ open, item, onClose, onAdd, onImageError }) {
 
           <p className="mt-2 text-sm text-gray-600">{item.desc}</p>
           {item.tags && item.tags.length > 0 && (
-            <div className="mt-3 flex items-center gap-2 overflow-x-auto pb-1">
+            <div className="mt-3 flex items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
               {item.tags.map((tag) => (
                 <span
                   key={tag.label}
@@ -207,6 +309,7 @@ function ItemDialog({ open, item, onClose, onAdd, onImageError }) {
               ))}
             </div>
           )}
+          <BadgeRow badges={item.badges} className="mt-3" />
 
           <div className="mt-4">
             <label className="mb-1 block text-sm font-medium">
@@ -280,6 +383,38 @@ export default function StallEmenu() {
   const { profile } = useAuth();
   const [toast, setToast] = useState(null);
   const navigate = useNavigate();
+  const [favoriteStall, setFavoriteStall] = useState(false);
+  const [favoriteStallBusy, setFavoriteStallBusy] = useState(false);
+  const [favoriteStallCount, setFavoriteStallCount] = useState(0);
+  const [favoriteDishIds, setFavoriteDishIds] = useState(() => new Set());
+  const [favoriteDishBusyIds, setFavoriteDishBusyIds] = useState(
+    () => new Set()
+  );
+
+  const pushToast = (message) => {
+    setToast({ message });
+    setTimeout(() => setToast(null), 1800);
+  };
+
+  const ensureAuthed = () => {
+    if (!profile?.id) {
+      pushToast("Log in to save favourites.");
+      return false;
+    }
+    return true;
+  };
+
+  const setDishBusy = (menuItemId, isBusy) => {
+    setFavoriteDishBusyIds((prev) => {
+      const next = new Set(prev);
+      if (isBusy) {
+        next.add(menuItemId);
+      } else {
+        next.delete(menuItemId);
+      }
+      return next;
+    });
+  };
 
   const trackMenuClick = (item, source = "stall-menu") => {
     if (!item?.id) return;
@@ -321,6 +456,80 @@ export default function StallEmenu() {
       })
     );
   };
+
+  const handleToggleStallFavorite = async (event) => {
+    event?.stopPropagation();
+    if (!ensureAuthed() || !stallId) return;
+    if (favoriteStallBusy) return;
+
+    const nextLiked = !favoriteStall;
+    setFavoriteStall(nextLiked);
+    setFavoriteStallCount((prev) => {
+      const next = nextLiked ? prev + 1 : Math.max(0, prev - 1);
+      return Number.isFinite(next) ? next : 0;
+    });
+    setFavoriteStallBusy(true);
+
+    try {
+      if (nextLiked) {
+        await api.post(`/stalls/${stallId}/like`);
+      } else {
+        await api.delete(`/stalls/${stallId}/like`);
+      }
+    } catch (err) {
+      console.error("Failed to update stall favourite", err);
+      setFavoriteStall(!nextLiked);
+      setFavoriteStallCount((prev) => {
+        const next = nextLiked ? Math.max(0, prev - 1) : prev + 1;
+        return Number.isFinite(next) ? next : 0;
+      });
+      pushToast("Failed to update favourites.");
+    } finally {
+      setFavoriteStallBusy(false);
+    }
+  };
+
+  const handleToggleDishFavorite = async (menuItemId, event) => {
+    event?.stopPropagation();
+    if (!ensureAuthed() || !menuItemId) return;
+    if (favoriteDishBusyIds.has(menuItemId)) return;
+
+    const isLiked = favoriteDishIds.has(menuItemId);
+    const nextLiked = !isLiked;
+
+    setFavoriteDishIds((prev) => {
+      const next = new Set(prev);
+      if (nextLiked) {
+        next.add(menuItemId);
+      } else {
+        next.delete(menuItemId);
+      }
+      return next;
+    });
+    setDishBusy(menuItemId, true);
+
+    try {
+      if (nextLiked) {
+        await api.post(`/menu/${menuItemId}/like`);
+      } else {
+        await api.delete(`/menu/${menuItemId}/like`);
+      }
+    } catch (err) {
+      console.error("Failed to update dish favourite", err);
+      setFavoriteDishIds((prev) => {
+        const next = new Set(prev);
+        if (isLiked) {
+          next.add(menuItemId);
+        } else {
+          next.delete(menuItemId);
+        }
+        return next;
+      });
+      pushToast("Failed to update favourites.");
+    } finally {
+      setDishBusy(menuItemId, false);
+    }
+  };
   // Fetch stall from API
   useEffect(() => {
     let cancelled = false;
@@ -336,6 +545,9 @@ export default function StallEmenu() {
         setStallPfp(data.image_url || null);
 
         setStall(data);
+        setFavoriteStallCount(
+          Number.isFinite(data.likeCount) ? data.likeCount : 0
+        );
         console.log("Fetched stall data:", data);
 
         // Map menuItems -> UI menu items
@@ -383,10 +595,21 @@ export default function StallEmenu() {
                   typeof m.approvedUploadCount === "number"
                     ? m.approvedUploadCount
                     : 0,
+                orderCount:
+                  typeof m.orderCount === "number"
+                    ? m.orderCount
+                    : 0,
+                lastOrderedAt: m.lastOrderedAt || null,
+                lastUploadAt: m.lastUploadAt || null,
+                prepTimeMins:
+                  typeof m.prepTimeMins === "number"
+                    ? m.prepTimeMins
+                    : null,
                 tags: resolveTagConflicts(
                   m.menuItemTagAggs || [],
                   m.approvedUploadCount || 0,
-                  3
+                  3,
+                  { captionAggs: m.tagGroups?.caption }
                 ),
               };
             }) || [];
@@ -411,6 +634,54 @@ export default function StallEmenu() {
     };
   }, [stallId]);
 
+  useEffect(() => {
+    let cancelled = false;
+    const userId = profile?.id;
+
+    if (!userId || !stallId) {
+      setFavoriteStall(false);
+      setFavoriteDishIds(new Set());
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const loadFavorites = async () => {
+      const [stallLikesRes, dishLikesRes] = await Promise.allSettled([
+        api.get("/stalls/likes"),
+        api.get("/menu/likes"),
+      ]);
+
+      if (cancelled) return;
+
+      if (stallLikesRes.status === "fulfilled") {
+        const likes = stallLikesRes.value?.data?.likes || [];
+        const isLiked = likes.some(
+          (like) => like?.stallId === stallId || like?.stall?.id === stallId
+        );
+        setFavoriteStall(isLiked);
+      } else {
+        setFavoriteStall(false);
+      }
+
+      if (dishLikesRes.status === "fulfilled") {
+        const likes = dishLikesRes.value?.data?.likes || [];
+        const ids = likes
+          .map((like) => like?.menuItemId || like?.menuItem?.id)
+          .filter(Boolean);
+        setFavoriteDishIds(new Set(ids));
+      } else {
+        setFavoriteDishIds(new Set());
+      }
+    };
+
+    loadFavorites();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [profile?.id, stallId]);
+
   // Build STALL-like meta so JSX doesn’t change much
   const STALL_META = useMemo(() => {
     if (!stall) return null;
@@ -428,10 +699,55 @@ export default function StallEmenu() {
     };
   }, [stall]);
 
-  const sections = useMemo(() => {
-    const list = Array.from(new Set(menu.map((m) => m.category)));
-    return ["All", ...list];
+  const menuBadges = useMemo(() => {
+    if (menu.length === 0) return new Map();
+    const popularWinnerId = pickWinnerByValue(
+      menu,
+      "orderCount",
+      "lastOrderedAt"
+    );
+    const uploadWinnerId = pickWinnerByValue(
+      menu,
+      "approvedUploadCount",
+      "lastUploadAt"
+    );
+    const fastWinnerId = pickWinnerByValue(
+      menu,
+      "prepTimeMins",
+      "lastOrderedAt",
+      true
+    );
+
+    return new Map(
+      menu.map((item) => {
+        const badges = [];
+        if (popularWinnerId !== null && item.id === popularWinnerId) {
+          badges.push("popular");
+        }
+        if (uploadWinnerId !== null && item.id === uploadWinnerId) {
+          badges.push("mostUploads");
+        }
+        if (fastWinnerId !== null && item.id === fastWinnerId) {
+          badges.push("fast");
+        }
+        return [item.id, badges];
+      })
+    );
   }, [menu]);
+
+  const menuWithBadges = useMemo(
+    () =>
+      menu.map((item) => ({
+        ...item,
+        badges: menuBadges.get(item.id) || [],
+      })),
+    [menu, menuBadges]
+  );
+
+  const sections = useMemo(() => {
+    const list = Array.from(new Set(menuWithBadges.map((m) => m.category)));
+    return ["All", ...list];
+  }, [menuWithBadges]);
 
   useEffect(() => {
     function onDocClick(e) {
@@ -446,7 +762,7 @@ export default function StallEmenu() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return menu.filter((m) => {
+    return menuWithBadges.filter((m) => {
       const matchQuery =
         !q ||
         m.name.toLowerCase().includes(q) ||
@@ -456,7 +772,7 @@ export default function StallEmenu() {
         activeSection === "All" || m.category === activeSection;
       return matchQuery && matchSection;
     });
-  }, [query, activeSection, menu]);
+  }, [query, activeSection, menuWithBadges]);
 
   const grouped = useMemo(() => {
     const bucket = {};
@@ -545,16 +861,40 @@ export default function StallEmenu() {
 
         <section className="rounded-2xl py-6 px-5 md:p-6 flex flex-col md:flex-row md:items-center gap-5 shadow-[0_2px_12px_rgba(0,0,0,0.06)] relative overflow-hidden md:bg-white md:border md:border-slate-200">
           {/* Background image for mobile */}
-          <div 
+          <div
             className="absolute inset-0 md:hidden bg-cover bg-center"
             style={{ backgroundImage: `url(${stallPfp || foodStallIcon})` }}
           />
-          
+
           {/* Dark overlay for mobile */}
           <div className="absolute inset-0 bg-black/60 md:hidden" />
-          
+
           {/* White background for desktop */}
           <div className="hidden md:block absolute inset-0 bg-white" />
+
+          <div className="absolute right-4 top-4 z-20 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleToggleStallFavorite}
+              disabled={favoriteStallBusy}
+              aria-pressed={favoriteStall}
+              aria-label={
+                favoriteStall ? "Remove from favourites" : "Add to favourites"
+              }
+              className={`inline-flex h-9 w-9 items-center justify-center rounded-full border bg-white/90 transition ${favoriteStall
+                ? "text-rose-600 border-rose-200"
+                : "text-gray-400 border-white/80"
+                } ${favoriteStallBusy ? "cursor-not-allowed opacity-70" : "hover:bg-white"}`}
+            >
+              <Heart
+                className="h-4 w-4"
+                fill={favoriteStall ? "currentColor" : "none"}
+              />
+            </button>
+            <span className="rounded-full border border-white/80 bg-white/90 px-2 py-0.5 text-xs font-semibold text-gray-700">
+              {favoriteStallCount}
+            </span>
+          </div>
 
           <div className="hidden md:block w-52 h-52 flex-shrink-0 rounded-xl overflow-hidden relative z-10 border">
             <img
@@ -657,8 +997,8 @@ export default function StallEmenu() {
               <button
                 onClick={() => setTab("menu")}
                 className={`flex items-center gap-2 px-4 py-2.5 text-sm rounded-lg font-medium transition-colors ${tab === "menu"
-                    ? "bg-[#21421B] text-white"
-                    : "text-gray-400"
+                  ? "bg-[#21421B] text-white"
+                  : "text-gray-400"
                   }`}
               >
                 <Icon.MenuList className="h-4 w-4" />
@@ -667,8 +1007,8 @@ export default function StallEmenu() {
               <button
                 onClick={() => setTab("photos")}
                 className={`flex items-center gap-2 px-4 py-2.5 text-sm rounded-lg font-medium transition-colors ${tab === "photos"
-                    ? "bg-[#21421B] text-white"
-                    : "text-gray-400"
+                  ? "bg-[#21421B] text-white"
+                  : "text-gray-400"
                   }`}
               >
                 <Icon.Photo className="h-4 w-4" />
@@ -677,8 +1017,8 @@ export default function StallEmenu() {
               <button
                 onClick={() => setTab("about")}
                 className={`flex items-center gap-2 px-4 py-2.5 text-sm rounded-lg font-medium transition-colors ${tab === "about"
-                    ? "bg-[#21421B] text-white"
-                    : "text-gray-400"
+                  ? "bg-[#21421B] text-white"
+                  : "text-gray-400"
                   }`}
               >
                 <Icon.Info className="h-4 w-4" />
@@ -714,8 +1054,8 @@ export default function StallEmenu() {
                           setOpenFilter(false);
                         }}
                         className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-100 ${activeSection === s
-                            ? "font-medium text-[#21421B]"
-                            : "text-gray-800"
+                          ? "font-medium text-[#21421B]"
+                          : "text-gray-800"
                           }`}
                       >
                         {s}
@@ -741,8 +1081,8 @@ export default function StallEmenu() {
 
                 <div
                   className={`absolute left-0 top-0 z-30 h-10 overflow-hidden transition-all duration-300 ${showSearch
-                      ? "w-[200px] opacity-100 sm:w-[240px]"
-                      : "pointer-events-none w-0 opacity-0"
+                    ? "w-[200px] opacity-100 sm:w-[240px]"
+                    : "pointer-events-none w-0 opacity-0"
                     }`}
                 >
                   <div className="relative h-full">
@@ -794,23 +1134,25 @@ export default function StallEmenu() {
                         {items.map((item) => (
                           <li
                             key={`${item.id}-${item.name}`}
-                            className="flex cursor-pointer items-center gap-2.5 rounded-xl border bg-white p-2.5 md:p-4"
+                            className="grid cursor-pointer items-stretch gap-2.5 rounded-xl border bg-white p-2.5 md:p-4 grid-cols-[auto,1fr,auto]"
                             onClick={() => {
                               trackMenuClick(item);
                               setSelected(item);
                               setShowItem(true);
                             }}
                           >
-                            {item.img ? (
-                              <img
-                                src={item.img}
-                                alt={item.name}
-                                className="h-14 w-14 rounded-lg border object-cover sm:h-20 sm:w-20"
-                                onError={() => handleMenuImageError(item.id)}
-                              />
-                            ) : (
-                              <div className="h-14 w-14 rounded-lg border bg-gray-100 sm:h-20 sm:w-20" />
-                            )}
+                            <div className="self-stretch aspect-square min-h-14 min-w-14 max-h-20 max-w-20 sm:min-h-20 sm:min-w-20 sm:max-h-24 sm:max-w-24">
+                              {item.img ? (
+                                <img
+                                  src={item.img}
+                                  alt={item.name}
+                                  className="h-full w-full rounded-lg border object-cover"
+                                  onError={() => handleMenuImageError(item.id)}
+                                />
+                              ) : (
+                                <div className="h-full w-full rounded-lg border bg-gray-100" />
+                              )}
+                            </div>
                             <div className="flex-1">
                               <div className="text-[15px] font-semibold">
                                 {item.name}
@@ -828,19 +1170,54 @@ export default function StallEmenu() {
                               <p className="mt-0.5 line-clamp-2 text-[12px] text-gray-600">
                                 {item.desc}
                               </p>
+                              <BadgeRow
+                                badges={item.badges}
+                                className="mt-2 min-h-[24px]"
+                                reserveSpace
+                              />
                             </div>
-                            <button
-                              className="ml-2 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#21421B] text-white hover:bg-[#21421B]/90"
-                              aria-label={`Add ${item.name}`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                trackMenuClick(item);
-                                setSelected(item);
-                                setShowItem(true);
-                              }}
-                            >
-                              <Icon.Plus className="h-4 w-4" />
-                            </button>
+                            <div className="ml-2 flex items-center gap-2">
+                              <button
+                                type="button"
+                                className={`grid h-8 w-8 shrink-0 place-items-center rounded-full border bg-white transition ${favoriteDishIds.has(item.id)
+                                  ? "text-rose-600 border-rose-200"
+                                  : "text-gray-400 border-gray-200"
+                                  } ${favoriteDishBusyIds.has(item.id)
+                                    ? "cursor-not-allowed opacity-70"
+                                    : "hover:bg-rose-50"
+                                  }`}
+                                aria-pressed={favoriteDishIds.has(item.id)}
+                                aria-label={
+                                  favoriteDishIds.has(item.id)
+                                    ? `Remove ${item.name} from favourites`
+                                    : `Add ${item.name} to favourites`
+                                }
+                                onClick={(e) => handleToggleDishFavorite(item.id, e)}
+                                disabled={favoriteDishBusyIds.has(item.id)}
+                              >
+                                <Heart
+                                  className="h-4 w-4"
+                                  fill={
+                                    favoriteDishIds.has(item.id)
+                                      ? "currentColor"
+                                      : "none"
+                                  }
+                                />
+                              </button>
+                              <button
+                                type="button"
+                                className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#21421B] text-white hover:bg-[#21421B]/90"
+                                aria-label={`Add ${item.name}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  trackMenuClick(item);
+                                  setSelected(item);
+                                  setShowItem(true);
+                                }}
+                              >
+                                <Icon.Plus className="h-4 w-4" />
+                              </button>
+                            </div>
                           </li>
                         ))}
                       </ul>
@@ -859,7 +1236,7 @@ export default function StallEmenu() {
                   setTab("menu");
 
                   // Find the menu item by ID
-                  const menuItem = menu.find(item => item.id === menuItemId);
+                  const menuItem = menuWithBadges.find((item) => item.id === menuItemId);
                   if (menuItem) {
                     // Open the item dialog
                     trackMenuClick(menuItem, "stall-photos");
@@ -908,8 +1285,7 @@ export default function StallEmenu() {
             notes
           );
           console.log("Added to cart:", stall.id);
-          setToast({ message: `Added ${item.name} x${qty} to cart` });
-          setTimeout(() => setToast(null), 1800);
+          pushToast(`Added ${item.name} x${qty} to cart`);
         }}
       />
 

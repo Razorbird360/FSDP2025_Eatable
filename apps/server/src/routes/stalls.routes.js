@@ -7,6 +7,9 @@ const router = Router();
 
 // Public routes
 router.get('/', stallsController.getAll);
+router.get('/likes', authMiddleware, stallsController.getLikes);
+router.post('/:id/like', authMiddleware, stallsController.likeStall);
+router.delete('/:id/like', authMiddleware, stallsController.unlikeStall);
 router.get('/:id/gallery', stallsController.getGallery);
 
 // Protected routes (must come before /:id to prevent route collision)

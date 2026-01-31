@@ -11,13 +11,18 @@ import advertiseHero from '../assets/HomePage/Advertise.png';
  * @param {string} dishName - Name of the featured dish
  * @param {string} stallName - Name of the stall
  * @param {string} stallId - ID of the stall for navigation
- * @param {function} onFavoriteClick - Optional callback for favorite button (TODO)
+ * @param {function} onFavoriteToggle - Optional callback for favorite button
+ * @param {boolean} isFavorited - Whether the stall is currently favorited
+ * @param {boolean} isFavoriteBusy - Whether a favorite request is in flight
  */
 function HeroAdvertisement({ 
   imageUrl = advertiseHero, 
   dishName = "Grilled Beef Fried Rice", 
   stallName = "John's famous steaks",
   stallId,
+  onFavoriteToggle,
+  isFavorited = false,
+  isFavoriteBusy = false,
   onFavoriteClick
 }) {
   const navigate = useNavigate();
@@ -29,11 +34,18 @@ function HeroAdvertisement({
   };
 
   const handleFavoriteClick = () => {
-    // TODO: Implement favorite functionality
-    if (onFavoriteClick) {
-      onFavoriteClick();
-    }
+    if (isFavoriteBusy || !stallId) return;
+    if (onFavoriteToggle) onFavoriteToggle();
+    if (onFavoriteClick) onFavoriteClick();
   };
+
+  const favoriteButtonClasses = [
+    'group relative flex h-10 w-10 items-center justify-center rounded-full p-1 transition-colors duration-150 ease-in-out',
+    isFavorited ? 'bg-brand' : 'bg-white hover:bg-brand',
+    isFavoriteBusy || !stallId ? 'cursor-not-allowed opacity-70' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   return (
     <motion.div
@@ -65,15 +77,23 @@ function HeroAdvertisement({
           <TrendingUp className="h-5 w-5 max-[430px]:h-[1.125rem] max-[430px]:w-[1.125rem]" />
           <p className="-translate-x-1 text-base max-[430px]:text-sm">Top-Rated</p>
         </div>
-        <button 
+        <motion.button 
           onClick={handleFavoriteClick}
-          className='group relative flex h-10 w-10 items-center justify-center rounded-full bg-white p-1 transition-colors duration-150 ease-in-out hover:bg-brand max-[430px]:h-9 max-[430px]:w-9'
-          aria-label="Add to favorites"
+          className={favoriteButtonClasses}
+          aria-label={isFavorited ? "Remove from favourites" : "Add to favourites"}
+          aria-pressed={isFavorited}
+          disabled={!stallId || isFavoriteBusy}
+          initial={false}
+          animate={isFavorited ? { scale: [1, 1.12, 1] } : { scale: 1 }}
+          transition={{ duration: 0.25, ease: "easeOut" }}
         >
           <Heart
-            className="h-6 w-6 text-brand transition-colors duration-200 ease-in-out group-hover:text-white max-[430px]:h-5 max-[430px]:w-5"
+            className={`h-6 w-6 transition-colors duration-200 ease-in-out max-[430px]:h-5 max-[430px]:w-5 ${
+              isFavorited ? 'text-white' : 'text-brand group-hover:text-white'
+            }`}
+            fill={isFavorited ? 'currentColor' : 'none'}
           />
-        </button>
+        </motion.button>
 
       </div>
 

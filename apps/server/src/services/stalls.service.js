@@ -1,5 +1,106 @@
 import prisma from '../lib/prisma.js';
 
+function addTagAggregate(map, { label, confidence }) {
+  if (!label) return;
+
+  const existing = map.get(label);
+  if (!existing) {
+    map.set(label, {
+      label,
+      count: 1,
+      sumConfidence: typeof confidence === 'number' ? confidence : 0,
+    });
+    return;
+  }
+
+  existing.count += 1;
+  if (typeof confidence === 'number') {
+    existing.sumConfidence += confidence;
+  }
+}
+
+function buildTagList(map, limit = 3) {
+  return Array.from(map.values())
+    .map((tag) => ({
+      label: tag.label,
+      count: tag.count,
+      avgConfidence: tag.count > 0 ? tag.sumConfidence / tag.count : 0,
+      reliabilityPercent: Math.round(
+        (tag.count > 0 ? tag.sumConfidence / tag.count : 0) * 100
+      ),
+    }))
+    .sort((a, b) => {
+      if (b.count !== a.count) return b.count - a.count;
+      return b.avgConfidence - a.avgConfidence;
+    })
+    .slice(0, limit);
+}
+
+async function buildTagGroupsByMenuItem(menuItemIds) {
+  if (!Array.isArray(menuItemIds) || menuItemIds.length === 0) {
+    return new Map();
+  }
+
+  const uploadTags = await prisma.uploadTag.findMany({
+    where: {
+      upload: {
+        menuItemId: { in: menuItemIds },
+        validationStatus: 'approved',
+      },
+    },
+    select: {
+      confidence: true,
+      evidenceFrom: true,
+      upload: { select: { menuItemId: true } },
+      tag: { select: { normalized: true, displayLabel: true } },
+    },
+  });
+
+  const tagGroupsByMenuItem = new Map();
+
+  for (const row of uploadTags) {
+    const menuItemId = row.upload?.menuItemId;
+    if (!menuItemId) continue;
+
+    const label = row.tag?.displayLabel || row.tag?.normalized;
+    if (!label) continue;
+
+    const evidence = Array.isArray(row.evidenceFrom) ? row.evidenceFrom : [];
+    let groups = tagGroupsByMenuItem.get(menuItemId);
+    if (!groups) {
+      groups = {
+        caption: new Map(),
+        image: new Map(),
+      };
+      tagGroupsByMenuItem.set(menuItemId, groups);
+    }
+
+    if (evidence.includes('caption')) {
+      addTagAggregate(groups.caption, {
+        label,
+        confidence: row.confidence,
+      });
+    }
+
+    if (evidence.includes('image')) {
+      addTagAggregate(groups.image, {
+        label,
+        confidence: row.confidence,
+      });
+    }
+  }
+
+  const normalizedGroupsByMenuItem = new Map();
+  tagGroupsByMenuItem.forEach((groups, menuItemId) => {
+    normalizedGroupsByMenuItem.set(menuItemId, {
+      caption: buildTagList(groups.caption, 3),
+      image: buildTagList(groups.image, 3),
+    });
+  });
+
+  return normalizedGroupsByMenuItem;
+}
+
 export const stallsService = {
   async getAll(limit) {
     const query = {
@@ -36,6 +137,11 @@ export const stallsService = {
           select: {
             id: true,
             displayName: true,
+          },
+        },
+        _count: {
+          select: {
+            favoriteStalls: true,
           },
         },
         menuItems: {
@@ -84,9 +190,14 @@ export const stallsService = {
       ? Math.round(prices.reduce((sum, value) => sum + value, 0) / prices.length)
       : null;
 
+    const { _count, ...stallData } = stall;
     const menuItems = stall.menuItems || [];
     if (menuItems.length === 0) {
-      return stall;
+      return {
+        ...stallData,
+        likeCount: _count?.favoriteStalls ?? 0,
+        menuItems: [],
+      };
     }
 
     const menuItemIds = menuItems.map((item) => item.id);
@@ -98,18 +209,56 @@ export const stallsService = {
       },
       _count: { _all: true },
     });
+    const orderCounts = await prisma.orderItem.groupBy({
+      by: ['menuItemId'],
+      where: {
+        menuItemId: { in: menuItemIds },
+      },
+      _sum: { quantity: true },
+    });
+    const orderRecency = await prisma.orderItem.groupBy({
+      by: ['menuItemId'],
+      where: {
+        menuItemId: { in: menuItemIds },
+      },
+      _max: { createdAt: true },
+    });
+    const uploadRecency = await prisma.mediaUpload.groupBy({
+      by: ['menuItemId'],
+      where: {
+        menuItemId: { in: menuItemIds },
+        validationStatus: 'approved',
+      },
+      _max: { createdAt: true },
+    });
 
     const uploadCountsByMenuItem = new Map(
       uploadCounts.map((row) => [row.menuItemId, row._count?._all ?? 0])
     );
+    const orderCountsByMenuItem = new Map(
+      orderCounts.map((row) => [row.menuItemId, row._sum?.quantity ?? 0])
+    );
+    const orderRecencyByMenuItem = new Map(
+      orderRecency.map((row) => [row.menuItemId, row._max?.createdAt ?? null])
+    );
+    const uploadRecencyByMenuItem = new Map(
+      uploadRecency.map((row) => [row.menuItemId, row._max?.createdAt ?? null])
+    );
+
+    const tagGroupsByMenuItem = await buildTagGroupsByMenuItem(menuItemIds);
 
     return {
-      ...stall,
+      ...stallData,
+      likeCount: _count?.favoriteStalls ?? 0,
       menuItems: menuItems.map((item) => ({
         ...item,
         approvedUploadCount: uploadCountsByMenuItem.get(item.id) || 0,
+        orderCount: orderCountsByMenuItem.get(item.id) || 0,
+        lastOrderedAt: orderRecencyByMenuItem.get(item.id) || null,
+        lastUploadAt: uploadRecencyByMenuItem.get(item.id) || null,
         maxPrepTimeMins,
-        avgPriceCents
+        avgPriceCents,
+        tagGroups: tagGroupsByMenuItem.get(item.id) || { caption: [], image: [] },
       })),
     };
   },
@@ -131,6 +280,94 @@ export const stallsService = {
     });
   },
 
+  async addFavoriteStall(userId, stallId) {
+    if (!userId || !stallId) {
+      throw new Error('userId and stallId are required');
+    }
+
+    return await prisma.favoriteStall.upsert({
+      where: {
+        userId_stallId: {
+          userId,
+          stallId,
+        },
+      },
+      update: {},
+      create: {
+        userId,
+        stallId,
+      },
+    });
+  },
+
+  async removeFavoriteStall(userId, stallId) {
+    if (!userId || !stallId) {
+      throw new Error('userId and stallId are required');
+    }
+
+    await prisma.favoriteStall.deleteMany({
+      where: {
+        userId,
+        stallId,
+      },
+    });
+  },
+
+  async getUserFavoriteStalls(userId) {
+    if (!userId) {
+      throw new Error('userId is required');
+    }
+
+    const favorites = await prisma.favoriteStall.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        stall: {
+          select: {
+            id: true,
+            name: true,
+            cuisineType: true,
+            location: true,
+            image_url: true,
+            _count: {
+              select: {
+                menuItems: true,
+                favoriteStalls: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return favorites.map((favorite) => {
+      const stall = favorite.stall;
+      if (!stall) {
+        return {
+          id: favorite.id,
+          userId: favorite.userId,
+          stallId: favorite.stallId,
+          createdAt: favorite.createdAt,
+          likedAt: favorite.createdAt,
+          stall: null,
+        };
+      }
+
+      const { _count, ...stallData } = stall;
+      return {
+        id: favorite.id,
+        userId: favorite.userId,
+        stallId: favorite.stallId,
+        createdAt: favorite.createdAt,
+        likedAt: favorite.createdAt,
+        stall: {
+          ...stallData,
+          menuItemCount: _count?.menuItems ?? 0,
+          likeCount: _count?.favoriteStalls ?? 0,
+        },
+      };
+    });
+  },
 
   async create(data) {
     // Validate required fields
