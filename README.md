@@ -212,3 +212,7 @@ Optional: start monitoring
 ```bash
 pnpm dev:metrics
 ```
+
+## Slides & Figma
+Slides [here](https://www.canva.com/design/DAG_beRPosw/8pGANjsHFhpi2mS7DSvfWA/edit?utm_content=DAG_beRPosw&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton)  
+Figma [here](https://www.figma.com/design/lQLWWhkWKBYVUHGMq7gY3a/Eatable-BevEats?node-id=1-2&t=CtAhC8Ikp7CBtmlS-1)
