@@ -51,7 +51,8 @@ function mapOrderItem(raw) {
   }
 }
 
-function generateOrderCode(orderId) {
+function generateOrderCode(orderId, orderCode) {
+  if (orderCode) return `EA-${String(orderCode).toUpperCase()}`
   if (!orderId || orderId === "—") return "—"
   const hash = String(orderId).replace(/-/g, "").slice(0, 8).toUpperCase()
   return `EA-${hash}`
@@ -280,7 +281,10 @@ export default function OrderCompletedModal({
       ? orderInfo.totalCents / 100
       : subtotal + serviceFee - voucherApplied
 
-  const displayOrderCode = generateOrderCode(currentOrderId || "—")
+  const displayOrderCode = generateOrderCode(
+    currentOrderId || "—",
+    orderInfo?.orderCode
+  )
 
   const pay = String(orderInfo?.status || "").toUpperCase()
   const os = String(orderInfo?.orderStatus || "").toLowerCase()

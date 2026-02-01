@@ -1,10 +1,86 @@
 // prisma/seed.ts (or wherever your seed file lives)
 import { PrismaClient } from "@prisma/client";
+import dotenv from "dotenv";
+import { createClient } from "@supabase/supabase-js";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
 
 const prisma = new PrismaClient();
 const ORDER_CODE_CHARS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const ORDER_CODE_LENGTH = 4;
 const ORDER_CODE_MAX_RETRIES = 10;
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+dotenv.config({ path: join(__dirname, "..", ".env") });
+
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
+const PROFILE_PICTURES_BUCKET = "profile-pictures";
+
+const createSupabaseAdmin = () => {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) return null;
+  return createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+};
+
+const listAllStorageFiles = async (supabase, bucket, prefix = "") => {
+  const filePaths = [];
+  const stack = [prefix];
+
+  while (stack.length) {
+    const current = stack.pop() ?? "";
+    const { data, error } = await supabase.storage
+      .from(bucket)
+      .list(current, { limit: 1000 });
+
+    if (error) {
+      throw new Error(`Storage list failed: ${error.message}`);
+    }
+
+    (data || []).forEach((entry) => {
+      const entryPath = current ? `${current}/${entry.name}` : entry.name;
+      if (entry.id || entry.metadata?.size != null) {
+        filePaths.push(entryPath);
+      } else {
+        stack.push(entryPath);
+      }
+    });
+  }
+
+  return filePaths;
+};
+
+const deleteProfilePictures = async () => {
+  const supabase = createSupabaseAdmin();
+  if (!supabase) {
+    console.warn(
+      "[seed] SUPABASE_URL or SUPABASE_SERVICE_KEY not set; skipping profile picture cleanup."
+    );
+    return;
+  }
+
+  try {
+    const filePaths = await listAllStorageFiles(
+      supabase,
+      PROFILE_PICTURES_BUCKET
+    );
+    if (filePaths.length === 0) return;
+
+    const { error } = await supabase.storage
+      .from(PROFILE_PICTURES_BUCKET)
+      .remove(filePaths);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+  } catch (error) {
+    console.warn(
+      `[seed] Failed to delete profile pictures: ${error.message ?? error}`
+    );
+  }
+};
 
 const generateOrderCode = () => {
   let code = "";
@@ -37,6 +113,7 @@ async function main() {
   await prisma.order.deleteMany();
   await prisma.userFavorite.deleteMany();
   await prisma.user_cart.deleteMany();
+  await prisma.userProfile.deleteMany();
   await prisma.menuItem.deleteMany();
   await prisma.stall.deleteMany();
   await prisma.hawkerCentre.deleteMany();
@@ -47,6 +124,8 @@ async function main() {
   await prisma.MenuItemTagAgg.deleteMany();
 
 
+
+  await deleteProfilePictures();
 
   // --- Seed some users for uploads ---
 
