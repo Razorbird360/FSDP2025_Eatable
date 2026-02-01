@@ -1,4 +1,5 @@
 import { userService } from '../services/user.service.js';
+import prisma from '../lib/prisma.js';
 
 export const authController = {
   async checkAvailability(req, res) {
@@ -34,6 +35,10 @@ export const authController = {
   async getCurrentUser(req, res) {
     try {
       const profile = await userService.findById(req.user.id);
+      const profileRow = await prisma.userProfile.findUnique({
+        where: { userId: req.user.id },
+        select: { profilePicUrl: true },
+      });
 
       if (!profile) {
         return res.status(200).json({
@@ -45,6 +50,7 @@ export const authController = {
           verified: false,
           hasStall: false,
           stallId: null,
+          profilePicUrl: profileRow?.profilePicUrl ?? null,
           isSynced: false,
         });
       }
@@ -69,6 +75,7 @@ export const authController = {
         verified: profile.verified ?? false,
         hasStall,
         stallId,
+        profilePicUrl: profileRow?.profilePicUrl ?? null,
         isSynced: true,
       });
     } catch (error) {

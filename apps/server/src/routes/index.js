@@ -18,6 +18,7 @@ import adminRoutes from './admin.routes.js';
 import searchRoutes from './search.routes.js';
 import eventsRoutes from './events.routes.js';
 import agentRoutes from './agent.routes.js';
+import aboutRoutes from './about.routes.js';
 
 const router = Router();
 
@@ -44,5 +45,6 @@ router.use('/admin', adminRoutes);
 router.use('/search', searchRoutes);
 router.use('/events', eventsRoutes);
 router.use('/agent', agentRoutes);
+router.use('/about', aboutRoutes);
 
 export default router;

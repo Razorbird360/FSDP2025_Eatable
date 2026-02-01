@@ -295,6 +295,7 @@ export default function Navbar() {
   const profileIdentifier =
     profile?.displayName ?? profile?.username ?? profile?.email ?? 'Guest';
   const profileInitial = profileIdentifier.charAt(0).toUpperCase();
+  const profileAvatarUrl = profile?.profilePicUrl || profile?.profile_pic_url || null;
 
   const handleLogout = async () => {
     try {
@@ -625,9 +626,17 @@ export default function Navbar() {
                   disabled={authLoading}
                   className="flex items-center gap-2 rounded-2xl border border-[#E7EEE7] bg-white px-3 py-1.5 text-left transition-colors hover:border-[#21421B]"
                 >
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#21421B] text-sm font-semibold text-white">
-                    {profileInitial}
-                  </span>
+                  {profileAvatarUrl ? (
+                    <img
+                      src={profileAvatarUrl}
+                      alt={profileIdentifier}
+                      className="h-8 w-8 rounded-full object-cover border border-gray-100"
+                    />
+                  ) : (
+                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#21421B] text-sm font-semibold text-white">
+                      {profileInitial}
+                    </span>
+                  )}
                   <span className="text-sm font-semibold text-[#1C201D]">
                     {profileIdentifier}
                   </span>
@@ -848,9 +857,17 @@ export default function Navbar() {
                   onClick={closeMobileMenu}
                   className="flex flex-1 items-center gap-3 rounded-2xl border border-[#21421B] px-4 py-3 text-left"
                 >
-                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#21421B] text-base font-semibold text-white">
-                    {profileInitial}
-                  </span>
+                  {profileAvatarUrl ? (
+                    <img
+                      src={profileAvatarUrl}
+                      alt={profileIdentifier}
+                      className="h-10 w-10 rounded-full object-cover border border-gray-100"
+                    />
+                  ) : (
+                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#21421B] text-base font-semibold text-white">
+                      {profileInitial}
+                    </span>
+                  )}
                   <p className="text-lg font-semibold text-[#1C201D]">
                     {profileIdentifier}
                   </p>

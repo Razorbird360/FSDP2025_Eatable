@@ -238,6 +238,24 @@ function NetsCheckoutCard({
     }
 
     let active = true;
+    const ensureOrderExists = async () => {
+      if (!order?.id) return true;
+      const token = getSessionAccessToken();
+      try {
+        const response = await fetch(buildApiUrl(`/orders/getOrder/${order.id}`), {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        });
+        if (!response.ok) return false;
+        const data = await response.json();
+        return Boolean(data);
+      } catch {
+        return false;
+      }
+    };
     let elapsed = 0;
     const intervalMs = Number(payment.polling.intervalMs ?? 5000);
     const timeoutMs = Number(payment.polling.timeoutSeconds ?? 300) * 1000;
@@ -289,24 +307,39 @@ function NetsCheckoutCard({
       }
     };
 
-    timer = setInterval(async () => {
-      if (!active) return;
-      elapsed += intervalMs;
-      const remaining = Math.max(0, Math.ceil((timeoutMs - elapsed) / 1000));
-      setSecondsLeft(remaining);
-      if (elapsed >= timeoutMs) {
-        await pollStatus(true);
-        clearInterval(timer);
+    const startPolling = async () => {
+      const exists = await ensureOrderExists();
+      if (!exists) {
+        if (active) {
+          setStatus('fail');
+          setErrorMessage('Payment session expired. Please start checkout again.');
+        }
         return;
       }
-      await pollStatus(false);
-    }, intervalMs);
+
+      timer = setInterval(async () => {
+        if (!active) return;
+        elapsed += intervalMs;
+        const remaining = Math.max(0, Math.ceil((timeoutMs - elapsed) / 1000));
+        setSecondsLeft(remaining);
+        if (elapsed >= timeoutMs) {
+          await pollStatus(true);
+          if (timer) clearInterval(timer);
+          return;
+        }
+        await pollStatus(false);
+      }, intervalMs);
+    };
+
+    void startPolling();
 
     return () => {
       active = false;
-      clearInterval(timer);
+      if (timer) {
+        clearInterval(timer);
+      }
     };
-  }, [payment]);
+  }, [payment, order?.id]);
 
   return (
     <div className="mt-3 space-y-3 rounded-xl border border-gray-100 bg-white p-3">
@@ -318,18 +351,16 @@ function NetsCheckoutCard({
           {String(secondsLeft % 60).padStart(2, '0')}
         </p>
       )}
-      {status === 'success' && (
-        <div className="space-y-1">
-          <p className="text-xs font-semibold text-emerald-600">Payment received.</p>
-          {order?.orderCode && (
-            <p className="text-xs text-gray-600">Order code: {order.orderCode}</p>
-          )}
-        </div>
+      {errorMessage && (
+        <p className="text-xs font-semibold text-red-600">{errorMessage}</p>
       )}
-      {status === 'fail' && (
-        <p className="text-xs font-semibold text-red-600">
-          {errorMessage || 'Payment timed out. Please try again.'}
+      {status === 'success' && (
+        <p className="text-xs font-semibold text-emerald-600">
+          Payment successful.
         </p>
+      )}
+      {status === 'fail' && !errorMessage && (
+        <p className="text-xs font-semibold text-red-600">Payment failed.</p>
       )}
     </div>
   );

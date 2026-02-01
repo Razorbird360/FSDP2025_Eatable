@@ -6,11 +6,11 @@ interface StallCardProps {
   name: string;
   cuisineType: string | null;
   imageUrl: string | null;
+  rating?: number | null;
 }
 
-const StallCard = ({ name, cuisineType, imageUrl }: StallCardProps) => {
-  // Hardcoded values as per requirements
-  const rating = 201;
+const StallCard = ({ name, cuisineType, imageUrl, rating }: StallCardProps) => {
+  const displayRating = typeof rating === 'number' ? rating : 0;
 
   // Use placeholder image if imageUrl is null
   const displayImage = imageUrl || placeholderImage;
@@ -33,7 +33,7 @@ const StallCard = ({ name, cuisineType, imageUrl }: StallCardProps) => {
           <p className="text-xs lg:text-sm text-gray-600">{displayCuisine}</p>
           <div className="flex items-center gap-1 lg:gap-1.5">
             <TrendingUp className="w-3 h-3 lg:w-4 lg:h-4 text-gray-500" aria-hidden="true" />
-            <span className="text-sm lg:text-base text-gray-600">{rating}</span>
+            <span className="text-sm lg:text-base text-gray-600">{displayRating}</span>
           </div>
         </div>
       </Card.Body>

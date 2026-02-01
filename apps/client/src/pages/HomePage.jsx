@@ -5,7 +5,6 @@ import CuisineBox from "../ui/CuisineBox";
 import HeroAdvertisement from "../ui/HeroAdvertisement";
 import { Button } from "@chakra-ui/react";
 import logo_full from "../assets/logo/logo_full.png";
-import profilePlaceholder from "../assets/HomePage/profile_placeholder.jpg";
 import api from "@lib/api";
 import { toaster } from "../components/ui/toaster";
 import { useAuth } from "../features/auth/useAuth";
@@ -53,6 +52,7 @@ function HomePage() {
   const [topPicksLoading, setTopPicksLoading] = useState(true);
   const [activeCuisineIndex, setActiveCuisineIndex] = useState(0);
   const [featuredDishes, setFeaturedDishes] = useState({});
+  const [recentUploaders, setRecentUploaders] = useState([]);
   const [favoriteStallIds, setFavoriteStallIds] = useState(() => new Set());
   const [favoriteBusyId, setFavoriteBusyId] = useState(null);
   const isProfileLoading = status === 'loading';
@@ -138,6 +138,27 @@ function HomePage() {
       ignore = true;
     };
   }, [profile?.id]);
+
+  useEffect(() => {
+    let ignore = false;
+    const fetchRecentUploaders = async () => {
+      try {
+        const res = await api.get('/media/recent-uploaders?limit=6');
+        if (ignore) return;
+        setRecentUploaders(Array.isArray(res.data?.uploaders) ? res.data.uploaders : []);
+      } catch (err) {
+        if (!ignore) {
+          console.error('Failed to fetch recent uploaders:', err);
+        }
+      }
+    };
+
+    fetchRecentUploaders();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
   // Get current featured dish based on active cuisine
   const activeCuisine = CUISINE_TYPES[activeCuisineIndex];
@@ -447,14 +468,32 @@ function HomePage() {
           <div className="hidden md:flex items-center justify-between gap-3 pr-1 pt-4 border-gray-200 mt-[5vh]">
             <p className="text-base font-medium text-brand whitespace-nowra">Recent community uploads</p>
             <div className="flex items-center -space-x-3">
-              {Array.from({ length: 6 }).map((_, index) => (
-                <img
-                  key={`recent-upload-${index}`}
-                  src={profilePlaceholder}
-                  alt="Community upload"
-                  className="h-8 w-8 rounded-full border-2 border-white object-cover"
-                />
-              ))}
+              {(recentUploaders.length > 0
+                ? recentUploaders
+                : Array.from({ length: 6 }).map((_, index) => ({
+                    userId: `placeholder-${index}`,
+                    displayName: 'User',
+                    profilePicUrl: null,
+                  }))
+              ).map((uploader) => {
+                const initial =
+                  uploader?.displayName?.trim()?.charAt(0)?.toUpperCase() || 'U';
+                return uploader?.profilePicUrl ? (
+                  <img
+                    key={uploader.userId}
+                    src={uploader.profilePicUrl}
+                    alt={uploader.displayName || 'Community member'}
+                    className="h-8 w-8 rounded-full border-2 border-white object-cover"
+                  />
+                ) : (
+                  <div
+                    key={uploader.userId}
+                    className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-[#21421B] text-xs font-semibold text-white"
+                  >
+                    {initial}
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -679,7 +718,7 @@ function HomePage() {
                 <h2 className="text-xl font-bold text-brand mb-0.5">Near you</h2>
                 <p className="text-sm text-gray-700">Top picks nearby</p>
               </div>
-              <Link to="/hawker-centres" className="flex items-center gap-1 text-brand hover:underline">
+              <Link to="/hawker-centres/map" className="flex items-center gap-1 text-brand hover:underline">
                 <MapPin className="h-4 w-4 text-brand" aria-hidden="true" />
                 <span className="text-sm font-medium">Map</span>
               </Link>

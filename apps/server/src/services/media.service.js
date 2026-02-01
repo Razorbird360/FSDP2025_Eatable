@@ -209,6 +209,53 @@ export const mediaService = {
     });
   },
 
+  async getRecentUploaders(limit = 6) {
+    const safeLimit = Math.min(Math.max(Number(limit) || 6, 1), 20);
+    const take = Math.max(safeLimit * 4, 20);
+
+    const uploads = await prisma.mediaUpload.findMany({
+      orderBy: { createdAt: 'desc' },
+      take,
+      include: {
+        user: {
+          select: {
+            id: true,
+            displayName: true,
+          },
+        },
+      },
+    });
+
+    const unique = new Map();
+    for (const upload of uploads) {
+      if (!upload?.user?.id) continue;
+      if (!unique.has(upload.user.id)) {
+        unique.set(upload.user.id, {
+          userId: upload.user.id,
+          displayName: upload.user.displayName ?? 'User',
+        });
+      }
+      if (unique.size >= safeLimit) break;
+    }
+
+    const userIds = Array.from(unique.keys());
+    const profiles = userIds.length
+      ? await prisma.userProfile.findMany({
+          where: { userId: { in: userIds } },
+          select: { userId: true, profilePicUrl: true },
+        })
+      : [];
+
+    const profileMap = new Map(
+      profiles.map((profile) => [profile.userId, profile.profilePicUrl])
+    );
+
+    return Array.from(unique.values()).map((entry) => ({
+      ...entry,
+      profilePicUrl: profileMap.get(entry.userId) ?? null,
+    }));
+  },
+
 
   async getVotesByUserId(userId) {
     return await prisma.mediaUploadVote.findMany({

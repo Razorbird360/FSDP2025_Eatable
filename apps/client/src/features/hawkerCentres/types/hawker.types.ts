@@ -20,6 +20,7 @@ export interface Stall {
   maxPriceCents?: number;
   maxPrepTimeMins?: number;
   menuItemCount: number;
+  totalUpvotes?: number;
 }
 
 export interface HawkerCentreWithStalls extends HawkerCentre {

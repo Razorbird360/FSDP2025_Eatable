@@ -223,6 +223,24 @@ async function getRandomStallsBySlug(slug, limit = 3) {
 
   const stallsWithActiveMenuItems = stalls.filter((stall) => stall.menuItems.length > 0);
 
+  const menuItemIds = stallsWithActiveMenuItems.flatMap((stall) =>
+    stall.menuItems.map((item) => item.id)
+  );
+  const upvoteMap = new Map();
+  if (menuItemIds.length > 0) {
+    const upvoteAggs = await prisma.mediaUpload.groupBy({
+      by: ['menuItemId'],
+      where: {
+        menuItemId: { in: menuItemIds },
+        validationStatus: 'approved',
+      },
+      _sum: { upvoteCount: true },
+    });
+    upvoteAggs.forEach((row) => {
+      upvoteMap.set(row.menuItemId, row._sum.upvoteCount ?? 0);
+    });
+  }
+
   // Shuffle stalls array and take first N items
   const shuffled = stallsWithActiveMenuItems.sort(() => 0.5 - Math.random());
   const randomStalls = shuffled.slice(0, limit);
@@ -241,6 +259,11 @@ async function getRandomStallsBySlug(slug, limit = 3) {
       ? Math.max(...prices)
       : null;
 
+    const totalUpvotes = stall.menuItems.reduce(
+      (sum, item) => sum + (upvoteMap.get(item.id) ?? 0),
+      0
+    );
+
     return {
       id: stall.id,
       name: stall.name,
@@ -249,7 +272,8 @@ async function getRandomStallsBySlug(slug, limit = 3) {
       imageUrl: topUpload ?? stall.image_url ?? null,
       maxPrepTimeMins,
       maxPriceCents,
-      menuItemCount: stall._count.menuItems
+      menuItemCount: stall._count.menuItems,
+      totalUpvotes
     };
   });
 
@@ -278,6 +302,25 @@ async function getHawkerStallsById(hawkerId) {
       }
     });
     const stallsWithActiveMenuItems = stalls.filter((stall) => stall.menuItems.length > 0);
+
+    const menuItemIds = stallsWithActiveMenuItems.flatMap((stall) =>
+      stall.menuItems.map((item) => item.id)
+    );
+    const upvoteMap = new Map();
+    if (menuItemIds.length > 0) {
+      const upvoteAggs = await prisma.mediaUpload.groupBy({
+        by: ['menuItemId'],
+        where: {
+          menuItemId: { in: menuItemIds },
+          validationStatus: 'approved',
+        },
+        _sum: { upvoteCount: true },
+      });
+      upvoteAggs.forEach((row) => {
+        upvoteMap.set(row.menuItemId, row._sum.upvoteCount ?? 0);
+      });
+    }
+
     return stallsWithActiveMenuItems.map((stall) => {
       const prepTimes = stall.menuItems
         .map((item) => item.prepTimeMins)
@@ -289,7 +332,11 @@ async function getHawkerStallsById(hawkerId) {
       const maxPriceCents = prices.length
         ? Math.max(...prices)
         : null;
-      return { ...stall, maxPrepTimeMins, maxPriceCents };
+      const totalUpvotes = stall.menuItems.reduce(
+        (sum, item) => sum + (upvoteMap.get(item.id) ?? 0),
+        0
+      );
+      return { ...stall, maxPrepTimeMins, maxPriceCents, totalUpvotes };
     });
   } catch (error) {
     console.error(`Error fetching stalls for hawkerId ${hawkerId}:`, error);

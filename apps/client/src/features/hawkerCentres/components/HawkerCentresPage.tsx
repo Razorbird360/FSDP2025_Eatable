@@ -218,6 +218,7 @@ const HawkerCentresPage = () => {
                         name={stall.name}
                         cuisineType={stall.cuisineType}
                         imageUrl={stall.imageUrl}
+                        rating={stall.totalUpvotes ?? null}
                       />
                     </div>
                   ))}
