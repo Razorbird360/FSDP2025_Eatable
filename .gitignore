@@ -56,12 +56,6 @@ ENV/
 .venv
 
 
-# AI Models (large files)
-.mcp.json
-.claude/
-.gemini/
-.local
-
 # OS
 Thumbs.db
 .DS_Store
