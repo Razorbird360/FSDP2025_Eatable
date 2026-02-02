@@ -1,9 +1,13 @@
+import Fuse from 'fuse.js';
 import prisma from '../lib/prisma.js';
 import { searchQueries } from '../monitoring/metrics.js';
 
 const DEFAULT_LIMIT = 5;
 const CANDIDATE_MULTIPLIER = 5;
 const STOP_WORDS = new Set(['stall', 'stalls', 'the', 'a', 'an']);
+const FUZZY_THRESHOLD = 0.5;
+const FUZZY_MIN_QUERY_LENGTH = 3;
+const FUZZY_MAX_TOKENS = 6;
 
 function getMatchTier(name, query) {
   const normalizedName = name.toLowerCase();
@@ -21,6 +25,49 @@ function sortByRelevance(items, query) {
     return a.name.localeCompare(b.name);
   });
 }
+
+const normalizeForFuzzy = (value) =>
+  value
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const buildFuzzyTokens = (query) => {
+  const normalized = normalizeForFuzzy(query);
+  if (!normalized || normalized.length < FUZZY_MIN_QUERY_LENGTH) return [];
+  const tokens = normalized
+    .split(' ')
+    .map((token) => token.trim())
+    .filter(Boolean)
+    .filter((token) => !STOP_WORDS.has(token));
+
+  const fuzzyTokens = new Set();
+  for (const token of tokens) {
+    if (fuzzyTokens.size >= FUZZY_MAX_TOKENS) break;
+    if (token.length <= 3) {
+      fuzzyTokens.add(token);
+      continue;
+    }
+    fuzzyTokens.add(token.slice(0, 3));
+  }
+
+  return Array.from(fuzzyTokens);
+};
+
+const applyFuzzySort = (items, query, keys) => {
+  if (!items || items.length === 0) return [];
+  const fuse = new Fuse(items, {
+    keys,
+    includeScore: true,
+    threshold: FUZZY_THRESHOLD,
+    ignoreLocation: true,
+    minMatchCharLength: 2,
+  });
+  const results = fuse.search(query);
+  if (!results.length) return [];
+  return results.map((result) => result.item);
+};
 
 const buildTokens = (query) => {
   const tokens = query
@@ -189,45 +236,75 @@ async function search(query, limit = DEFAULT_LIMIT) {
     }
   }
 
+  let usedFuzzyCandidates = false;
+  if (
+    hawkerCentres.length === 0 &&
+    stalls.length === 0 &&
+    dishes.length === 0
+  ) {
+    const fuzzyTokens = buildFuzzyTokens(trimmedQuery);
+    if (fuzzyTokens.length > 0) {
+      ({ hawkerCentres, stalls, dishes } = await runSearch({
+        query: trimmedQuery,
+        tokens: fuzzyTokens,
+        limit,
+      }));
+      usedFuzzyCandidates = true;
+    }
+  }
+
   if (stalls.length === 0 && dishes.length > 0) {
     stalls = await buildStallsFromDishes(dishes);
   }
 
-  const hawkerCentreResults = sortByRelevance(
-    hawkerCentres.map((centre) => ({
-      id: centre.id,
-      name: centre.name,
-      imageUrl: centre.imageUrl ?? null,
-      subtitle: centre.address ?? null,
-      entityType: 'hawkerCentre',
-    })),
-    trimmedQuery
-  ).slice(0, limit);
+  const allTokensMatched =
+    tokens.length > 0 &&
+    (getActiveTokens(hawkerCentres, tokens).length === tokens.length ||
+      getActiveTokens(stalls, tokens).length === tokens.length ||
+      getActiveTokens(dishes, tokens).length === tokens.length);
 
-  const stallResults = sortByRelevance(
-    stalls.map((stall) => ({
-      id: stall.id,
-      name: stall.name,
-      imageUrl: stall.image_url ?? null,
-      subtitle: stall.hawkerCentre?.name ?? null,
-      entityType: 'stall',
-    })),
-    trimmedQuery
-  ).slice(0, limit);
+  const shouldFuzzy = usedFuzzyCandidates || (tokens.length >= 2 && !allTokensMatched);
+  const fuzzyKeys = ['name', 'subtitle'];
+  const applySort = (items) => {
+    if (shouldFuzzy) {
+      const fuzzySorted = applyFuzzySort(items, trimmedQuery, fuzzyKeys);
+      if (fuzzySorted.length > 0) {
+        return fuzzySorted.slice(0, limit);
+      }
+    }
+    return sortByRelevance(items, trimmedQuery).slice(0, limit);
+  };
 
-  const dishResults = sortByRelevance(
-    dishes.map((dish) => ({
-      id: dish.id,
-      name: dish.name,
-      imageUrl: dish.mediaUploads?.[0]?.imageUrl ?? dish.imageUrl ?? null,
-      stallId: dish.stallId,
-      subtitle: dish.stall?.name
-        ? `${dish.stall.name} • $${(dish.priceCents / 100).toFixed(2)}`
-        : `$${(dish.priceCents / 100).toFixed(2)}`,
-      entityType: 'dish',
-    })),
-    trimmedQuery
-  ).slice(0, limit);
+  const hawkerCentreResultsRaw = hawkerCentres.map((centre) => ({
+    id: centre.id,
+    name: centre.name,
+    imageUrl: centre.imageUrl ?? null,
+    subtitle: centre.address ?? null,
+    entityType: 'hawkerCentre',
+  }));
+
+  const stallResultsRaw = stalls.map((stall) => ({
+    id: stall.id,
+    name: stall.name,
+    imageUrl: stall.image_url ?? null,
+    subtitle: stall.hawkerCentre?.name ?? null,
+    entityType: 'stall',
+  }));
+
+  const dishResultsRaw = dishes.map((dish) => ({
+    id: dish.id,
+    name: dish.name,
+    imageUrl: dish.mediaUploads?.[0]?.imageUrl ?? dish.imageUrl ?? null,
+    stallId: dish.stallId,
+    subtitle: dish.stall?.name
+      ? `${dish.stall.name} • $${(dish.priceCents / 100).toFixed(2)}`
+      : `$${(dish.priceCents / 100).toFixed(2)}`,
+    entityType: 'dish',
+  }));
+
+  const hawkerCentreResults = applySort(hawkerCentreResultsRaw);
+  const stallResults = applySort(stallResultsRaw);
+  const dishResults = applySort(dishResultsRaw);
 
   // Track search query metrics
   searchQueries.labels('general').inc();

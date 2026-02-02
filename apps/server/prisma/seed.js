@@ -199,7 +199,7 @@ async function main() {
       postalCode: "168898",
       latitude: 1.2839,
       longitude: 103.8332,
-      imageUrl: "https://i.ibb.co/LXNfV2pr/Tiong-Bahru-Market.png",
+      imageUrl: "https://i.ibb.co/wZS5F8T2/Tiong-Bahru-Market.jpg",
     },
     {
       name: "Woodlands Centre Road Food Centre",

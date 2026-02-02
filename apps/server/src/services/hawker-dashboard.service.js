@@ -231,15 +231,18 @@ export const hawkerDashboardService = {
     ];
 
     // Always fetch daily data for drill-down support
-    const numDays = days;
     promises.push(
       prisma.$queryRaw`
         WITH params AS (
-          SELECT ${current.from}::date AS start_date, ${current.to}::date AS end_date
+          SELECT
+            ${current.from}::timestamptz AS start_ts,
+            ${current.to}::timestamptz AS end_ts,
+            timezone('Asia/Singapore', ${current.from}::timestamptz)::date AS start_date,
+            timezone('Asia/Singapore', ${current.to}::timestamptz)::date AS end_date
         ),
         series AS (
           SELECT (start_date + (gs * interval '1 day'))::date AS day
-          FROM params, generate_series(0, ${numDays - 1}) AS gs
+          FROM params, generate_series(0, (end_date - start_date)) AS gs
         ),
         orders AS (
           SELECT
@@ -248,8 +251,8 @@ export const hawkerDashboardService = {
           FROM "orders", params
           WHERE stall_id = ${stallId}::uuid
             AND status = 'PAID'
-            AND timezone('Asia/Singapore', created_at)::date >= start_date
-            AND timezone('Asia/Singapore', created_at)::date < end_date
+            AND created_at >= start_ts
+            AND created_at < end_ts
           GROUP BY day
         )
         SELECT
@@ -263,15 +266,22 @@ export const hawkerDashboardService = {
 
     // Fetch weekly data only for week-level granularity
     if (granularity === 'week') {
-      const weekCount = Math.ceil(days / 7);
       promises.push(
         prisma.$queryRaw`
           WITH params AS (
-            SELECT ${current.from}::date AS start_date, ${current.to}::date AS end_date
+            SELECT
+              ${current.from}::timestamptz AS start_ts,
+              ${current.to}::timestamptz AS end_ts,
+              timezone('Asia/Singapore', ${current.from}::timestamptz)::date AS start_date,
+              timezone('Asia/Singapore', ${current.to}::timestamptz)::date AS end_date
           ),
           series AS (
-            SELECT (date_trunc('week', start_date::timestamp)::date + (gs * interval '1 week'))::date AS week_start
-            FROM params, generate_series(0, ${weekCount - 1}) AS gs
+            SELECT generate_series(
+              date_trunc('week', start_date::timestamp)::date,
+              date_trunc('week', end_date::timestamp)::date,
+              interval '1 week'
+            )::date AS week_start
+            FROM params
           ),
           orders AS (
             SELECT
@@ -280,8 +290,8 @@ export const hawkerDashboardService = {
             FROM "orders", params
             WHERE stall_id = ${stallId}::uuid
               AND status = 'PAID'
-              AND timezone('Asia/Singapore', created_at)::date >= start_date
-              AND timezone('Asia/Singapore', created_at)::date < end_date
+              AND created_at >= start_ts
+              AND created_at < end_ts
             GROUP BY week_start
           )
           SELECT
