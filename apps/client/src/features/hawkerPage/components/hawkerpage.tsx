@@ -318,8 +318,7 @@ const HawkerCentreDetailPage = () => {
           const resolvedTags = resolveTagConflicts(
             dish.menuItemTagAggs || [],
             approvedUploadCount,
-            3,
-            { captionAggs: dish.tagGroups?.caption }
+            3
           );
 
           return {

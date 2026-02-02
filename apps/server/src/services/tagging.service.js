@@ -340,6 +340,20 @@ export const taggingService = {
     const historyFromAi = Array.isArray(historyEval?.history)
       ? historyEval.history
       : [];
+    const previousNormalized = new Set(
+      previousTagStats
+        .map((tag) => tag.normalized || normalizeTagLabel(tag.label))
+        .filter(Boolean)
+    );
+    const enforcedHistory = historyFromAi.map((tag) => {
+      const label = typeof tag?.label === 'string' ? tag.label : '';
+      const normalized = normalizeTagLabel(label);
+      if (!normalized) return tag;
+      if (!previousNormalized.has(normalized)) {
+        return { ...tag, confidence: 0.5 };
+      }
+      return tag;
+    });
 
     console.info(
       `[AI TAGGING] History returned for ${dishLabel}:`,
@@ -349,7 +363,7 @@ export const taggingService = {
       }))
     );
     const historyList = normalizeHistory(
-      historyFromAi.length > 0 ? historyFromAi : fallbackHistory
+      enforcedHistory.length > 0 ? enforcedHistory : fallbackHistory
     );
     const historyMap = new Map(historyList.map((tag) => [tag.normalized, tag]));
     for (const tag of finalTags) {
@@ -388,8 +402,11 @@ export const taggingService = {
       }
 
       if (updatedHistory.length < TAG_HISTORY_LIMIT) {
-        updatedHistory.push(tag);
-        updatedHistoryMap.set(tag.normalized, tag);
+        const normalizedTag = previousNormalized.has(tag.normalized)
+          ? tag
+          : { ...tag, confidence: 0.5 };
+        updatedHistory.push(normalizedTag);
+        updatedHistoryMap.set(normalizedTag.normalized, normalizedTag);
         return;
       }
 
@@ -402,9 +419,12 @@ export const taggingService = {
           (entry) => entry.normalized === removable.normalized
         );
         if (index >= 0) {
-          updatedHistory.splice(index, 1, tag);
+          const normalizedTag = previousNormalized.has(tag.normalized)
+            ? tag
+            : { ...tag, confidence: 0.5 };
+          updatedHistory.splice(index, 1, normalizedTag);
           updatedHistoryMap.delete(removable.normalized);
-          updatedHistoryMap.set(tag.normalized, tag);
+          updatedHistoryMap.set(normalizedTag.normalized, normalizedTag);
         }
       }
     });
