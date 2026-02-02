@@ -12,6 +12,11 @@ This repository is a pnpm monorepo that powers:
 - An in-app AI agent (tool-calling chat for discovery/cart/order/payment).
 - Optional monitoring (Prometheus + Grafana).
 
+## Resource Links
+Slides [here](https://www.canva.com/design/DAG_beRPosw/8pGANjsHFhpi2mS7DSvfWA/edit?utm_content=DAG_beRPosw&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton)  
+Figma [here](https://www.figma.com/design/lQLWWhkWKBYVUHGMq7gY3a/Eatable-BevEats?node-id=1-2&t=CtAhC8Ikp7CBtmlS-1)  
+Live website at [eatable.blog](https://eatable.blog)
+
 ## Scope (What This Project Covers)
 
 Customer experience
@@ -212,7 +217,3 @@ Optional: start monitoring
 ```bash
 pnpm dev:metrics
 ```
-
-## Slides & Figma
-Slides [here](https://www.canva.com/design/DAG_beRPosw/8pGANjsHFhpi2mS7DSvfWA/edit?utm_content=DAG_beRPosw&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton)  
-Figma [here](https://www.figma.com/design/lQLWWhkWKBYVUHGMq7gY3a/Eatable-BevEats?node-id=1-2&t=CtAhC8Ikp7CBtmlS-1)

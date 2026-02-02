@@ -818,6 +818,18 @@ export async function* streamAgentResponse({
       );
       yield { type: 'tool', payload: output };
 
+      if (!outputHasError && NETS_TOOL_NAMES.has(call.name)) {
+        const responseText =
+          call.name === 'query_nets_qr_status'
+            ? 'Checking payment status...'
+            : 'Scan the QR code below to complete payment.';
+        // Short-circuit to avoid waiting for a follow-up model response.
+        yield { type: 'delta', delta: responseText };
+        responseTimer();
+        agentRequestsTotal.labels('success').inc();
+        return;
+      }
+
       if (!outputHasError) {
         const outputData = output?.output ?? output;
         if (call.name === 'list_stalls') {
