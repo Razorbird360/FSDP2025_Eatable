@@ -1,0 +1,11 @@
+tunnel: <TUNNEL_UUID_OR_NAME>
+credentials-file: /etc/cloudflared/credentials.json
+
+ingress:
+  - hostname: app.example.com
+    service: http://client:80
+  - hostname: api.example.com
+    service: http://server:3000
+  - hostname: ai.example.com
+    service: http://ai:8000
+  - service: http_status:404

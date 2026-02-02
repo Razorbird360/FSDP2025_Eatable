@@ -44,6 +44,10 @@ coverage/
 # Docker
 docker/
 
+# Cloudflared
+cloudflared/config.yml
+cloudflared/*.json
+
 # Python
 __pycache__/
 *.py[cod]

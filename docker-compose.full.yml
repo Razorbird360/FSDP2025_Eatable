@@ -1,0 +1,90 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: eatable_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: eatable_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    mem_limit: ${POSTGRES_MEM_LIMIT:-512m}
+    cpus: ${POSTGRES_CPUS:-0.50}
+
+  ai:
+    build:
+      context: .
+      dockerfile: apps/ai-services/Dockerfile
+    container_name: eatable_ai
+    restart: unless-stopped
+    env_file:
+      - ./apps/ai-services/.env
+    environment:
+      NVIDIA_VISIBLE_DEVICES: ${AI_GPU_DEVICE:-0}
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+    runtime: nvidia
+    ports:
+      - "127.0.0.1:${AI_PORT:-18000}:8000"
+    mem_limit: ${AI_MEM_LIMIT:-1024m}
+    cpus: ${AI_CPUS:-2.0}
+
+  server:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    container_name: eatable_server
+    restart: unless-stopped
+    env_file:
+      - ./apps/server/.env
+    environment:
+      PORT: 3000
+      NODE_ENV: production
+      AI_SERVICE_URL: http://ai:8000
+    depends_on:
+      ai:
+        condition: service_started
+    ports:
+      - "127.0.0.1:${SERVER_PORT:-13000}:3000"
+    mem_limit: ${SERVER_MEM_LIMIT:-768m}
+    cpus: ${SERVER_CPUS:-1.5}
+
+  client:
+    build:
+      context: .
+      dockerfile: apps/client/Dockerfile
+      args:
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL}
+        VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY}
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+        VITE_AI_WS_URL: ${VITE_AI_WS_URL}
+        VITE_GOOGLE_MAPS_API_KEY: ${VITE_GOOGLE_MAPS_API_KEY}
+        VITE_GOOGLE_MAP_ID: ${VITE_GOOGLE_MAP_ID}
+    container_name: eatable_client
+    restart: unless-stopped
+    depends_on:
+      - server
+    ports:
+      - "127.0.0.1:${CLIENT_PORT:-15173}:80"
+    mem_limit: ${CLIENT_MEM_LIMIT:-256m}
+    cpus: ${CLIENT_CPUS:-0.50}
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: eatable_cloudflared
+    restart: unless-stopped
+    command: tunnel run --token ${CLOUDFLARED_TOKEN}
+    depends_on:
+      - client
+      - server
+      - ai
+    mem_limit: ${CLOUDFLARED_MEM_LIMIT:-128m}
+    cpus: ${CLOUDFLARED_CPUS:-0.25}
+
+volumes:
+  postgres_data:

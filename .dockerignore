@@ -1,0 +1,17 @@
+.git
+.gitignore
+node_modules
+**/node_modules
+apps/**/dist
+apps/**/build
+apps/ai-services/venv
+apps/ai-services/.env
+apps/client/.env
+apps/server/.env
+apps/ai-services/__pycache__
+**/__pycache__
+**/*.pyc
+monitoring
+*.log
+docker/postgres_data
+cloudflared

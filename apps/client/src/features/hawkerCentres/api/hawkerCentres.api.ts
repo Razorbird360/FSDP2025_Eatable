@@ -4,7 +4,9 @@ import type { HawkerCentre, Stall } from '../types/hawker.types';
 const CLEMENTI_MRT_LAT = 1.315528101289874;
 const CLEMENTI_MRT_LNG = 103.76508385110719;
 
-const API_BASE_URL = '/api/hawker-centres';
+const API_ROOT =
+  import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
+const API_BASE_URL = `${API_ROOT.replace(/\/$/, '')}/hawker-centres`;
 
 type Coords = { lat: number; lng: number };
 

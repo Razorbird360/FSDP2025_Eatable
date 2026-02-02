@@ -10,6 +10,8 @@
     "dev:ai": "node scripts/lib/dev-ai.js",
     "dev:all": "concurrently \"pnpm dev:client\" \"pnpm dev:server\" \"pnpm dev:ai\"",
     "dev:metrics": "docker compose -f monitoring/docker-compose.yml up -d",
+    "docker:full": "docker compose -f docker-compose.full.yml up -d --build",
+    "docker:migrate": "docker compose -f docker-compose.full.yml exec server pnpm --filter server prisma migrate deploy",
     "setup:ai": "node scripts/lib/setup-ai-check.js",
     "build": "pnpm -r build",
     "build:client": "pnpm --filter client build",
