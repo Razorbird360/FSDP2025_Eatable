@@ -171,7 +171,7 @@ export const hawkerDashboardService = {
   buildDateRanges,
 
   async getSummary(stallId, timePeriod = 'lastMonth') {
-    const { current, previous, days } = buildDateRanges(timePeriod);
+    const { current, previous } = buildDateRanges(timePeriod);
     const granularity = getChartGranularity(timePeriod);
 
     const promises = [
