@@ -137,7 +137,7 @@ export default function VerificationModal({
   const wsRef = useRef<WebSocket | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const frameTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const sendInFlightRef = useRef<boolean>(false);
+  const sendInFlightRef = useRef<number>(0);
   const uploadFrameRef = useRef<File | null>(null);
   const faceStageRef = useRef<boolean>(false);
   const freezeFrameRef = useRef<boolean>(false);
@@ -150,6 +150,7 @@ export default function VerificationModal({
   const [videoReady, setVideoReady] = useState<boolean>(false);
   const [wsReady, setWsReady] = useState<boolean>(false);
   const [hasReceivedPayload, setHasReceivedPayload] = useState<boolean>(false);
+  const [needsUserGesture, setNeedsUserGesture] = useState<boolean>(false);
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [status, setStatus] = useState<DetectionStatus>('SEARCHING');
   const [statusText, setStatusText] = useState<string>('Show card');
@@ -266,10 +267,19 @@ export default function VerificationModal({
     }
     const video = videoRef.current;
     if (!video) return undefined;
-    const handleLoaded = () => setVideoReady(true);
+    const handleLoaded = () => {
+      setVideoReady(true);
+      setNeedsUserGesture(false);
+    };
     video.addEventListener('loadeddata', handleLoaded);
+    video.addEventListener('loadedmetadata', handleLoaded);
+    video.addEventListener('canplay', handleLoaded);
+    video.addEventListener('playing', handleLoaded);
     return () => {
       video.removeEventListener('loadeddata', handleLoaded);
+      video.removeEventListener('loadedmetadata', handleLoaded);
+      video.removeEventListener('canplay', handleLoaded);
+      video.removeEventListener('playing', handleLoaded);
       setVideoReady(false);
     };
   }, [isOpen]);
@@ -335,7 +345,7 @@ export default function VerificationModal({
     setLiveFaceBbox(null);
     setLiveFaceSimilarity(null);
     setNoFaceOnCard(false);
-    sendInFlightRef.current = false;
+    sendInFlightRef.current = 0;
     lockHandledRef.current = false;
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       wsRef.current.send('reset');
@@ -343,6 +353,23 @@ export default function VerificationModal({
   }, []);
 
   const startCamera = useCallback(async (mode: 'card' | 'face' = 'card') => {
+    const waitForVideoReady = (video: HTMLVideoElement) => {
+      let attempts = 0;
+      const maxAttempts = 20;
+      const check = () => {
+        if (!videoRef.current) return;
+        if (video.readyState >= 2 && video.videoWidth > 0) {
+          setVideoReady(true);
+          setNeedsUserGesture(false);
+          return;
+        }
+        attempts += 1;
+        if (attempts < maxAttempts) {
+          setTimeout(check, 150);
+        }
+      };
+      check();
+    };
     try {
       if (mediaStreamRef.current) {
         return;
@@ -358,31 +385,88 @@ export default function VerificationModal({
       setCameraError(null);
       mediaStreamRef.current = stream;
       if (videoRef.current) {
+        videoRef.current.autoplay = true;
+        videoRef.current.muted = true;
+        videoRef.current.playsInline = true;
         videoRef.current.srcObject = stream;
+        const playPromise = videoRef.current.play();
+        if (playPromise && typeof playPromise.then === 'function') {
+          playPromise
+            .then(() => setNeedsUserGesture(false))
+            .catch(() => setNeedsUserGesture(true));
+        }
+        if (videoRef.current.readyState >= 2) {
+          setVideoReady(true);
+          setNeedsUserGesture(false);
+        } else {
+          waitForVideoReady(videoRef.current);
+        }
       }
     } catch (error) {
       console.error('Camera init error:', error);
       setCameraError('Unable to access camera');
+      // Fallback to simpler constraints (helps on Safari/iOS)
+      try {
+        const fallbackStream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+        });
+        mediaStreamRef.current = fallbackStream;
+        if (videoRef.current) {
+          videoRef.current.autoplay = true;
+          videoRef.current.muted = true;
+          videoRef.current.playsInline = true;
+          videoRef.current.srcObject = fallbackStream;
+          const playPromise = videoRef.current.play();
+          if (playPromise && typeof playPromise.then === 'function') {
+            playPromise
+              .then(() => setNeedsUserGesture(false))
+              .catch(() => setNeedsUserGesture(true));
+          }
+          if (videoRef.current.readyState >= 2) {
+            setVideoReady(true);
+            setNeedsUserGesture(false);
+          } else {
+            waitForVideoReady(videoRef.current);
+          }
+        }
+        setCameraError(null);
+      } catch (_fallbackError) {
+        // keep original error state
+      }
     }
   }, []);
 
-  const sendFrameBlob = useCallback(async (blob: Blob | File) => {
-    if (
-      !blob ||
-      !wsRef.current ||
-      wsRef.current.readyState !== WebSocket.OPEN
-    ) {
+  const handleUserStartCamera = useCallback(async () => {
+    const mode: 'card' | 'face' = faceStageRef.current ? 'face' : 'card';
+    if (!mediaStreamRef.current) {
+      await startCamera(mode);
+    }
+    if (videoRef.current) {
+      try {
+        await videoRef.current.play();
+        setNeedsUserGesture(false);
+        if (videoRef.current.readyState >= 2) {
+          setVideoReady(true);
+        }
+      } catch {
+        setNeedsUserGesture(true);
+      }
+    }
+  }, [startCamera]);
+
+  const sendFrameData = useCallback((data: string | ArrayBuffer) => {
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
       return;
     }
-    if (sendInFlightRef.current) {
+    const now = Date.now();
+    if (sendInFlightRef.current && now - sendInFlightRef.current < 1500) {
       return;
     }
-    sendInFlightRef.current = true;
+    sendInFlightRef.current = now;
     try {
-      const buffer = await blob.arrayBuffer();
-      wsRef.current.send(buffer);
+      wsRef.current.send(data);
     } catch {
-      sendInFlightRef.current = false;
+      sendInFlightRef.current = 0;
     }
   }, []);
 
@@ -396,13 +480,20 @@ export default function VerificationModal({
     }
 
     if (uploadFrameRef.current) {
-      sendFrameBlob(uploadFrameRef.current);
+      const file = uploadFrameRef.current;
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          sendFrameData(reader.result);
+        }
+      };
+      reader.readAsDataURL(file);
       return;
     }
 
     const video = videoRef.current;
     const canvas = captureCanvasRef.current;
-    if (!video || !canvas || !videoReady || video.readyState < 2) {
+    if (!video || !canvas || video.readyState < 2) {
       return;
     }
 
@@ -412,30 +503,27 @@ export default function VerificationModal({
       return;
     }
 
-    if (canvas.width !== width || canvas.height !== height) {
-      canvas.width = width;
-      canvas.height = height;
+    const maxWidth = faceStageRef.current ? 640 : 640;
+    const maxHeight = faceStageRef.current ? 640 : 480;
+    const scale = Math.min(maxWidth / width, maxHeight / height, 1);
+    const targetWidth = Math.round(width * scale);
+    const targetHeight = Math.round(height * scale);
+
+    if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
+      canvas.width = targetWidth;
+      canvas.height = targetHeight;
     }
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    ctx.drawImage(video, 0, 0, width, height);
+    ctx.drawImage(video, 0, 0, targetWidth, targetHeight);
 
+    const frameDataUrl = canvas.toDataURL('image/jpeg', 0.6);
     if (faceStageRef.current) {
-      const frameDataUrl = canvas.toDataURL('image/jpeg', 0.9);
       setFaceFrame(frameDataUrl);
     }
-
-    canvas.toBlob(
-      (blob) => {
-        if (blob) {
-          sendFrameBlob(blob);
-        }
-      },
-      'image/jpeg',
-      0.75
-    );
-  }, [sendFrameBlob, videoReady]);
+    sendFrameData(frameDataUrl);
+  }, [sendFrameData]);
 
   const startCaptureLoop = useCallback(() => {
     if (frameTimerRef.current) return;
@@ -462,7 +550,7 @@ export default function VerificationModal({
       setWsReady(false);
     };
     ws.onmessage = (event: MessageEvent) => {
-      sendInFlightRef.current = false;
+      sendInFlightRef.current = 0;
       let payload: WebSocketPayload;
       try {
         payload = JSON.parse(event.data as string);
@@ -518,7 +606,7 @@ export default function VerificationModal({
         );
         stopCaptureLoop();
         stopCamera();
-        sendInFlightRef.current = false;
+        sendInFlightRef.current = 0;
       }
 
       if (payload.state === 'LOCKED' && !lockHandledRef.current) {
@@ -551,7 +639,7 @@ export default function VerificationModal({
         setIsZoomAnimating(true);
         stopCaptureLoop();
         stopCamera();
-        sendInFlightRef.current = false;
+        sendInFlightRef.current = 0;
         setUploadPreview(null);
 
         // After pop animation, immediately proceed to face validation
@@ -562,7 +650,7 @@ export default function VerificationModal({
           setFrozenFrame(null);
           setFaceStageActive(true);
           setFreezeFrame(false);
-          sendInFlightRef.current = false;
+          sendInFlightRef.current = 0;
           lockHandledRef.current = false;
           startCamera('face');
           startCaptureLoop();
@@ -575,11 +663,13 @@ export default function VerificationModal({
     return () => {
       ws.close();
       wsRef.current = null;
-      sendInFlightRef.current = false;
+      sendInFlightRef.current = 0;
       setWsReady(false);
       setHasReceivedPayload(false);
     };
-  }, [isOpen, startCamera, startCaptureLoop, stopCaptureLoop, stopCamera]);
+  // Keep a single websocket instance while the modal is open.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen || !wsReady) return undefined;
@@ -598,6 +688,7 @@ export default function VerificationModal({
     uploadFrameRef.current = null;
     setWsReady(false);
     setHasReceivedPayload(false);
+    setNeedsUserGesture(false);
     resetDetectionState();
   }, [isOpen, resetDetectionState]);
 
@@ -607,16 +698,13 @@ export default function VerificationModal({
       stopCaptureLoop();
       return;
     }
-    if (videoReady || uploadFrameRef.current) {
-      startCaptureLoop();
-    }
+    startCaptureLoop();
   }, [
     freezeFrame,
     imagePreview,
     isOpen,
     startCaptureLoop,
     stopCaptureLoop,
-    videoReady,
     wsReady,
   ]);
 
@@ -723,10 +811,14 @@ export default function VerificationModal({
   const showFaceLayout = faceStageActive || freezeFrame;
   const facePreviewImage = cardFaceCrop || cardCrop;
   const isInitializing =
+    !cameraError && !previewImage && !freezeFrame && (!wsReady || !videoReady);
+  const isWaitingForAI =
     !cameraError &&
     !previewImage &&
     !freezeFrame &&
-    (!wsReady || !videoReady || !hasReceivedPayload);
+    wsReady &&
+    videoReady &&
+    !hasReceivedPayload;
   const descriptionText = showFaceLayout
     ? "Align your face in the frame so we can match it to your ID."
     : "Capture a clear photo of your ID. We&apos;ll validate it on our secure server before proceeding.";
@@ -929,10 +1021,42 @@ export default function VerificationModal({
                   textAlign="center"
                   px={6}
                 >
-                  <Text color="white" fontSize="sm" fontWeight="semibold">
-                    Initializing camera &amp; websocket connection
-                    {'.'.repeat(initDots)}
-                  </Text>
+                  {needsUserGesture ? (
+                    <VStack spacing={3}>
+                      <Text color="white" fontSize="sm" fontWeight="semibold">
+                        Tap to start the camera
+                      </Text>
+                      <Button
+                        onClick={handleUserStartCamera}
+                        size="sm"
+                        colorScheme="teal"
+                      >
+                        Start camera
+                      </Button>
+                    </VStack>
+                  ) : (
+                    <Text color="white" fontSize="sm" fontWeight="semibold">
+                      Initializing camera &amp; websocket connection
+                      {'.'.repeat(initDots)}
+                    </Text>
+                  )}
+                </Box>
+              )}
+
+              {isWaitingForAI && !needsUserGesture && (
+                <Box
+                  position="absolute"
+                  bottom="12px"
+                  left="50%"
+                  transform="translateX(-50%)"
+                  bg="rgba(0,0,0,0.6)"
+                  color="white"
+                  px={3}
+                  py={1}
+                  borderRadius="full"
+                  fontSize="xs"
+                >
+                  Waiting for AI connection…
                 </Box>
               )}
 
@@ -1076,7 +1200,7 @@ export default function VerificationModal({
                   </Button>
                 )}
 
-              {!imagePreview && !isInitializing && (
+              {!imagePreview && !isInitializing && !isWaitingForAI && (
                 <Box
                   position="absolute"
                   bottom="3"

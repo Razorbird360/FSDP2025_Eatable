@@ -106,6 +106,24 @@ Development
 - `pnpm dev:all` - runs client + server + AI service concurrently.
 - `pnpm dev:metrics` - starts Prometheus + Grafana via Docker.
 
+Docker (Full Stack)
+- `pnpm docker:up` - start existing containers (no build).
+- `pnpm docker:full` - build + start the full stack.
+- `pnpm docker:rebuild` - force rebuild + start the full stack.
+- `pnpm docker:down` - stop the full stack.
+- `pnpm docker:down:volumes` - stop + wipe DB volume.
+- `pnpm docker:restart:all` - restart client/server/ai/cloudflared.
+- `pnpm docker:restart:client` - restart client only.
+- `pnpm docker:restart:server` - restart server only.
+- `pnpm docker:restart:ai` - restart AI service only.
+- `pnpm docker:restart:cloudflared` - restart cloudflared only.
+- `pnpm docker:logs:server` - follow server logs.
+- `pnpm docker:logs:ai` - follow AI logs.
+- `pnpm docker:logs:client` - follow client logs.
+- `pnpm docker:logs:cloudflared` - follow cloudflared logs.
+- `pnpm docker:status` - show container status.
+- `pnpm docker:migrate` - apply Prisma migrations (use carefully if pointing at Supabase).
+
 Build
 - `pnpm build` - builds all workspace packages.
 - `pnpm build:client` - builds the client.

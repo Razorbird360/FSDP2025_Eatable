@@ -1,5 +1,7 @@
+import base64
 import json
 import time
+import logging
 from fastapi import APIRouter, File, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 import cv2
 import numpy as np
@@ -16,6 +18,7 @@ from app.metrics import (
 from app.state import VerificationState
 from app.tools.id_detector import process_frame
 
+logger = logging.getLogger("id_verification")
 router = APIRouter(prefix="/id", tags=["id-verification"])
 
 
@@ -39,26 +42,42 @@ async def id_verification_ws(websocket: WebSocket):
     state = VerificationState()
     ws_active_connections.inc()
     face_match_reported = False
-
     try:
         while True:
             message = await websocket.receive()
             if message.get("type") == "websocket.disconnect":
                 break
+            frame_bytes = None
             if "text" in message and message["text"]:
-                ws_messages_total.labels("control").inc()
-                text = message["text"].strip().lower()
-                if text == "reset":
+                text = message["text"].strip()
+                lowered = text.lower()
+                if lowered == "reset":
+                    ws_messages_total.labels("control").inc()
                     state.reset()
-                elif text == "retry_face":
+                    continue
+                if lowered == "retry_face":
+                    ws_messages_total.labels("control").inc()
                     state.reset_face_validation()
-                continue
+                    continue
+                if text.startswith("data:image/") and "," in text:
+                    ws_messages_total.labels("frame").inc()
+                    _, b64 = text.split(",", 1)
+                    try:
+                        frame_bytes = base64.b64decode(b64)
+                    except Exception:
+                        logger.warning("Failed to base64 decode frame text")
+                        continue
+                else:
+                    continue
 
-            frame_bytes = message.get("bytes")
-            if not frame_bytes:
+            if frame_bytes is None:
+                frame_bytes = message.get("bytes")
+            if frame_bytes is None:
                 continue
-            ws_messages_total.labels("frame").inc()
-
+            if not (isinstance(message.get("text"), str) and message.get("text", "").startswith("data:image/")):
+                ws_messages_total.labels("frame").inc()
+            if isinstance(frame_bytes, memoryview):
+                frame_bytes = frame_bytes.tobytes()
             frame = cv2.imdecode(np.frombuffer(frame_bytes, np.uint8), cv2.IMREAD_COLOR)
             if frame is None:
                 continue
